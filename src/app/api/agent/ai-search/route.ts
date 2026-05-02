@@ -1,0 +1,139 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+export interface AiOption {
+  vendor: string
+  description: string
+  priceUsd: number
+}
+
+export interface AiSearchResult {
+  flights: AiOption[]
+  hotels: AiOption[]
+  cars: AiOption[]
+}
+
+function searchFlights(
+  origin: string,
+  destination: string,
+  departureDate: string,
+  returnDate: string,
+  cabinClass: string
+): AiOption[] {
+  const dest = destination.toLowerCase()
+  const base = dest.includes('london') ? 420 : dest.includes('paris') ? 380 : dest.includes('new york') ? 780 : 350
+  const mul = cabinClass === 'BUSINESS' ? 3.2 : cabinClass === 'FIRST' ? 5.5 : 1
+  return [
+    {
+      vendor: 'SAS',
+      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()}, dep ${departureDate} 07:30 / ret ${returnDate} 18:00`,
+      priceUsd: Math.round(base * mul * 0.95),
+    },
+    {
+      vendor: 'Norwegian',
+      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()}, dep ${departureDate} 11:45 / ret ${returnDate} 20:15`,
+      priceUsd: Math.round(base * mul * 0.82),
+    },
+    {
+      vendor: 'British Airways',
+      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()} via LHR, dep ${departureDate} 06:00 / ret ${returnDate} 16:30`,
+      priceUsd: Math.round(base * mul * 1.15),
+    },
+  ]
+}
+
+function searchHotels(city: string, checkIn: string, checkOut: string, nights: number): AiOption[] {
+  const c = city.toLowerCase()
+  const rate = c.includes('london') ? 195 : c.includes('paris') ? 175 : c.includes('new york') ? 310 : 140
+  return [
+    {
+      vendor: 'Marriott',
+      description: `Marriott ${city} City Centre — ${nights} nights (${checkIn} → ${checkOut}), breakfast included`,
+      priceUsd: Math.round(rate * nights * 1.05),
+    },
+    {
+      vendor: 'Hilton',
+      description: `Hilton ${city} — ${nights} nights (${checkIn} → ${checkOut}), free WiFi, fitness centre`,
+      priceUsd: Math.round(rate * nights * 0.95),
+    },
+    {
+      vendor: 'citizenM',
+      description: `citizenM ${city} — ${nights} nights (${checkIn} → ${checkOut}), modern design, all-inclusive`,
+      priceUsd: Math.round(rate * nights * 0.78),
+    },
+  ]
+}
+
+function searchRentalCars(city: string, pickupDate: string, returnDate: string, days: number): AiOption[] {
+  const rate = 65
+  return [
+    {
+      vendor: 'Hertz',
+      description: `Hertz ${city} — Compact (VW Golf), ${days} days (${pickupDate} → ${returnDate}), unlimited km`,
+      priceUsd: Math.round(rate * days * 0.98),
+    },
+    {
+      vendor: 'Avis',
+      description: `Avis ${city} — Intermediate (Toyota Corolla), ${days} days (${pickupDate} → ${returnDate}), GPS included`,
+      priceUsd: Math.round(rate * days * 1.05),
+    },
+    {
+      vendor: 'Europcar',
+      description: `Europcar ${city} — Economy (Ford Focus), ${days} days (${pickupDate} → ${returnDate}), full insurance`,
+      priceUsd: Math.round(rate * days * 0.85),
+    },
+  ]
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user?.companyId || session.user.role !== 'TRAVEL_AGENT') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { travelRequestId } = await req.json()
+  if (!travelRequestId) return NextResponse.json({ error: 'travelRequestId required' }, { status: 400 })
+
+  const request = await prisma.travelRequest.findFirst({
+    where: { id: travelRequestId, companyId: session.user.companyId },
+  })
+  if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const dates = request.travelDates as { departureDate: string; returnDate: string }
+  const nights = request.hotelNights ?? 1
+  const days = request.carRentalDays ?? 1
+  const services = request.servicesRequested as string[]
+
+  const result: AiSearchResult = { flights: [], hotels: [], cars: [] }
+
+  if (services.includes('FLIGHT')) {
+    result.flights = searchFlights(
+      request.origin,
+      request.destination,
+      dates.departureDate,
+      dates.returnDate,
+      request.preferredClass
+    )
+  }
+
+  if (services.includes('HOTEL')) {
+    result.hotels = searchHotels(
+      request.destination,
+      dates.departureDate,
+      dates.returnDate,
+      nights
+    )
+  }
+
+  if (services.includes('CAR_RENTAL')) {
+    result.cars = searchRentalCars(
+      request.destination,
+      dates.departureDate,
+      dates.returnDate,
+      days
+    )
+  }
+
+  return NextResponse.json(result)
+}

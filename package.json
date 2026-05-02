@@ -1,0 +1,58 @@
+{
+  "name": "traveldesk",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3003",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest",
+    "lint": "next lint",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:seed": "ts-node --project tsconfig.json prisma/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
+    "@auth/prisma-adapter": "^2.0.0",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/client-textract": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "@prisma/client": "^5.0.0",
+    "@sendgrid/mail": "^8.0.0",
+    "bcryptjs": "^2.4.3",
+    "next": "^14.2.35",
+    "next-auth": "^5.0.0-beta.31",
+    "openai": "^6.34.0",
+    "otplib": "^12.0.1",
+    "qrcode": "^1.5.3",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "xlsx": "^0.18.5",
+    "zod": "^3.22.0"
+  },
+  "prisma": {
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.0.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "autoprefixer": "^10.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^16.2.4",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^30.3.0",
+    "postcss": "^8.0.0",
+    "prisma": "^5.0.0",
+    "tailwindcss": "^3.0.0",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

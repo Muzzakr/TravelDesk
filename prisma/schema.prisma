@@ -1,0 +1,433 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Multi-tenant root ───────────────────────────────────────────────────────
+
+model Company {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  plan           String   @default("starter")
+  webhookApiKey  String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users            User[]
+  events           Event[]
+  travelRequests   TravelRequest[]
+  expenses         Expense[]
+  auditLogs        AuditLog[]
+  payoutReports    PayoutReport[]
+  cardTransactions CardTransaction[]
+  policyRules      PolicyRule[]
+  travelerProfiles TravelerProfile[]
+}
+
+// ─── Users & Auth ────────────────────────────────────────────────────────────
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  TRAVEL_AGENT
+  FINANCE_ADMIN
+  SYSTEM_ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  companyId     String
+  email         String
+  name          String
+  role          Role      @default(EMPLOYEE)
+  passwordHash  String?
+  mfaSecret     String?
+  mfaEnabled    Boolean   @default(false)
+  managerId     String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager              User?           @relation("ManagerReports", fields: [managerId], references: [id])
+  directReports        User[]          @relation("ManagerReports")
+  travelRequests       TravelRequest[] @relation("EmployeeTravelRequests")
+  agentBookings        TravelRequest[] @relation("AgentBookings")
+  expenses             Expense[]
+  approvalActions      ApprovalAction[]
+  auditLogs            AuditLog[]
+  delegationsGiven     Delegation[]    @relation("DelegatorDelegations")
+  delegationsReceived  Delegation[]    @relation("DelegateDelegations")
+  travelerProfile      TravelerProfile?
+
+  @@unique([companyId, email])
+}
+
+model Delegation {
+  id          String   @id @default(cuid())
+  companyId   String
+  delegatorId String
+  delegateId  String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+
+  delegator User @relation("DelegatorDelegations", fields: [delegatorId], references: [id])
+  delegate  User @relation("DelegateDelegations", fields: [delegateId], references: [id])
+}
+
+// ─── Events (cost center tagging) ────────────────────────────────────────────
+
+enum EventStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+model Event {
+  id               String      @id @default(cuid())
+  companyId        String
+  eventCode        String
+  eventName        String
+  status           EventStatus @default(DRAFT)
+  ownerUserId      String
+
+  // Event details
+  venue            String?
+  address          String?
+  eventDate        DateTime?
+  dateStart        DateTime?
+  dateEnd          DateTime?
+  timing           String?
+
+  // Staff
+  assignedDj       String?
+  assignedMc       String?
+  salesPerson      String?
+  service          String?
+
+  // Finance (kept for budget tracking)
+  costCenter       String?
+  budgetUsd        Decimal     @default(0) @db.Decimal(12, 2)
+  approvedSpendUsd Decimal     @default(0) @db.Decimal(12, 2)
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  travelRequests TravelRequest[]
+  expenses       Expense[]
+
+  @@unique([companyId, eventCode])
+}
+
+// ─── Travel Requests ─────────────────────────────────────────────────────────
+
+enum TravelRequestStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_AGENT
+  PENDING_MANAGER
+  OPTIONS_PROVIDED
+  APPROVED
+  BOOKING_CONFIRMED
+  REJECTED
+  CANCELLED
+}
+
+enum RoutingPath {
+  AGENT_FIRST
+  MANAGER_FIRST
+  PARALLEL
+  MANAGER_ONLY
+}
+
+enum TravelClass {
+  ECONOMY
+  BUSINESS
+  FIRST
+}
+
+model TravelRequest {
+  id                String              @id @default(cuid())
+  companyId         String
+  employeeId        String
+  agentId           String?
+  eventId           String
+  origin            String
+  destination       String
+  travelDates       Json
+  servicesRequested String[]
+  estimatedCostUsd  Decimal?            @db.Decimal(12, 2)
+  purpose           String
+  preferredClass    TravelClass         @default(ECONOMY)
+  hotelNights       Int?
+  carRentalDays     Int?
+  specialInstructions String?
+  confirmationNumber  String?
+  status            TravelRequestStatus @default(DRAFT)
+  routingPath       RoutingPath         @default(AGENT_FIRST)
+  rejectionNote     String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee        User             @relation("EmployeeTravelRequests", fields: [employeeId], references: [id])
+  agent           User?            @relation("AgentBookings", fields: [agentId], references: [id])
+  event           Event            @relation(fields: [eventId], references: [id])
+  approvalActions ApprovalAction[]
+  expenses        Expense[]
+  bookingOptions  BookingOption[]
+}
+
+// ─── Booking Options (Travel Agent) ──────────────────────────────────────────
+
+model BookingOption {
+  id              String   @id @default(cuid())
+  travelRequestId String
+  serviceType     String
+  vendor          String
+  description     String
+  priceUsd        Decimal  @db.Decimal(12, 2)
+  isSelected      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  travelRequest TravelRequest @relation(fields: [travelRequestId], references: [id], onDelete: Cascade)
+}
+
+// ─── Expenses ─────────────────────────────────────────────────────────────────
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum ExpenseCategory {
+  MEALS
+  TRANSPORT
+  ACCOMMODATION
+  SUPPLIES
+  OTHER
+}
+
+enum ExpenseType {
+  OUT_OF_POCKET
+  CORPORATE_CARD
+}
+
+model Expense {
+  id              String          @id @default(cuid())
+  companyId       String
+  employeeId      String
+  eventId         String
+  travelRequestId String?
+  category        ExpenseCategory
+  expenseType     ExpenseType     @default(OUT_OF_POCKET)
+  amountUsd       Decimal         @db.Decimal(12, 2)
+  currency        String          @default("USD")
+  description     String
+  status          ExpenseStatus   @default(DRAFT)
+  merchantName    String?
+  transactionDate DateTime?
+  service         String?
+  rejectionNote   String?
+  payoutReportId  String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee       User             @relation(fields: [employeeId], references: [id])
+  event          Event            @relation(fields: [eventId], references: [id])
+  travelRequest  TravelRequest?   @relation(fields: [travelRequestId], references: [id])
+  payoutReport   PayoutReport?    @relation(fields: [payoutReportId], references: [id])
+  receipts       Receipt[]
+  approvalActions ApprovalAction[]
+  comments       Comment[]
+}
+
+// ─── Receipts ─────────────────────────────────────────────────────────────────
+
+model Receipt {
+  id           String   @id @default(cuid())
+  expenseId    String
+  s3Key        String
+  fileName     String
+  mimeType     String
+  ocrMerchant  String?
+  ocrAmount    Decimal? @db.Decimal(12, 2)
+  ocrDate      DateTime?
+  ocrRaw       Json?
+  uploadedAt   DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+// ─── Approval Actions ─────────────────────────────────────────────────────────
+
+enum ApprovalActionType {
+  APPROVE
+  REJECT
+  DELEGATE
+  ESCALATE
+  MODIFY
+  SUBMIT
+}
+
+model ApprovalAction {
+  id              String             @id @default(cuid())
+  companyId       String
+  actorId         String
+  travelRequestId String?
+  expenseId       String?
+  actionType      ApprovalActionType
+  note            String?
+  ipAddress       String?
+  createdAt       DateTime           @default(now())
+
+  actor         User           @relation(fields: [actorId], references: [id])
+  travelRequest TravelRequest? @relation(fields: [travelRequestId], references: [id])
+  expense       Expense?       @relation(fields: [expenseId], references: [id])
+}
+
+// ─── Comments ─────────────────────────────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(cuid())
+  expenseId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+// ─── Card Transactions ────────────────────────────────────────────────────────
+
+enum CardTransactionStatus {
+  PENDING_TAG
+  TAGGED
+  SUBMITTED
+  MATCHED
+}
+
+model CardTransaction {
+  id             String                @id @default(cuid())
+  companyId      String
+  employeeId     String?
+  transactionId  String                @unique
+  merchant       String
+  amountUsd      Decimal               @db.Decimal(12, 2)
+  currency       String                @default("USD")
+  transactionDate DateTime
+  mccCode        String?
+  cardProgram    String
+  eventId        String?
+  status         CardTransactionStatus @default(PENDING_TAG)
+  createdAt      DateTime              @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  payload    Json
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorId], references: [id])
+}
+
+// ─── Payout Reports ───────────────────────────────────────────────────────────
+
+enum PayoutReportStatus {
+  GENERATED
+  FINANCE_REVIEWED
+  PAID
+  EXPORTED
+}
+
+model PayoutReport {
+  id          String             @id @default(cuid())
+  companyId   String
+  periodStart DateTime
+  periodEnd   DateTime
+  status      PayoutReportStatus @default(GENERATED)
+  totalUsd    Decimal            @default(0) @db.Decimal(12, 2)
+  generatedAt DateTime           @default(now())
+  reviewedAt  DateTime?
+  paidAt      DateTime?
+  exportedAt  DateTime?
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+}
+
+// ─── Policy Rules ─────────────────────────────────────────────────────────────
+
+enum PolicyRuleType {
+  AMOUNT_THRESHOLD
+  CATEGORY_POLICY
+  MISSING_RECEIPT
+  EVENT_BUDGET_CAP
+}
+
+model PolicyRule {
+  id          String         @id @default(cuid())
+  companyId   String
+  ruleType    PolicyRuleType
+  config      Json
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ─── Traveler Profile ─────────────────────────────────────────────────────────
+
+model TravelerProfile {
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  companyId              String
+
+  // Travel documents
+  passportNumber         String?
+  passportExpiry         DateTime?
+  passportPhotoKey       String?
+  driversLicenseNumber   String?
+  driversLicenseExpiry   DateTime?
+  driversLicensePhotoKey String?
+
+  // Travel programs
+  ktnNumber              String?
+  globalEntryNumber      String?
+
+  // Profile photo
+  profilePhotoKey        String?
+
+  // Airline loyalty accounts [{airline: string, number: string}]
+  airlineAccounts        Json?
+
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}

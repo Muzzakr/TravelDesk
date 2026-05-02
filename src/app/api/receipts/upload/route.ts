@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { uploadReceipt, buildReceiptKey } from '@/lib/s3'
+import { extractReceiptData } from '@/lib/ocr'
+import { writeAuditLog } from '@/lib/audit'
+
+const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+
+export async function POST(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const formData = await req.formData()
+  const file = formData.get('file') as File | null
+  const expenseId = formData.get('expenseId') as string | null
+
+  if (!file || !expenseId) {
+    return NextResponse.json({ error: 'file and expenseId are required' }, { status: 400 })
+  }
+
+  if (file.size > MAX_SIZE) {
+    return NextResponse.json({ error: 'File too large (max 10 MB)' }, { status: 413 })
+  }
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return NextResponse.json({ error: 'File type not allowed' }, { status: 415 })
+  }
+
+  const expense = await prisma.expense.findFirst({
+    where: { id: expenseId, companyId: session.user.companyId },
+  })
+  if (!expense) return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
+
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const s3Key = buildReceiptKey(session.user.companyId, expenseId, file.name)
+
+  await uploadReceipt(s3Key, buffer, file.type)
+
+  const bucket = process.env.S3_RECEIPT_BUCKET!
+  let ocrResult = null
+  try {
+    ocrResult = await extractReceiptData(bucket, s3Key)
+  } catch {
+    // OCR failure is non-blocking — receipt is still saved
+  }
+
+  const receipt = await prisma.receipt.create({
+    data: {
+      expenseId,
+      s3Key,
+      fileName: file.name,
+      mimeType: file.type,
+      ocrMerchant: ocrResult?.merchant ?? null,
+      ocrAmount: ocrResult?.amount ?? null,
+      ocrDate: ocrResult?.date ? new Date(ocrResult.date) : null,
+      ocrRaw: ocrResult?.raw ? JSON.parse(JSON.stringify(ocrResult.raw)) : undefined,
+    },
+  })
+
+  await writeAuditLog({
+    companyId: session.user.companyId,
+    actorId: session.user.id,
+    action: 'RECEIPT_UPLOADED',
+    entityType: 'Receipt',
+    entityId: receipt.id,
+    payload: { expenseId, fileName: file.name, ocrExtracted: !!ocrResult },
+  })
+
+  return NextResponse.json(receipt, { status: 201 })
+}

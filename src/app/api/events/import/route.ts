@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const assignedDj = row['Assigned DJ'] ?? row['Assigned_DJ'] ?? row['assignedDj'] ?? ''
     const assignedMc = row['Assigned MC'] ?? row['Assigned_MC'] ?? row['assignedMc'] ?? ''
     const salesPerson = row['Sales Person'] ?? row['Sales_Person'] ?? row['salesPerson'] ?? ''
-    const status = (row['Status'] ?? row['status'] ?? 'DRAFT').toUpperCase()
+    const status = (row['Status'] ?? row['status'] ?? 'DRAFT').toUpperCase() as 'DRAFT' | 'ACTIVE' | 'CLOSED'
 
     if (!eventCode) { errors.push(`Row ${lineNum}: Event Code is required`); continue }
     if (!eventName) { errors.push(`Row ${lineNum}: Event Name is required`); continue }

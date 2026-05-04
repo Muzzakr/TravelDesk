@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { notifyOptionsProvided } from '@/lib/notify'
 import { z } from 'zod'
 
 const OptionsSchema = z.object({
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const travelRequest = await prisma.travelRequest.findFirst({
     where: { id: params.id, companyId: session.user.companyId, agentId: session.user.id },
+    include: { employee: { select: { name: true } } },
   })
   if (!travelRequest) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -67,6 +69,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     entityId: params.id,
     payload: { optionCount: parsed.data.options.length },
   })
+
+  notifyOptionsProvided({
+    employeeName: travelRequest.employee.name ?? 'Employee',
+    destination: travelRequest.destination,
+    optionCount: parsed.data.options.length,
+  }).catch(() => {})
 
   return NextResponse.json({ success: true })
 }

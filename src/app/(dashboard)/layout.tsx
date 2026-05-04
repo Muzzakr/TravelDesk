@@ -27,6 +27,7 @@ const navByRole: Record<Role, { label: string; href: string }[]> = {
   ],
   FINANCE_ADMIN: [
     { label: 'Dashboard', href: '/finance' },
+    { label: 'Events & Budgets', href: '/finance/events' },
     { label: 'Payout Reports', href: '/finance/payout-reports' },
     { label: 'Approvals', href: '/manager/approvals' },
     { label: 'Policy Limits', href: '/finance/policy' },

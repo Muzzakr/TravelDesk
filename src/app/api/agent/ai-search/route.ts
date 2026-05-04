@@ -12,6 +12,7 @@ export interface AiSearchResult {
   flights: AiOption[]
   hotels: AiOption[]
   cars: AiOption[]
+  taxis: AiOption[]
 }
 
 function searchFlights(
@@ -65,6 +66,26 @@ function searchHotels(city: string, checkIn: string, checkOut: string, nights: n
   ]
 }
 
+function searchTaxis(city: string, pickupDate: string): AiOption[] {
+  return [
+    {
+      vendor: 'Uber',
+      description: `Uber Black — airport transfer in ${city}, ${pickupDate}, luggage included`,
+      priceUsd: 75,
+    },
+    {
+      vendor: 'Bolt',
+      description: `Bolt Comfort — city transfers in ${city} from ${pickupDate}, pre-booked`,
+      priceUsd: 52,
+    },
+    {
+      vendor: 'Local Taxi',
+      description: `Pre-booked local taxi in ${city} — fixed rate from ${pickupDate}`,
+      priceUsd: 40,
+    },
+  ]
+}
+
 function searchRentalCars(city: string, pickupDate: string, returnDate: string, days: number): AiOption[] {
   const rate = 65
   return [
@@ -101,11 +122,14 @@ export async function POST(req: NextRequest) {
   if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const dates = request.travelDates as { departureDate: string; returnDate: string }
-  const nights = request.hotelNights ?? 1
-  const days = request.carRentalDays ?? 1
+  const dep = new Date(dates.departureDate)
+  const ret = new Date(dates.returnDate)
+  const diffDays = Math.max(1, Math.round((ret.getTime() - dep.getTime()) / 86_400_000))
+  const nights = request.hotelNights ?? diffDays
+  const days = request.carRentalDays ?? diffDays
   const services = request.servicesRequested as string[]
 
-  const result: AiSearchResult = { flights: [], hotels: [], cars: [] }
+  const result: AiSearchResult = { flights: [], hotels: [], cars: [], taxis: [] }
 
   if (services.includes('FLIGHT')) {
     result.flights = searchFlights(
@@ -133,6 +157,10 @@ export async function POST(req: NextRequest) {
       dates.returnDate,
       days
     )
+  }
+
+  if (services.includes('TAXI')) {
+    result.taxis = searchTaxis(request.destination, dates.departureDate)
   }
 
   return NextResponse.json(result)

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { checkEventBudget } from '@/lib/policy-engine'
 import { determineRoutingPath } from '@/lib/routing-engine'
+import { notifyTravelRequestCreated } from '@/lib/notify'
 import { z } from 'zod'
 
 const CreateSchema = z.object({
@@ -98,6 +99,16 @@ export async function POST(req: NextRequest) {
     entityId: travelRequest.id,
     payload: { eventId: parsed.data.eventId, routingPath, estimatedCostUsd: parsed.data.estimatedCostUsd },
   })
+
+  notifyTravelRequestCreated({
+    employeeName: session.user.name ?? session.user.email ?? 'Employee',
+    origin: parsed.data.origin,
+    destination: parsed.data.destination,
+    departureDate: parsed.data.travelDates.departureDate,
+    estimatedCostUsd: parsed.data.estimatedCostUsd,
+    status: initialStatus,
+    requestId: travelRequest.id,
+  }).catch(() => {})
 
   return NextResponse.json({ ...travelRequest, budgetWarning: budgetCheck.warningTriggered }, { status: 201 })
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { notifyExpenseStatusChanged } from '@/lib/notify'
 import { z } from 'zod'
 
 const UpdateSchema = z.object({
@@ -42,6 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const expense = await prisma.expense.findFirst({
     where: { id: params.id, companyId: session.user.companyId },
+    include: { employee: { select: { name: true } } },
   })
   if (!expense) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -138,6 +140,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     entityId: params.id,
     payload: { status: parsed.data.status, note: parsed.data.rejectionNote },
   })
+
+  if (parsed.data.status === 'APPROVED' || parsed.data.status === 'REJECTED') {
+    notifyExpenseStatusChanged({
+      employeeName: expense.employee.name ?? 'Employee',
+      amountUsd: Number(expense.amountUsd),
+      description: expense.description,
+      newStatus: parsed.data.status,
+      actorName: session.user.name ?? 'Team member',
+      rejectionNote: parsed.data.rejectionNote,
+    }).catch(() => {})
+  }
 
   return NextResponse.json(updated)
 }

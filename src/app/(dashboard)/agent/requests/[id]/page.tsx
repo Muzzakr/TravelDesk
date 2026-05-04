@@ -70,6 +70,8 @@ const VENDOR_URLS: Record<string, string> = {
   hertz: 'https://www.hertz.com',
   avis: 'https://www.avis.com',
   europcar: 'https://www.europcar.com',
+  uber: 'https://www.uber.com',
+  bolt: 'https://bolt.eu',
 }
 
 function getBookingUrl(vendor: string, serviceType: string, origin: string, destination: string, dates: { departureDate: string; returnDate: string }): string {
@@ -89,6 +91,7 @@ interface AiResults {
   flights: AiOption[]
   hotels: AiOption[]
   cars: AiOption[]
+  taxis: AiOption[]
 }
 
 export default function AgentRequestDetailPage() {
@@ -105,13 +108,15 @@ export default function AgentRequestDetailPage() {
     { serviceType: '', vendor: '', description: '', priceUsd: '' },
   ])
 
-  const [bookingTab, setBookingTab] = useState<'FLIGHT' | 'HOTEL' | 'CAR'>('FLIGHT')
+  const [bookingTab, setBookingTab] = useState<'FLIGHT' | 'HOTEL' | 'CAR' | 'TAXI'>('FLIGHT')
   const [flightConfirmNo, setFlightConfirmNo] = useState('')
   const [flightNotes, setFlightNotes] = useState('')
   const [hotelConfirmNo, setHotelConfirmNo] = useState('')
   const [hotelNotes, setHotelNotes] = useState('')
   const [carConfirmNo, setCarConfirmNo] = useState('')
   const [carNotes, setCarNotes] = useState('')
+  const [taxiConfirmNo, setTaxiConfirmNo] = useState('')
+  const [taxiNotes, setTaxiNotes] = useState('')
 
   const [aiResults, setAiResults] = useState<AiResults | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
@@ -132,7 +137,7 @@ export default function AgentRequestDetailPage() {
       const data: AiResults = await res.json()
       setAiResults(data)
       const initial: Record<string, boolean> = {}
-      ;[...data.flights, ...data.hotels, ...data.cars].forEach((_, i) => { initial[i] = true })
+      ;[...data.flights, ...data.hotels, ...data.cars, ...data.taxis].forEach((_, i) => { initial[i] = true })
       setSelectedAi(initial)
     } else {
       const data = await res.json().catch(() => ({}))
@@ -149,6 +154,7 @@ export default function AgentRequestDetailPage() {
       ...aiResults.flights.map((o) => ({ serviceType: 'FLIGHT', ...o })),
       ...aiResults.hotels.map((o) => ({ serviceType: 'HOTEL', ...o })),
       ...aiResults.cars.map((o) => ({ serviceType: 'CAR_RENTAL', ...o })),
+      ...aiResults.taxis.map((o) => ({ serviceType: 'TAXI', ...o })),
     ]
     const chosen = all.filter((_, i) => selectedAi[i])
     if (chosen.length === 0) { setError('Select at least one option'); setSubmitting(false); return }
@@ -226,8 +232,8 @@ export default function AgentRequestDetailPage() {
     e.preventDefault()
     setSubmitting(true)
     setError('')
-    const activeNo = bookingTab === 'FLIGHT' ? flightConfirmNo : bookingTab === 'HOTEL' ? hotelConfirmNo : carConfirmNo
-    const activeNotes = bookingTab === 'FLIGHT' ? flightNotes : bookingTab === 'HOTEL' ? hotelNotes : carNotes
+    const activeNo = bookingTab === 'FLIGHT' ? flightConfirmNo : bookingTab === 'HOTEL' ? hotelConfirmNo : bookingTab === 'CAR' ? carConfirmNo : taxiConfirmNo
+    const activeNotes = bookingTab === 'FLIGHT' ? flightNotes : bookingTab === 'HOTEL' ? hotelNotes : bookingTab === 'CAR' ? carNotes : taxiNotes
     const res = await fetch(`/api/travel-requests/${id}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -478,6 +484,7 @@ export default function AgentRequestDetailPage() {
                 { label: 'Flights', key: 'flights', items: aiResults.flights, offset: 0 },
                 { label: 'Hotels', key: 'hotels', items: aiResults.hotels, offset: aiResults.flights.length },
                 { label: 'Rental Cars', key: 'cars', items: aiResults.cars, offset: aiResults.flights.length + aiResults.hotels.length },
+                { label: 'Taxis', key: 'taxis', items: aiResults.taxis, offset: aiResults.flights.length + aiResults.hotels.length + aiResults.cars.length },
               ] as const).map(({ label, items, offset }) => (
                 items.length > 0 && (
                   <div key={label} className="rounded-lg bg-white border border-indigo-100 p-4">
@@ -555,6 +562,7 @@ export default function AgentRequestDetailPage() {
                   <option value="FLIGHT">Flight</option>
                   <option value="HOTEL">Hotel</option>
                   <option value="CAR_RENTAL">Car rental</option>
+                  <option value="TAXI">Taxi</option>
                 </select>
               </div>
               <div>
@@ -637,7 +645,8 @@ export default function AgentRequestDetailPage() {
             {([
               { key: 'FLIGHT', label: '✈ Flight' },
               { key: 'HOTEL', label: '🏨 Hotel' },
-              { key: 'CAR', label: '🚗 Rent Car' },
+              { key: 'CAR', label: '🚗 Car' },
+              { key: 'TAXI', label: '🚕 Taxi' },
             ] as const).map(({ key, label }) => (
               <button
                 key={key}
@@ -729,6 +738,33 @@ export default function AgentRequestDetailPage() {
                   placeholder="Any additional car rental notes..."
                   value={carNotes}
                   onChange={(e) => setCarNotes(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Taxi fields */}
+          {bookingTab === 'TAXI' && (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Confirmation number</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g. TAXI-2026-4421"
+                  value={taxiConfirmNo}
+                  onChange={(e) => setTaxiConfirmNo(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Notes (optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Any additional taxi notes..."
+                  value={taxiNotes}
+                  onChange={(e) => setTaxiNotes(e.target.value)}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>

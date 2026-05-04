@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { notifyTravelRequestStatusChanged } from '@/lib/notify'
 import { z } from 'zod'
+import type { TravelRequestStatus } from '@prisma/client'
 
 const UpdateSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED', 'CANCELLED', 'BOOKING_CONFIRMED']).optional(),
@@ -34,6 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const request = await prisma.travelRequest.findFirst({
     where: { id: params.id, companyId: session.user.companyId },
+    include: { employee: { select: { name: true } } },
   })
   if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -58,17 +61,37 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
+  let nextStatus: string | undefined = parsed.data.status
+  if (parsed.data.status === 'APPROVED') {
+    const full = await prisma.travelRequest.findUnique({
+      where: { id: params.id },
+      include: { _count: { select: { bookingOptions: true } } },
+    })
+    if (
+      full?.routingPath === 'MANAGER_FIRST' &&
+      full?.status === 'PENDING_MANAGER' &&
+      full?._count.bookingOptions === 0
+    ) {
+      nextStatus = 'PENDING_AGENT'
+    }
+  }
+
   const updated = await prisma.travelRequest.update({
     where: { id: params.id },
-    data: parsed.data,
+    data: {
+      rejectionNote: parsed.data.rejectionNote,
+      agentId: parsed.data.agentId,
+      status: nextStatus as TravelRequestStatus | undefined,
+    },
   })
 
-  const actionType = parsed.data.status === 'APPROVED' ? 'APPROVE'
+  const actionType = nextStatus === 'APPROVED' || nextStatus === 'PENDING_AGENT' ? 'APPROVE'
     : parsed.data.status === 'REJECTED' ? 'REJECT'
     : 'MODIFY'
 
   const auditAction: Record<string, string> = {
     APPROVED: 'TRAVEL_REQUEST_APPROVED',
+    PENDING_AGENT: 'TRAVEL_REQUEST_MANAGER_APPROVED',
     REJECTED: 'TRAVEL_REQUEST_REJECTED',
     CANCELLED: 'TRAVEL_REQUEST_CANCELLED',
     BOOKING_CONFIRMED: 'TRAVEL_REQUEST_BOOKING_CONFIRMED',
@@ -87,11 +110,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   await writeAuditLog({
     companyId: session.user.companyId,
     actorId: session.user.id,
-    action: auditAction[parsed.data.status ?? ''] ?? 'TRAVEL_REQUEST_UPDATED',
+    action: auditAction[nextStatus ?? ''] ?? 'TRAVEL_REQUEST_UPDATED',
     entityType: 'TravelRequest',
     entityId: params.id,
-    payload: { status: parsed.data.status, note: parsed.data.rejectionNote },
+    payload: { status: nextStatus, note: parsed.data.rejectionNote },
   })
+
+  if (nextStatus && ['APPROVED', 'PENDING_AGENT', 'REJECTED', 'CANCELLED', 'BOOKING_CONFIRMED'].includes(nextStatus)) {
+    notifyTravelRequestStatusChanged({
+      employeeName: request.employee.name ?? 'Employee',
+      destination: request.destination,
+      nextStatus,
+      actorName: session.user.name ?? 'Team member',
+      rejectionNote: parsed.data.rejectionNote,
+      confirmationNumber: (updated as Record<string, unknown>).confirmationNumber as string | null,
+    }).catch(() => {})
+  }
 
   return NextResponse.json(updated)
 }

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { checkExpensePolicy } from '@/lib/policy-engine'
+import { notifyExpenseSubmitted } from '@/lib/notify'
 import { z } from 'zod'
 
 const CreateSchema = z.object({
@@ -91,6 +92,14 @@ export async function POST(req: NextRequest) {
     entityId: expense.id,
     payload: { eventId: parsed.data.eventId, amountUsd: parsed.data.amountUsd, category: parsed.data.category },
   })
+
+  notifyExpenseSubmitted({
+    employeeName: session.user.name ?? session.user.email ?? 'Employee',
+    amountUsd: parsed.data.amountUsd,
+    category: parsed.data.category,
+    description: parsed.data.description,
+    eventCode: event.eventCode,
+  }).catch(() => {})
 
   return NextResponse.json({ expense, warnings: policyFlags.filter((f) => f.severity === 'WARNING') }, { status: 201 })
 }

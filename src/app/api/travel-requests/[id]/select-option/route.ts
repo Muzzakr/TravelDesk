@@ -35,6 +35,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!validIds.has(oid)) return NextResponse.json({ error: `Option ${oid} not found` }, { status: 404 })
   }
 
+  // Calculate old selected total before clearing (to compute delta)
+  const oldTotal = options
+    .filter((o) => o.isSelected)
+    .reduce((sum, o) => sum + Number(o.priceUsd), 0)
+
   // Clear all, then mark selected
   await prisma.bookingOption.updateMany({
     where: { travelRequestId: params.id },
@@ -45,14 +50,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     data: { isSelected: true },
   })
 
-  // Advance to manager approval
+  const nextStatus = travelRequest.routingPath === 'MANAGER_FIRST' ? 'APPROVED' : 'PENDING_MANAGER'
   await prisma.travelRequest.update({
     where: { id: params.id },
-    data: { status: 'PENDING_MANAGER' },
+    data: { status: nextStatus },
   })
 
   const selectedOptions = options.filter((o) => optionIds.includes(o.id))
   const totalUsd = selectedOptions.reduce((sum, o) => sum + Number(o.priceUsd), 0)
+
+  // Update event approved spend by the delta (handles re-selection correctly)
+  const delta = totalUsd - oldTotal
+  if (delta !== 0) {
+    await prisma.event.update({
+      where: { id: travelRequest.eventId },
+      data: { approvedSpendUsd: { increment: delta } },
+    })
+  }
 
   await writeAuditLog({
     companyId: session.user.companyId,

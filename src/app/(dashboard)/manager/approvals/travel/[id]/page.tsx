@@ -5,6 +5,29 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 
+type BookingOption = {
+  id: string
+  serviceType: string
+  vendor: string
+  description: string
+  priceUsd: number
+  isSelected: boolean
+}
+
+const serviceLabel: Record<string, string> = {
+  FLIGHT: 'Flight',
+  HOTEL: 'Hotel',
+  CAR_RENTAL: 'Car rental',
+  TAXI: 'Taxi',
+}
+
+const serviceIcon: Record<string, string> = {
+  FLIGHT: '✈️',
+  HOTEL: '🏨',
+  CAR_RENTAL: '🚗',
+  TAXI: '🚕',
+}
+
 export default function ApproveTravelPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -42,6 +65,16 @@ export default function ApproveTravelPage() {
   const emp = request.employee as { name: string; email: string }
   const ev = request.event as { eventName: string }
   const dates = request.travelDates as { departureDate?: string; returnDate?: string }
+  const allOptions = (request.bookingOptions as BookingOption[] | undefined) ?? []
+  const selectedOptions = allOptions.filter((o) => o.isSelected)
+  const selectedTotal = selectedOptions.reduce((sum, o) => sum + Number(o.priceUsd), 0)
+
+  // Group selected options by serviceType
+  const grouped = selectedOptions.reduce<Record<string, BookingOption[]>>((acc, o) => {
+    if (!acc[o.serviceType]) acc[o.serviceType] = []
+    acc[o.serviceType].push(o)
+    return acc
+  }, {})
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -102,7 +135,38 @@ export default function ApproveTravelPage() {
             <p className="mt-1 text-gray-900">{String(request.specialInstructions)}</p>
           </div>
         )}
+      </div>
 
+      {/* Selected booking options */}
+      {selectedOptions.length > 0 && (
+        <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
+          <h2 className="text-base font-semibold text-gray-800">Selected booking options</h2>
+          <div className="space-y-3">
+            {Object.entries(grouped).map(([type, opts]) => (
+              <div key={type}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">
+                  {serviceIcon[type] ?? ''} {serviceLabel[type] ?? type}
+                </p>
+                {opts.map((o) => (
+                  <div key={o.id} className="flex items-start justify-between gap-4 rounded-lg bg-gray-50 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{o.vendor}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{o.description}</p>
+                    </div>
+                    <p className="text-sm font-bold text-gray-900 whitespace-nowrap">${Number(o.priceUsd).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+            <p className="text-sm font-semibold text-gray-700">Total selected cost</p>
+            <p className="text-lg font-bold text-indigo-600">${selectedTotal.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">Note (required for rejection)</label>
           <textarea

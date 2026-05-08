@@ -259,7 +259,8 @@ model Expense {
 model Receipt {
   id           String   @id @default(cuid())
   expenseId    String
-  s3Key        String
+  s3Key        String?
+  fileData     Bytes?
   fileName     String
   mimeType     String
   ocrMerchant  String?

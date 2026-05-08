@@ -5,7 +5,7 @@ export type ProfileStatus = {
   missingFields: string[]
 }
 
-const ROLES_REQUIRING_PROFILE = ['EMPLOYEE', 'MANAGER', 'TRAVEL_AGENT']
+const ROLES_REQUIRING_PROFILE = ['EMPLOYEE']
 
 export async function getProfileStatus(userId: string, role: string): Promise<ProfileStatus> {
   if (!ROLES_REQUIRING_PROFILE.includes(role)) {

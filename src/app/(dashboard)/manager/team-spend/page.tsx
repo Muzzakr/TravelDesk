@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
@@ -7,10 +9,9 @@ export default async function TeamSpendPage() {
   const session = await auth()
   if (!session?.user?.companyId) redirect('/login')
   const companyId = session.user.companyId
-  const managerId = session.user.id
 
   const reports = await prisma.user.findMany({
-    where: { companyId, managerId },
+    where: { companyId, role: 'EMPLOYEE' },
     select: {
       id: true,
       name: true,
@@ -62,7 +63,7 @@ export default async function TeamSpendPage() {
 
       {totals.length === 0 ? (
         <p className="rounded-xl bg-white p-6 text-sm text-gray-400 shadow-sm">
-          You have no direct reports assigned yet.
+          No employees found.
         </p>
       ) : totals.map((r) => (
         <section key={r.id}>

@@ -72,7 +72,7 @@ export default function ExpenseDetailPage() {
 
   async function load() {
     const [expRes, sessionRes] = await Promise.all([
-      fetch(`/api/expenses/${id}`),
+      fetch(`/api/expenses/${id}`, { cache: 'no-store' }),
       fetch('/api/auth/session'),
     ])
     if (expRes.ok) setExpense(await expRes.json())
@@ -108,20 +108,36 @@ export default function ExpenseDetailPage() {
   }
 
   async function handleReceiptUpload(file: File) {
+    const MAX_BYTES = 10 * 1024 * 1024
+    if (file.size > MAX_BYTES) {
+      setUploadError('File too large — maximum size is 10 MB.')
+      return
+    }
     setUploadingReceipt(true)
     setUploadError('')
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('expenseId', id)
-    const res = await fetch('/api/receipts/upload', { method: 'POST', body: fd })
-    if (!res.ok) {
-      const d = await res.json()
-      setUploadError(d.error ?? 'Upload failed')
-    } else {
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      await load()
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('expenseId', id)
+      const res = await fetch('/api/receipts/upload', { method: 'POST', body: fd })
+      if (!res.ok) {
+        let errorMsg = `Upload failed (${res.status})`
+        try {
+          const d = await res.json()
+          errorMsg = d.error ?? errorMsg
+        } catch {
+          // response wasn't JSON (e.g. gateway timeout) — keep the status message
+        }
+        setUploadError(errorMsg)
+      } else {
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        await load()
+      }
+    } catch {
+      setUploadError('Network error — please check your connection and try again.')
+    } finally {
+      setUploadingReceipt(false)
     }
-    setUploadingReceipt(false)
   }
 
   async function submitExpense() {

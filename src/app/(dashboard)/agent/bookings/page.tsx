@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
@@ -10,23 +12,32 @@ export default async function AgentBookingsPage() {
   const companyId = session.user.companyId
   const agentId = session.user.id
 
-  const allPending = await prisma.travelRequest.findMany({
-    where: { companyId, status: 'PENDING_AGENT' },
-    include: {
-      employee: { select: { name: true, email: true } },
-      event: { select: { eventName: true } },
-    },
-    orderBy: { createdAt: 'asc' },
-  })
-
-  const bookings = await prisma.travelRequest.findMany({
-    where: { companyId, agentId },
-    include: {
-      employee: { select: { name: true, email: true } },
-      event: { select: { eventName: true } },
-    },
-    orderBy: { updatedAt: 'desc' },
-  })
+  const [allPending, readyToConfirm, bookings] = await Promise.all([
+    prisma.travelRequest.findMany({
+      where: { companyId, status: 'PENDING_AGENT' },
+      include: {
+        employee: { select: { name: true, email: true } },
+        event: { select: { eventName: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.travelRequest.findMany({
+      where: { companyId, agentId, status: 'APPROVED' },
+      include: {
+        employee: { select: { name: true, email: true } },
+        event: { select: { eventName: true } },
+      },
+      orderBy: { updatedAt: 'asc' },
+    }),
+    prisma.travelRequest.findMany({
+      where: { companyId, agentId },
+      include: {
+        employee: { select: { name: true, email: true } },
+        event: { select: { eventName: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
+  ])
 
   const byStatus = bookings.reduce<Record<string, number>>((acc, b) => {
     acc[b.status] = (acc[b.status] ?? 0) + 1
@@ -38,11 +49,62 @@ export default async function AgentBookingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Pending requests</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Requests to book</h1>
         <Link href="/agent/book" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
           + Book on behalf
         </Link>
       </div>
+
+      {/* Ready to confirm — approved, waiting for actual booking */}
+      {readyToConfirm.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-green-700 uppercase tracking-wide">Ready to confirm — booking approved</h2>
+          {/* Mobile */}
+          <div className="sm:hidden space-y-3">
+            {readyToConfirm.map((r) => (
+              <div key={r.id} className="rounded-xl border border-green-200 bg-green-50/40 px-4 py-3 space-y-1.5">
+                <p className="font-medium text-gray-900">{r.employee.name}</p>
+                <p className="text-sm text-gray-600">{r.origin} → {r.destination}</p>
+                <p className="text-xs text-gray-500">{r.event.eventName}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-400">{r.servicesRequested.join(', ')}</p>
+                  {r.estimatedCostUsd && <p className="text-xs font-semibold text-gray-700">${Number(r.estimatedCostUsd).toFixed(0)}</p>}
+                </div>
+                <Link href={`/agent/requests/${r.id}`} className="text-sm font-medium text-green-700 hover:underline">Confirm booking →</Link>
+              </div>
+            ))}
+          </div>
+          {/* Desktop */}
+          <div className="hidden sm:block overflow-hidden rounded-xl border border-green-200 bg-white">
+            <table className="min-w-[600px] w-full divide-y divide-gray-100 text-sm">
+              <thead className="bg-green-50 text-xs font-medium uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">Employee</th>
+                  <th className="px-4 py-3 text-left">Route</th>
+                  <th className="px-4 py-3 text-left">Services</th>
+                  <th className="px-4 py-3 text-left">Event</th>
+                  <th className="px-4 py-3 text-left">Est. cost</th>
+                  <th className="px-4 py-3 text-left">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {readyToConfirm.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{r.employee.name}</td>
+                    <td className="px-4 py-3">{r.origin} → {r.destination}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{r.servicesRequested.join(', ')}</td>
+                    <td className="px-4 py-3 text-gray-500">{r.event.eventName}</td>
+                    <td className="px-4 py-3">{r.estimatedCostUsd ? `$${Number(r.estimatedCostUsd).toFixed(0)}` : '—'}</td>
+                    <td className="px-4 py-3">
+                      <Link href={`/agent/requests/${r.id}`} className="text-green-700 text-xs font-medium hover:underline">Confirm booking →</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Unassigned requests */}
       {unassigned.length > 0 && (
@@ -95,6 +157,10 @@ export default async function AgentBookingsPage() {
         </section>
       )}
 
+      {unassigned.length === 0 && readyToConfirm.length === 0 && (
+        <div className="rounded-xl border bg-white p-6 text-sm text-gray-400">No requests currently need your action.</div>
+      )}
+
       <div className="flex flex-wrap gap-3">
         {Object.entries(byStatus).map(([status, count]) => (
           <div key={status} className="rounded-lg bg-white px-4 py-3 shadow-sm border">
@@ -105,10 +171,9 @@ export default async function AgentBookingsPage() {
       </div>
 
       {/* My bookings */}
-      {bookings.length === 0 ? (
-        <div className="rounded-xl border bg-white p-6 text-sm text-gray-400">No bookings assigned to you yet.</div>
-      ) : (
+      {bookings.length > 0 && (
         <>
+          <h2 className="text-lg font-semibold text-gray-800">My bookings</h2>
           {/* Mobile */}
           <div className="sm:hidden space-y-3">
             {bookings.map((b) => (

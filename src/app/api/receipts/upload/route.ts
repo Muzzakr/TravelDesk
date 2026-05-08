@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { uploadReceipt, buildReceiptKey } from '@/lib/s3'
-import { extractReceiptData } from '@/lib/ocr'
 import { writeAuditLog } from '@/lib/audit'
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
+export const maxDuration = 60
+
+const MAX_SIZE = 10 * 1024 * 1024
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 
 export async function POST(req: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'File type not allowed' }, { status: 415 })
+    return NextResponse.json({ error: 'File type not allowed. Use JPG, PNG, WebP or PDF.' }, { status: 415 })
   }
 
   const expense = await prisma.expense.findFirst({
@@ -34,28 +34,13 @@ export async function POST(req: NextRequest) {
   if (!expense) return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
 
   const buffer = Buffer.from(await file.arrayBuffer())
-  const s3Key = buildReceiptKey(session.user.companyId, expenseId, file.name)
-
-  await uploadReceipt(s3Key, buffer, file.type)
-
-  const bucket = process.env.S3_RECEIPT_BUCKET!
-  let ocrResult = null
-  try {
-    ocrResult = await extractReceiptData(bucket, s3Key)
-  } catch {
-    // OCR failure is non-blocking — receipt is still saved
-  }
 
   const receipt = await prisma.receipt.create({
     data: {
       expenseId,
-      s3Key,
+      fileData: buffer,
       fileName: file.name,
       mimeType: file.type,
-      ocrMerchant: ocrResult?.merchant ?? null,
-      ocrAmount: ocrResult?.amount ?? null,
-      ocrDate: ocrResult?.date ? new Date(ocrResult.date) : null,
-      ocrRaw: ocrResult?.raw ? JSON.parse(JSON.stringify(ocrResult.raw)) : undefined,
     },
   })
 
@@ -65,7 +50,7 @@ export async function POST(req: NextRequest) {
     action: 'RECEIPT_UPLOADED',
     entityType: 'Receipt',
     entityId: receipt.id,
-    payload: { expenseId, fileName: file.name, ocrExtracted: !!ocrResult },
+    payload: { expenseId, fileName: file.name },
   })
 
   return NextResponse.json(receipt, { status: 201 })

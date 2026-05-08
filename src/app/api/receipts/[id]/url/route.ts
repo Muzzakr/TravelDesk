@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getReceiptUrl } from '@/lib/s3'
+import { getReceiptUrl } from '@/lib/storage'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()

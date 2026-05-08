@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
@@ -8,23 +10,15 @@ export default async function ApprovalsPage() {
   const session = await auth()
   if (!session?.user?.companyId) redirect('/login')
   const companyId = session.user.companyId
-  const managerId = session.user.id
-
-  const reports = await prisma.user.findMany({
-    where: { companyId, managerId },
-    select: { id: true },
-  })
-  const reportIds = reports.map((r) => r.id)
-  const employeeFilter = reportIds.length > 0 ? { in: reportIds } : undefined
 
   const [travelRequests, expenses] = await Promise.all([
     prisma.travelRequest.findMany({
-      where: { companyId, ...(employeeFilter ? { employeeId: employeeFilter } : {}), status: 'PENDING_MANAGER' },
+      where: { companyId, status: 'PENDING_MANAGER' },
       include: { employee: { select: { name: true } }, event: { select: { eventName: true } } },
       orderBy: { createdAt: 'asc' },
     }),
     prisma.expense.findMany({
-      where: { companyId, ...(employeeFilter ? { employeeId: employeeFilter } : {}), status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
+      where: { companyId, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
       include: { employee: { select: { name: true } }, event: { select: { eventName: true } } },
       orderBy: { createdAt: 'asc' },
     }),

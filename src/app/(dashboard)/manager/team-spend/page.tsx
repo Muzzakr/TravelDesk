@@ -95,7 +95,7 @@ export default async function TeamSpendPage() {
                       <p className="text-xs text-gray-400">{ex.category} · {ex.event.eventName}</p>
                       <Badge variant={statusToBadgeVariant(ex.status)}>{ex.status.replace(/_/g, ' ')}</Badge>
                     </div>
-                    <p className="text-xs text-gray-300">{new Date(ex.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-300">{new Date(ex.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                   </div>
                 ))}
               </div>
@@ -122,7 +122,7 @@ export default async function TeamSpendPage() {
                         <td className="px-4 py-3">
                           <Badge variant={statusToBadgeVariant(ex.status)}>{ex.status.replace(/_/g, ' ')}</Badge>
                         </td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{new Date(ex.createdAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-gray-400 text-xs">{new Date(ex.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                       </tr>
                     ))}
                   </tbody>

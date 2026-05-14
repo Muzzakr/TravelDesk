@@ -1,310 +1,846 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import type { TravelEvent } from '@/types/event'
 
-interface Employee {
-  id: string
-  name: string
-  email: string
-  role: string
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Employee = { id: string; name: string; email: string }
+type AirportOption = { code: string; name: string; city: string; country: string }
+type FlightData = {
+  originAirport: AirportOption | null
+  destAirport: AirportOption | null
+  tripType: 'one-way' | 'round-trip'
+  departureDate: string; departureTime: string
+  returnDate: string; returnTime: string
+  flexibleDates: boolean; notes: string
+}
+type HotelData = { city: string; checkIn: string; checkOut: string; area: string; notes: string }
+type TaxiData  = { pickup: string; dropoff: string; date: string; time: string; notes: string }
+type CarData   = { pickupCity: string; pickupDate: string; pickupTime: string; returnDate: string; notes: string }
+
+// ─── Airport list ─────────────────────────────────────────────────────────────
+
+const AIRPORTS: AirportOption[] = [
+  { code: 'ARN', name: 'Stockholm Arlanda',          city: 'Stockholm',     country: 'Sweden' },
+  { code: 'BMA', name: 'Stockholm Bromma',           city: 'Stockholm',     country: 'Sweden' },
+  { code: 'GOT', name: 'Gothenburg Landvetter',      city: 'Gothenburg',    country: 'Sweden' },
+  { code: 'MMX', name: 'Malmö Airport',              city: 'Malmö',         country: 'Sweden' },
+  { code: 'CPH', name: 'Copenhagen Airport',         city: 'Copenhagen',    country: 'Denmark' },
+  { code: 'OSL', name: 'Oslo Gardermoen',            city: 'Oslo',          country: 'Norway' },
+  { code: 'HEL', name: 'Helsinki-Vantaa',            city: 'Helsinki',      country: 'Finland' },
+  { code: 'LHR', name: 'London Heathrow',            city: 'London',        country: 'UK' },
+  { code: 'LGW', name: 'London Gatwick',             city: 'London',        country: 'UK' },
+  { code: 'STN', name: 'London Stansted',            city: 'London',        country: 'UK' },
+  { code: 'MAN', name: 'Manchester Airport',         city: 'Manchester',    country: 'UK' },
+  { code: 'EDI', name: 'Edinburgh Airport',          city: 'Edinburgh',     country: 'UK' },
+  { code: 'CDG', name: 'Paris Charles de Gaulle',    city: 'Paris',         country: 'France' },
+  { code: 'ORY', name: 'Paris Orly',                 city: 'Paris',         country: 'France' },
+  { code: 'AMS', name: 'Amsterdam Schiphol',         city: 'Amsterdam',     country: 'Netherlands' },
+  { code: 'BRU', name: 'Brussels Airport',           city: 'Brussels',      country: 'Belgium' },
+  { code: 'FRA', name: 'Frankfurt Airport',          city: 'Frankfurt',     country: 'Germany' },
+  { code: 'MUC', name: 'Munich Airport',             city: 'Munich',        country: 'Germany' },
+  { code: 'BER', name: 'Berlin Brandenburg',         city: 'Berlin',        country: 'Germany' },
+  { code: 'HAM', name: 'Hamburg Airport',            city: 'Hamburg',       country: 'Germany' },
+  { code: 'VIE', name: 'Vienna International',       city: 'Vienna',        country: 'Austria' },
+  { code: 'ZRH', name: 'Zurich Airport',             city: 'Zurich',        country: 'Switzerland' },
+  { code: 'GVA', name: 'Geneva Airport',             city: 'Geneva',        country: 'Switzerland' },
+  { code: 'BCN', name: 'Barcelona El Prat',          city: 'Barcelona',     country: 'Spain' },
+  { code: 'MAD', name: 'Madrid Barajas',             city: 'Madrid',        country: 'Spain' },
+  { code: 'FCO', name: 'Rome Fiumicino',             city: 'Rome',          country: 'Italy' },
+  { code: 'MXP', name: 'Milan Malpensa',             city: 'Milan',         country: 'Italy' },
+  { code: 'LIN', name: 'Milan Linate',               city: 'Milan',         country: 'Italy' },
+  { code: 'ATH', name: 'Athens International',       city: 'Athens',        country: 'Greece' },
+  { code: 'LIS', name: 'Lisbon Airport',             city: 'Lisbon',        country: 'Portugal' },
+  { code: 'PRG', name: 'Prague Václav Havel',        city: 'Prague',        country: 'Czech Republic' },
+  { code: 'WAW', name: 'Warsaw Chopin',              city: 'Warsaw',        country: 'Poland' },
+  { code: 'BUD', name: 'Budapest Ferenc Liszt',      city: 'Budapest',      country: 'Hungary' },
+  { code: 'OTP', name: 'Bucharest Henri Coandă',     city: 'Bucharest',     country: 'Romania' },
+  { code: 'IST', name: 'Istanbul Airport',           city: 'Istanbul',      country: 'Turkey' },
+  { code: 'JFK', name: 'John F. Kennedy Intl',       city: 'New York',      country: 'USA' },
+  { code: 'LGA', name: 'LaGuardia Airport',          city: 'New York',      country: 'USA' },
+  { code: 'EWR', name: 'Newark Liberty Intl',        city: 'Newark',        country: 'USA' },
+  { code: 'LAX', name: 'Los Angeles Intl',           city: 'Los Angeles',   country: 'USA' },
+  { code: 'ORD', name: "O'Hare International",       city: 'Chicago',       country: 'USA' },
+  { code: 'MIA', name: 'Miami International',        city: 'Miami',         country: 'USA' },
+  { code: 'DFW', name: 'Dallas/Fort Worth Intl',     city: 'Dallas',        country: 'USA' },
+  { code: 'ATL', name: 'Hartsfield-Jackson Atlanta', city: 'Atlanta',       country: 'USA' },
+  { code: 'SFO', name: 'San Francisco Intl',         city: 'San Francisco', country: 'USA' },
+  { code: 'SEA', name: 'Seattle-Tacoma Intl',        city: 'Seattle',       country: 'USA' },
+  { code: 'BOS', name: 'Boston Logan Intl',          city: 'Boston',        country: 'USA' },
+  { code: 'DEN', name: 'Denver International',       city: 'Denver',        country: 'USA' },
+  { code: 'LAS', name: 'Las Vegas Harry Reid',       city: 'Las Vegas',     country: 'USA' },
+  { code: 'IAD', name: 'Washington Dulles Intl',     city: 'Washington DC', country: 'USA' },
+  { code: 'DXB', name: 'Dubai International',        city: 'Dubai',         country: 'UAE' },
+  { code: 'DOH', name: 'Hamad International',        city: 'Doha',          country: 'Qatar' },
+  { code: 'AUH', name: 'Abu Dhabi International',    city: 'Abu Dhabi',     country: 'UAE' },
+  { code: 'RUH', name: 'King Khalid International',  city: 'Riyadh',        country: 'Saudi Arabia' },
+  { code: 'SIN', name: 'Singapore Changi',           city: 'Singapore',     country: 'Singapore' },
+  { code: 'HND', name: 'Tokyo Haneda',               city: 'Tokyo',         country: 'Japan' },
+  { code: 'NRT', name: 'Tokyo Narita',               city: 'Tokyo',         country: 'Japan' },
+  { code: 'PEK', name: 'Beijing Capital Intl',       city: 'Beijing',       country: 'China' },
+  { code: 'PVG', name: 'Shanghai Pudong Intl',       city: 'Shanghai',      country: 'China' },
+  { code: 'HKG', name: 'Hong Kong International',    city: 'Hong Kong',     country: 'Hong Kong' },
+  { code: 'ICN', name: 'Incheon International',      city: 'Seoul',         country: 'South Korea' },
+  { code: 'BKK', name: 'Bangkok Suvarnabhumi',       city: 'Bangkok',       country: 'Thailand' },
+  { code: 'KUL', name: 'Kuala Lumpur Intl',          city: 'Kuala Lumpur',  country: 'Malaysia' },
+  { code: 'SYD', name: 'Sydney Kingsford Smith',     city: 'Sydney',        country: 'Australia' },
+  { code: 'MEL', name: 'Melbourne Airport',          city: 'Melbourne',     country: 'Australia' },
+  { code: 'JNB', name: 'O.R. Tambo International',   city: 'Johannesburg',  country: 'South Africa' },
+  { code: 'CAI', name: 'Cairo International',        city: 'Cairo',         country: 'Egypt' },
+  { code: 'YYZ', name: 'Toronto Pearson Intl',       city: 'Toronto',       country: 'Canada' },
+  { code: 'YVR', name: 'Vancouver International',    city: 'Vancouver',     country: 'Canada' },
+  { code: 'GRU', name: 'São Paulo Guarulhos',        city: 'São Paulo',     country: 'Brazil' },
+  { code: 'MEX', name: 'Mexico City International',  city: 'Mexico City',   country: 'Mexico' },
+]
+
+const HOTEL_CITIES: string[] = [
+  'Stockholm, Sweden', 'Gothenburg, Sweden', 'Malmö, Sweden',
+  'Copenhagen, Denmark', 'Oslo, Norway', 'Helsinki, Finland',
+  'London, UK', 'Manchester, UK', 'Edinburgh, UK',
+  'Paris, France', 'Amsterdam, Netherlands', 'Brussels, Belgium',
+  'Frankfurt, Germany', 'Munich, Germany', 'Berlin, Germany', 'Hamburg, Germany',
+  'Vienna, Austria', 'Zurich, Switzerland', 'Geneva, Switzerland',
+  'Barcelona, Spain', 'Madrid, Spain', 'Rome, Italy', 'Milan, Italy',
+  'Athens, Greece', 'Lisbon, Portugal', 'Prague, Czech Republic',
+  'Warsaw, Poland', 'Budapest, Hungary', 'Bucharest, Romania', 'Istanbul, Turkey',
+  'New York, USA', 'Los Angeles, USA', 'Chicago, USA', 'Miami, USA',
+  'San Francisco, USA', 'Seattle, USA', 'Boston, USA', 'Atlanta, USA',
+  'Washington DC, USA', 'Las Vegas, USA', 'Denver, USA', 'Dallas, USA',
+  'Dubai, UAE', 'Abu Dhabi, UAE', 'Doha, Qatar', 'Riyadh, Saudi Arabia',
+  'Singapore', 'Tokyo, Japan', 'Bangkok, Thailand', 'Kuala Lumpur, Malaysia',
+  'Hong Kong', 'Seoul, South Korea', 'Beijing, China', 'Shanghai, China',
+  'Sydney, Australia', 'Melbourne, Australia',
+  'Toronto, Canada', 'Vancouver, Canada',
+  'São Paulo, Brazil', 'Mexico City, Mexico',
+  'Johannesburg, South Africa', 'Cairo, Egypt',
+]
+
+const TRAVEL_LOCATIONS: string[] = [
+  'Stockholm Arlanda Airport (ARN)', 'Stockholm Bromma Airport (BMA)',
+  'Stockholm Central Station', 'Stockholm City Center',
+  'Gothenburg Landvetter Airport (GOT)', 'Gothenburg Central Station',
+  'Malmö Airport (MMX)', 'Malmö Central Station',
+  'Copenhagen Airport (CPH)', 'Copenhagen Central Station',
+  'Oslo Gardermoen Airport (OSL)', 'Oslo Central Station',
+  'Helsinki-Vantaa Airport (HEL)', 'Helsinki Central Station',
+  'London Heathrow Airport (LHR)', 'London Gatwick Airport (LGW)',
+  'London Stansted Airport (STN)', 'London St Pancras Station',
+  'London Victoria Station', 'London City Center',
+  'Manchester Airport (MAN)', 'Manchester Piccadilly Station',
+  'Edinburgh Airport (EDI)', 'Edinburgh Waverley Station',
+  'Paris Charles de Gaulle Airport (CDG)', 'Paris Orly Airport (ORY)',
+  'Paris Gare du Nord', 'Paris Gare de Lyon', 'Paris City Center',
+  'Amsterdam Schiphol Airport (AMS)', 'Amsterdam Centraal Station',
+  'Brussels Airport (BRU)', 'Brussels Midi Station', 'Brussels City Center',
+  'Frankfurt Airport (FRA)', 'Frankfurt Central Station',
+  'Munich Airport (MUC)', 'Munich Central Station',
+  'Berlin Brandenburg Airport (BER)', 'Berlin Hauptbahnhof',
+  'Vienna International Airport (VIE)', 'Vienna Hauptbahnhof',
+  'Zurich Airport (ZRH)', 'Zurich Central Station',
+  'Barcelona El Prat Airport (BCN)', 'Barcelona Sants Station',
+  'Madrid Barajas Airport (MAD)', 'Madrid City Center',
+  'Rome Fiumicino Airport (FCO)', 'Roma Termini Station',
+  'Milan Malpensa Airport (MXP)', 'Milan Linate Airport (LIN)', 'Milan Central Station',
+  'Dubai International Airport (DXB)', 'Dubai City Center', 'Dubai Mall / Downtown Dubai',
+  'JFK International Airport (JFK)', 'LaGuardia Airport (LGA)', 'Newark Liberty Airport (EWR)',
+  'New York Penn Station', 'New York City Center',
+  'Los Angeles International Airport (LAX)',
+  "Chicago O'Hare Airport (ORD)",
+  'Miami International Airport (MIA)',
+  'San Francisco Airport (SFO)',
+  'Singapore Changi Airport (SIN)', 'Singapore City Center',
+  'Tokyo Haneda Airport (HND)', 'Tokyo Narita Airport (NRT)',
+]
+
+// ─── Shared styles ────────────────────────────────────────────────────────────
+
+const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
+
+// ─── Small components ─────────────────────────────────────────────────────────
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button" role="switch" aria-checked={checked} aria-label={label} title={label}
+        onClick={() => onChange(!checked)}
+        className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 ${checked ? 'bg-indigo-600' : 'bg-gray-200'}`}
+      >
+        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+      </button>
+      <span className="text-sm text-gray-700">{label}</span>
+    </div>
+  )
 }
 
-interface Event {
-  id: string
-  eventName: string
-  eventCode: string
-  status: string
+function AirportCombobox({ value, onChange, placeholder, label, required }: {
+  value: AirportOption | null; onChange: (a: AirportOption | null) => void
+  placeholder: string; label: string; required?: boolean
+}) {
+  const [query, setQuery]     = useState(value ? `${value.name} (${value.code})` : '')
+  const [open, setOpen]       = useState(false)
+  const [results, setResults] = useState<AirportOption[]>([])
+
+  function handleInput(q: string) {
+    setQuery(q); onChange(null)
+    if (q.length >= 1) {
+      const lower = q.toLowerCase()
+      const filtered = AIRPORTS.filter(a =>
+        a.code.toLowerCase().includes(lower) || a.name.toLowerCase().includes(lower) || a.city.toLowerCase().includes(lower)
+      ).slice(0, 8)
+      setResults(filtered); setOpen(filtered.length > 0)
+    } else { setOpen(false) }
+  }
+
+  function select(airport: AirportOption) {
+    onChange(airport); setQuery(`${airport.name} (${airport.code})`); setOpen(false)
+  }
+
+  return (
+    <div className="relative flex flex-col gap-1">
+      <label className="text-sm font-medium text-gray-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type="text" value={query} onChange={e => handleInput(e.target.value)}
+        onFocus={() => { if (query.length >= 1 && results.length > 0) setOpen(true) }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder} autoComplete="off" className={inputCls} />
+      {open && (
+        <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
+          {results.map(a => (
+            <button key={a.code} type="button" onMouseDown={() => select(a)}
+              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex items-center justify-between gap-2 text-sm border-b border-gray-50 last:border-0">
+              <span>
+                <span className="font-medium text-gray-900">{a.name}</span>
+                <span className="text-gray-400 ml-1 text-xs">· {a.city}, {a.country}</span>
+              </span>
+              <span className="text-xs font-bold text-indigo-600 shrink-0">{a.code}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SearchCombobox({ value, onChange, suggestions, placeholder, label, required }: {
+  value: string; onChange: (v: string) => void; suggestions: string[]
+  placeholder: string; label: string; required?: boolean
+}) {
+  const [open, setOpen]       = useState(false)
+  const [results, setResults] = useState<string[]>([])
+
+  function handleInput(q: string) {
+    onChange(q)
+    if (q.length >= 1) {
+      const lower = q.toLowerCase()
+      const filtered = suggestions.filter(s => s.toLowerCase().includes(lower)).slice(0, 8)
+      setResults(filtered); setOpen(filtered.length > 0)
+    } else { setOpen(false) }
+  }
+
+  return (
+    <div className="relative flex flex-col gap-1">
+      <label className="text-sm font-medium text-gray-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type="text" value={value} onChange={e => handleInput(e.target.value)}
+        onFocus={() => { if (value.length >= 1 && results.length > 0) setOpen(true) }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder} autoComplete="off" className={inputCls} />
+      {open && (
+        <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
+          {results.map((s, i) => (
+            <button key={i} type="button" onMouseDown={() => { onChange(s); setOpen(false) }}
+              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0">
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-medium text-gray-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      {children}
+    </div>
+  )
+}
+
+function ProgressBar({ step }: { step: number }) {
+  const steps = ['Employee', 'Services', 'Details', 'Review']
+  return (
+    <div className="flex items-center mb-8">
+      {steps.map((label, i) => {
+        const n = i + 1; const done = step > n; const active = step === n
+        return (
+          <div key={label} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${done ? 'bg-indigo-500 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                {done ? '✓' : n}
+              </div>
+              <span className={`mt-1 text-xs font-medium hidden sm:block ${active ? 'text-indigo-600' : done ? 'text-indigo-400' : 'text-gray-400'}`}>{label}</span>
+            </div>
+            {i < steps.length - 1 && <div className={`flex-1 h-0.5 mx-2 rounded transition-colors ${step > n ? 'bg-indigo-400' : 'bg-gray-200'}`} />}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ServiceHeader({ icon, title }: { icon: string; title: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-indigo-50 border-l-4 border-indigo-600 px-4 py-3 mb-5">
+      <span className="text-2xl">{icon}</span>
+      <span className="font-semibold text-indigo-900">{title}</span>
+    </div>
+  )
+}
+
+function ReviewBlock({ icon, title, onEdit, children }: { icon: string; title: string; onEdit: () => void; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{icon}</span>
+          <span className="text-sm font-semibold text-gray-800">{title}</span>
+        </div>
+        <button type="button" onClick={onEdit} className="text-xs text-indigo-600 font-medium hover:underline">Edit</button>
+      </div>
+      <div className="px-4 py-3 space-y-2">{children}</div>
+    </div>
+  )
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2 text-sm">
+      <span className="text-gray-400 w-32 shrink-0">{label}</span>
+      <span className="text-gray-900 font-medium">{value}</span>
+    </div>
+  )
+}
+
+function fmtDisplayDate(iso: string) {
+  if (!iso) return '—'
+  return new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+const SERVICE_META: Record<string, { icon: string; label: string }> = {
+  FLIGHT:     { icon: '✈️', label: 'Flight' },
+  HOTEL:      { icon: '🏨', label: 'Hotel' },
+  CAR_RENTAL: { icon: '🚗', label: 'Car Rental' },
+  TAXI:       { icon: '🚕', label: 'Taxi / Transfer' },
 }
 
 export default function AgentBookPage() {
   const router = useRouter()
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [events, setEvents] = useState<Event[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
 
-  const [form, setForm] = useState({
-    employeeId: '',
-    eventId: '',
-    origin: '',
-    destination: '',
-    departureDate: '',
-    returnDate: '',
-    servicesRequested: [] as string[],
-    estimatedCostUsd: '',
-    purpose: '',
-    preferredClass: 'ECONOMY',
-    hotelNights: '',
-    carRentalDays: '',
-    specialInstructions: '',
+  const [step, setStep]           = useState(1)
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [employeeId, setEmployeeId] = useState('')
+  const [events, setEvents]       = useState<TravelEvent[]>([])
+  const [search, setSearch]       = useState('')
+  const [eventId, setEventId]     = useState('')
+  const [selectedEvent, setSelectedEvent] = useState<TravelEvent | null>(null)
+  const [services, setServices]   = useState<string[]>([])
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+  const [warning, setWarning]     = useState('')
+
+  const [flight, setFlight] = useState<FlightData>({
+    originAirport: null, destAirport: null, tripType: 'round-trip',
+    departureDate: '', departureTime: '', returnDate: '', returnTime: '',
+    flexibleDates: false, notes: '',
   })
+  const [hotel, setHotel] = useState<HotelData>({ city: '', checkIn: '', checkOut: '', area: '', notes: '' })
+  const [taxi, setTaxi]   = useState<TaxiData>({ pickup: '', dropoff: '', date: '', time: '', notes: '' })
+  const [car, setCar]     = useState<CarData>({ pickupCity: '', pickupDate: '', pickupTime: '', returnDate: '', notes: '' })
+  const [purpose, setPurpose]                   = useState('')
+  const [estimatedCostUsd, setEstimatedCostUsd] = useState('')
+  const [paymentResponsibility, setPaymentResponsibility] = useState('m4u')
 
   useEffect(() => {
-    fetch('/api/agent/employees').then((r) => r.json()).then(setEmployees)
-    fetch('/api/events').then((r) => r.json()).then(setEvents)
+    fetch('/api/agent/employees').then(r => r.json()).then(setEmployees)
+    fetch('/api/events').then(r => r.json()).then((data: TravelEvent[]) =>
+      setEvents(data.filter(e => e.status !== 'CLOSED'))
+    )
   }, [])
 
-  function toggleService(service: string) {
-    setForm((f) => ({
-      ...f,
-      servicesRequested: f.servicesRequested.includes(service)
-        ? f.servicesRequested.filter((s) => s !== service)
-        : [...f.servicesRequested, service],
-    }))
+  function selectEvent(ev: TravelEvent) { setEventId(ev.id); setSelectedEvent(ev) }
+  function toggleService(s: string) {
+    setServices(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError('')
-
-    if (form.servicesRequested.length === 0) {
-      setError('Select at least one service.')
-      setSubmitting(false)
-      return
+  function validate(): string {
+    if (step === 1) {
+      if (!employeeId) return 'Please select an employee.'
+      if (!eventId)    return 'Please select an event.'
     }
+    if (step === 2 && services.length === 0) return 'Please select at least one service.'
+    if (step === 3) {
+      if (services.includes('FLIGHT')) {
+        if (!flight.originAirport)                                   return 'Please select a departure airport.'
+        if (!flight.destAirport)                                     return 'Please select a destination airport.'
+        if (!flight.departureDate)                                   return 'Please select a departure date.'
+        if (flight.tripType === 'round-trip' && !flight.returnDate) return 'Please select a return date.'
+      }
+      if (services.includes('HOTEL')) {
+        if (!hotel.city)     return 'Please enter a hotel city.'
+        if (!hotel.checkIn)  return 'Please select a check-in date.'
+        if (!hotel.checkOut) return 'Please select a check-out date.'
+      }
+      if (services.includes('TAXI')) {
+        if (!taxi.pickup)  return 'Please enter a pickup location.'
+        if (!taxi.dropoff) return 'Please enter a drop-off location.'
+        if (!taxi.date)    return 'Please select a pickup date.'
+        if (!taxi.time)    return 'Please select a pickup time.'
+      }
+      if (services.includes('CAR_RENTAL')) {
+        if (!car.pickupCity) return 'Please enter a pickup location.'
+        if (!car.pickupDate) return 'Please select a pickup date.'
+        if (!car.returnDate) return 'Please select a return date.'
+      }
+      if (!purpose.trim()) return 'Please describe the purpose of the trip.'
+    }
+    return ''
+  }
 
-    const payload = {
-      employeeId: form.employeeId,
-      eventId: form.eventId,
-      origin: form.origin,
-      destination: form.destination,
-      travelDates: { departureDate: form.departureDate, returnDate: form.returnDate },
-      servicesRequested: form.servicesRequested,
-      estimatedCostUsd: form.estimatedCostUsd ? parseFloat(form.estimatedCostUsd) : undefined,
-      purpose: form.purpose,
-      preferredClass: form.preferredClass,
-      hotelNights: form.hotelNights ? parseInt(form.hotelNights) : undefined,
-      carRentalDays: form.carRentalDays ? parseInt(form.carRentalDays) : undefined,
-      specialInstructions: form.specialInstructions || undefined,
+  function next() {
+    const err = validate()
+    if (err) { setError(err); return }
+    setError(''); setStep(s => s + 1)
+  }
+
+  function back() { setError(''); setStep(s => s - 1) }
+
+  async function submit() {
+    setLoading(true); setError(''); setWarning('')
+
+    const parts: string[] = []
+    if (services.includes('FLIGHT') && flight.originAirport && flight.destAirport) {
+      const depStr = `${flight.departureDate}${flight.departureTime ? ' at ' + flight.departureTime : ''}`
+      const retStr = flight.tripType === 'round-trip'
+        ? `, ret: ${flight.returnDate}${flight.returnTime ? ' at ' + flight.returnTime : ''}`
+        : ' (one-way)'
+      parts.push(`FLIGHT: ${flight.originAirport.name} (${flight.originAirport.code}) → ${flight.destAirport.name} (${flight.destAirport.code}), dep: ${depStr}${retStr}${flight.flexibleDates ? ', flexible dates' : ''}${flight.notes ? ', notes: ' + flight.notes : ''}`)
+    }
+    if (services.includes('HOTEL')) {
+      parts.push(`HOTEL: ${hotel.city}${hotel.area ? ', area: ' + hotel.area : ''}, check-in: ${hotel.checkIn}, check-out: ${hotel.checkOut}${hotel.notes ? ', notes: ' + hotel.notes : ''}`)
+    }
+    if (services.includes('TAXI')) {
+      parts.push(`TAXI: ${taxi.pickup} → ${taxi.dropoff}, ${taxi.date}${taxi.time ? ' at ' + taxi.time : ''}${taxi.notes ? ', notes: ' + taxi.notes : ''}`)
+    }
+    if (services.includes('CAR_RENTAL')) {
+      parts.push(`CAR: pickup ${car.pickupCity} ${car.pickupDate}${car.pickupTime ? ' at ' + car.pickupTime : ''}, return ${car.returnDate}${car.notes ? ', notes: ' + car.notes : ''}`)
+    }
+    parts.push(`Payment: ${paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'}`)
+
+    const origin      = flight.originAirport?.city || taxi.pickup || car.pickupCity || 'TBD'
+    const destination = flight.destAirport?.city   || hotel.city  || taxi.dropoff   || car.pickupCity || 'TBD'
+    const depDate     = flight.departureDate || taxi.date || hotel.checkIn || car.pickupDate || ''
+    const retDate     = flight.tripType === 'one-way' ? '' : (flight.returnDate || hotel.checkOut || car.returnDate || '')
+
+    function daysBetween(a: string, b: string) {
+      if (!a || !b) return undefined
+      const d = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)
+      return d > 0 ? d : undefined
     }
 
     const res = await fetch('/api/agent/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        employeeId,
+        eventId,
+        origin,
+        destination,
+        travelDates:         { departureDate: depDate, returnDate: retDate },
+        servicesRequested:   services,
+        purpose,
+        estimatedCostUsd:    estimatedCostUsd ? Number(estimatedCostUsd) : undefined,
+        preferredClass:      'ECONOMY',
+        hotelNights:         services.includes('HOTEL')      ? daysBetween(hotel.checkIn, hotel.checkOut) : undefined,
+        carRentalDays:       services.includes('CAR_RENTAL') ? daysBetween(car.pickupDate, car.returnDate) : undefined,
+        specialInstructions: parts.join('\n'),
+      }),
     })
 
-    if (res.ok) {
-      const data = await res.json()
-      router.push(`/agent/requests/${data.id}`)
-    } else {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to create request')
+    const data = await res.json()
+    if (!res.ok) {
+      setError(typeof data.error === 'string' ? data.error : 'Submission failed. Please try again.')
+      setLoading(false)
+      return
     }
-    setSubmitting(false)
+    if (data.budgetWarning) setWarning('Note: this request is approaching the event budget cap.')
+    router.push(`/agent/requests/${data.id}`)
   }
 
-  const activeEvents = events.filter((e) => e.status === 'ACTIVE')
+  const filteredEvents = events.filter(ev =>
+    !search ||
+    ev.eventName.toLowerCase().includes(search.toLowerCase()) ||
+    (ev.eventCode ?? '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  const selectedEmployee = employees.find(e => e.id === employeeId)
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Book on behalf of employee</h1>
+    <div className="mx-auto max-w-2xl pb-12">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Book on behalf of employee</h1>
 
-      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <ProgressBar step={step} />
 
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border bg-white p-6">
-        {/* Employee */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-          <select
-            required
-            value={form.employeeId}
-            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Select employee...</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.name} — {emp.email}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
 
-        {/* Event */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Event *</label>
-          <select
-            required
-            value={form.eventId}
-            onChange={(e) => setForm({ ...form, eventId: e.target.value })}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Select event...</option>
-            {activeEvents.map((ev) => (
-              <option key={ev.id} value={ev.id}>
-                {ev.eventName} ({ev.eventCode})
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* ─── Step 1: Employee + Event ────────────────────── */}
+        {step === 1 && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Select employee</h2>
+              <p className="text-sm text-gray-500 mb-4">Choose the employee you are booking for.</p>
+              <Field label="Employee" required>
+                <select
+                  value={employeeId}
+                  title="Employee"
+                  onChange={e => setEmployeeId(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">Select employee…</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
-        {/* Route */}
-        <div className="grid grid-cols-2 gap-4">
+            <div className="h-px bg-gray-100" />
+
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Select event</h2>
+              <p className="text-sm text-gray-500 mb-4">Choose the event this trip is for.</p>
+
+              <input
+                type="text" placeholder="Search events…" value={search}
+                onChange={e => setSearch(e.target.value)} className={inputCls + ' mb-4'}
+              />
+
+              {filteredEvents.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-10">No active events found.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {filteredEvents.map(ev => {
+                    const sel = ev.id === eventId
+                    return (
+                      <button
+                        key={ev.id} type="button" onClick={() => selectEvent(ev)}
+                        className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${sel ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-gray-900">{ev.eventName}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {ev.eventCode}
+                              {ev.venue ? ` · ${ev.venue}` : ''}
+                              {ev.eventDate ? ` · ${fmtDisplayDate(new Date(ev.eventDate).toISOString().split('T')[0])}` : ''}
+                            </p>
+                          </div>
+                          {sel && (
+                            <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Step 2: Select Services ──────────────────────── */}
+        {step === 2 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Origin *</label>
-            <input
-              required
-              type="text"
-              placeholder="e.g. Stockholm"
-              value={form.origin}
-              onChange={(e) => setForm({ ...form, origin: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">What do you need?</h2>
+            <p className="text-sm text-gray-500 mb-5">Select all services for this trip. You can choose multiple.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(['FLIGHT', 'HOTEL', 'CAR_RENTAL', 'TAXI'] as const).map(svc => {
+                const meta = SERVICE_META[svc]; const sel = services.includes(svc)
+                return (
+                  <button key={svc} type="button" onClick={() => toggleService(svc)}
+                    className={`rounded-2xl border-2 p-5 flex flex-col items-center gap-2 transition-all ${sel ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 bg-white hover:border-indigo-300 text-gray-700'}`}
+                  >
+                    <span className="text-3xl">{meta.icon}</span>
+                    <span className="text-sm font-semibold">{meta.label}</span>
+                    {sel && (
+                      <div className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Destination *</label>
-            <input
-              required
-              type="text"
-              placeholder="e.g. Copenhagen"
-              value={form.destination}
-              onChange={(e) => setForm({ ...form, destination: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
+        )}
 
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Departure date *</label>
-            <input
-              required
-              type="date"
-              value={form.departureDate}
-              onChange={(e) => setForm({ ...form, departureDate: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Return date *</label>
-            <input
-              required
-              type="date"
-              value={form.returnDate}
-              onChange={(e) => setForm({ ...form, returnDate: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
+        {/* ─── Step 3: Service Forms ────────────────────────── */}
+        {step === 3 && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Fill in details</h2>
+              <p className="text-sm text-gray-500">Complete the information for each service.</p>
+            </div>
 
-        {/* Services */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Services needed *</label>
-          <div className="flex gap-3 flex-wrap">
-            {['FLIGHT', 'HOTEL', 'CAR_RENTAL'].map((svc) => (
-              <label key={svc} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.servicesRequested.includes(svc)}
-                  onChange={() => toggleService(svc)}
-                  className="rounded border-gray-300 text-indigo-600"
-                />
-                {svc.replace('_', ' ')}
-              </label>
-            ))}
-          </div>
-        </div>
+            {services.includes('FLIGHT') && (
+              <section className="space-y-4">
+                <ServiceHeader icon="✈️" title="Flight" />
+                <div className="grid grid-cols-2 gap-3">
+                  {(['one-way', 'round-trip'] as const).map(type => (
+                    <button key={type} type="button" onClick={() => setFlight(f => ({ ...f, tripType: type }))}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${flight.tripType === type ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200'}`}>
+                      <span className="text-lg">{type === 'one-way' ? '✈️' : '↔️'}</span>
+                      <span>{type === 'one-way' ? 'One-way' : 'Round Trip'}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <AirportCombobox label="Departure Airport" required placeholder="Search city or IATA code…" value={flight.originAirport} onChange={v => setFlight(f => ({ ...f, originAirport: v }))} />
+                  <AirportCombobox label="Destination Airport" required placeholder="Search city or IATA code…" value={flight.destAirport} onChange={v => setFlight(f => ({ ...f, destAirport: v }))} />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Departure Date" required>
+                    <input type="date" title="Departure Date" value={flight.departureDate} onChange={e => setFlight(f => ({ ...f, departureDate: e.target.value }))} className={inputCls} />
+                  </Field>
+                  <Field label="Departure Time">
+                    <input type="time" title="Departure Time" value={flight.departureTime} onChange={e => setFlight(f => ({ ...f, departureTime: e.target.value }))} className={inputCls} />
+                  </Field>
+                </div>
+                {flight.tripType === 'round-trip' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="Return Date" required>
+                      <input type="date" title="Return Date" value={flight.returnDate} onChange={e => setFlight(f => ({ ...f, returnDate: e.target.value }))} className={inputCls} />
+                    </Field>
+                    <Field label="Return Time">
+                      <input type="time" title="Return Time" value={flight.returnTime} onChange={e => setFlight(f => ({ ...f, returnTime: e.target.value }))} className={inputCls} />
+                    </Field>
+                  </div>
+                )}
+                <Toggle checked={flight.flexibleDates} onChange={v => setFlight(f => ({ ...f, flexibleDates: v }))} label="Flexible dates" />
+                <Field label="Additional Notes">
+                  <textarea value={flight.notes} onChange={e => setFlight(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="E.g. aisle seat preferred…" className={inputCls + ' resize-none'} />
+                </Field>
+              </section>
+            )}
 
-        {/* Class + Cost */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preferred class</label>
-            <select
-              value={form.preferredClass}
-              onChange={(e) => setForm({ ...form, preferredClass: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="ECONOMY">Economy</option>
-              <option value="BUSINESS">Business</option>
-              <option value="FIRST">First</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Estimated cost (USD)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              value={form.estimatedCostUsd}
-              onChange={(e) => setForm({ ...form, estimatedCostUsd: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
+            {services.includes('HOTEL') && (
+              <section className="space-y-4">
+                <ServiceHeader icon="🏨" title="Hotel" />
+                <SearchCombobox label="City" required value={hotel.city} onChange={v => setHotel(h => ({ ...h, city: v }))} suggestions={HOTEL_CITIES} placeholder="Search city…" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Check-in Date" required>
+                    <input type="date" title="Check-in Date" value={hotel.checkIn} onChange={e => setHotel(h => ({ ...h, checkIn: e.target.value }))} className={inputCls} />
+                  </Field>
+                  <Field label="Check-out Date" required>
+                    <input type="date" title="Check-out Date" value={hotel.checkOut} onChange={e => setHotel(h => ({ ...h, checkOut: e.target.value }))} className={inputCls} />
+                  </Field>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Field label="Preferred Area">
+                    <input type="text" value={hotel.area} onChange={e => setHotel(h => ({ ...h, area: e.target.value }))} placeholder="E.g. City Center, Near Airport…" className={inputCls} />
+                  </Field>
+                  <div className="flex flex-wrap gap-2">
+                    {['City Center', 'Near Airport', 'Near Venue'].map(chip => (
+                      <button key={chip} type="button" onClick={() => setHotel(h => ({ ...h, area: chip }))}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${hotel.area === chip ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}>
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Field label="Notes">
+                  <textarea value={hotel.notes} onChange={e => setHotel(h => ({ ...h, notes: e.target.value }))} rows={2} placeholder="Any special requests…" className={inputCls + ' resize-none'} />
+                </Field>
+              </section>
+            )}
 
-        {/* Hotel / Car */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hotel nights</label>
-            <input
-              type="number"
-              min="1"
-              placeholder="—"
-              value={form.hotelNights}
-              onChange={(e) => setForm({ ...form, hotelNights: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            {services.includes('TAXI') && (
+              <section className="space-y-4">
+                <ServiceHeader icon="🚕" title="Taxi / Transfer" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <SearchCombobox label="Pickup Location" required value={taxi.pickup} onChange={v => setTaxi(t => ({ ...t, pickup: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
+                  <SearchCombobox label="Drop-off Location" required value={taxi.dropoff} onChange={v => setTaxi(t => ({ ...t, dropoff: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Date" required>
+                    <input type="date" title="Date" value={taxi.date} onChange={e => setTaxi(t => ({ ...t, date: e.target.value }))} className={inputCls} />
+                  </Field>
+                  <Field label="Time" required>
+                    <input type="time" title="Time" value={taxi.time} onChange={e => setTaxi(t => ({ ...t, time: e.target.value }))} className={inputCls} />
+                  </Field>
+                </div>
+                <Field label="Notes">
+                  <textarea value={taxi.notes} onChange={e => setTaxi(t => ({ ...t, notes: e.target.value }))} rows={2} placeholder="Any special requirements…" className={inputCls + ' resize-none'} />
+                </Field>
+              </section>
+            )}
+
+            {services.includes('CAR_RENTAL') && (
+              <section className="space-y-4">
+                <ServiceHeader icon="🚗" title="Car Rental" />
+                <SearchCombobox label="Pickup Location" required value={car.pickupCity} onChange={v => setCar(c => ({ ...c, pickupCity: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Pickup Date" required>
+                    <input type="date" title="Pickup Date" value={car.pickupDate} onChange={e => setCar(c => ({ ...c, pickupDate: e.target.value }))} className={inputCls} />
+                  </Field>
+                  <Field label="Pickup Time">
+                    <input type="time" title="Pickup Time" value={car.pickupTime} onChange={e => setCar(c => ({ ...c, pickupTime: e.target.value }))} className={inputCls} />
+                  </Field>
+                </div>
+                <Field label="Return Date" required>
+                  <input type="date" title="Return Date" value={car.returnDate} onChange={e => setCar(c => ({ ...c, returnDate: e.target.value }))} className={inputCls} />
+                </Field>
+                <Field label="Notes">
+                  <textarea value={car.notes} onChange={e => setCar(c => ({ ...c, notes: e.target.value }))} rows={2} placeholder="Any special requirements…" className={inputCls + ' resize-none'} />
+                </Field>
+              </section>
+            )}
+
+            <section className="space-y-4">
+              <div className="h-px bg-gray-100" />
+              <Field label="Purpose of trip" required>
+                <textarea value={purpose} onChange={e => setPurpose(e.target.value)} rows={3} placeholder="E.g. Client visit — Q3 review meeting in London" className={inputCls + ' resize-none'} />
+              </Field>
+              <Field label="Estimated cost (USD)">
+                <input type="number" min="0" value={estimatedCostUsd} onChange={e => setEstimatedCostUsd(e.target.value)} placeholder="0" className={inputCls} />
+              </Field>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Payment Responsibility</p>
+                <p className="text-xs text-gray-400 mb-3">Who is covering the cost of this trip?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {([['m4u', 'M4U is paying'], ['client', 'Client is paying']] as [string, string][]).map(([val, lbl]) => (
+                    <button key={val} type="button" onClick={() => setPaymentResponsibility(val)}
+                      className={`flex items-center justify-center rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${paymentResponsibility === val ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200'}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Car rental days</label>
-            <input
-              type="number"
-              min="1"
-              placeholder="—"
-              value={form.carRentalDays}
-              onChange={(e) => setForm({ ...form, carRentalDays: e.target.value })}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+        )}
+
+        {/* ─── Step 4: Review & Submit ──────────────────────── */}
+        {step === 4 && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Review your request</h2>
+              <p className="text-sm text-gray-500">Double-check everything before submitting.</p>
+            </div>
+
+            {selectedEmployee && (
+              <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Employee</p>
+                <p className="font-semibold text-gray-900">{selectedEmployee.name}</p>
+                <p className="text-sm text-gray-500">{selectedEmployee.email}</p>
+              </div>
+            )}
+
+            {selectedEvent && (
+              <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-4">
+                <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-1">Event</p>
+                <p className="font-semibold text-gray-900">{selectedEvent.eventName}</p>
+                <p className="text-sm text-gray-500">
+                  {selectedEvent.eventCode}
+                  {selectedEvent.eventDate ? ` · ${fmtDisplayDate(new Date(selectedEvent.eventDate).toISOString().split('T')[0])}` : ''}
+                  {selectedEvent.venue ? ` · ${selectedEvent.venue}` : ''}
+                </p>
+              </div>
+            )}
+
+            {services.includes('FLIGHT') && flight.originAirport && flight.destAirport && (
+              <ReviewBlock icon="✈️" title="Flight" onEdit={() => setStep(3)}>
+                <ReviewRow label="Route"     value={`${flight.originAirport.name} (${flight.originAirport.code}) → ${flight.destAirport.name} (${flight.destAirport.code})`} />
+                <ReviewRow label="Trip type" value={flight.tripType === 'one-way' ? 'One-way' : 'Round trip'} />
+                <ReviewRow label="Departure" value={`${fmtDisplayDate(flight.departureDate)}${flight.departureTime ? ' at ' + flight.departureTime : ''}`} />
+                {flight.tripType === 'round-trip' && (
+                  <ReviewRow label="Return" value={`${fmtDisplayDate(flight.returnDate)}${flight.returnTime ? ' at ' + flight.returnTime : ''}`} />
+                )}
+                {flight.flexibleDates && <ReviewRow label="Flexible dates" value="Yes" />}
+                {flight.notes && <ReviewRow label="Notes" value={flight.notes} />}
+              </ReviewBlock>
+            )}
+
+            {services.includes('HOTEL') && (
+              <ReviewBlock icon="🏨" title="Hotel" onEdit={() => setStep(3)}>
+                <ReviewRow label="City"      value={hotel.city || '—'} />
+                <ReviewRow label="Check-in"  value={fmtDisplayDate(hotel.checkIn)} />
+                <ReviewRow label="Check-out" value={fmtDisplayDate(hotel.checkOut)} />
+                {hotel.area  && <ReviewRow label="Area"  value={hotel.area} />}
+                {hotel.notes && <ReviewRow label="Notes" value={hotel.notes} />}
+              </ReviewBlock>
+            )}
+
+            {services.includes('TAXI') && (
+              <ReviewBlock icon="🚕" title="Taxi / Transfer" onEdit={() => setStep(3)}>
+                <ReviewRow label="Pickup"      value={taxi.pickup || '—'} />
+                <ReviewRow label="Drop-off"    value={taxi.dropoff || '—'} />
+                <ReviewRow label="Date & time" value={taxi.date ? `${fmtDisplayDate(taxi.date)}${taxi.time ? ' at ' + taxi.time : ''}` : '—'} />
+                {taxi.notes && <ReviewRow label="Notes" value={taxi.notes} />}
+              </ReviewBlock>
+            )}
+
+            {services.includes('CAR_RENTAL') && (
+              <ReviewBlock icon="🚗" title="Car Rental" onEdit={() => setStep(3)}>
+                <ReviewRow label="Pickup"      value={car.pickupCity || '—'} />
+                <ReviewRow label="Pickup date" value={`${fmtDisplayDate(car.pickupDate)}${car.pickupTime ? ' at ' + car.pickupTime : ''}`} />
+                <ReviewRow label="Return date" value={fmtDisplayDate(car.returnDate)} />
+                {car.notes && <ReviewRow label="Notes" value={car.notes} />}
+              </ReviewBlock>
+            )}
+
+            <ReviewBlock icon="📋" title="Trip details" onEdit={() => setStep(3)}>
+              <ReviewRow label="Purpose"  value={purpose || '—'} />
+              {estimatedCostUsd && <ReviewRow label="Est. cost" value={`$${Number(estimatedCostUsd).toLocaleString('en-US')}`} />}
+              <ReviewRow label="Payment"  value={paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'} />
+            </ReviewBlock>
+
+            {warning && <p className="rounded-xl bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">{warning}</p>}
+            {error   && <p className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</p>}
           </div>
-        </div>
+        )}
 
-        {/* Purpose */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Purpose *</label>
-          <input
-            required
-            type="text"
-            placeholder="e.g. Client meeting, Conference attendance"
-            value={form.purpose}
-            onChange={(e) => setForm({ ...form, purpose: e.target.value })}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
+        {error && step < 4 && (
+          <p className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</p>
+        )}
 
-        {/* Special instructions */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Special instructions</label>
-          <textarea
-            rows={3}
-            placeholder="Seat preferences, dietary requirements, etc."
-            value={form.specialInstructions}
-            onChange={(e) => setForm({ ...form, specialInstructions: e.target.value })}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+        <div className={`flex gap-3 pt-2 ${step > 1 ? 'justify-between' : 'justify-end'}`}>
+          {step > 1 && (
+            <button type="button" onClick={back} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              ← Back
+            </button>
+          )}
+          {step < 4 ? (
+            <button type="button" onClick={next} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 text-sm font-semibold transition-colors ml-auto">
+              Next →
+            </button>
+          ) : (
+            <button type="button" onClick={submit} disabled={loading} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-8 py-2.5 text-sm font-semibold transition-colors ml-auto">
+              {loading ? 'Submitting…' : 'Submit request'}
+            </button>
+          )}
         </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {submitting ? 'Creating...' : 'Create request'}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   )
 }

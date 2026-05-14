@@ -105,13 +105,13 @@ export default function PayoutReportsPage() {
               <div key={r.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-gray-900 text-sm">
-                    {new Date(r.periodStart).toLocaleDateString()} – {new Date(r.periodEnd).toLocaleDateString()}
+                    {new Date(r.periodStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} – {new Date(r.periodEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                   </p>
                   <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
                 </div>
                 <p className="text-xl font-bold text-gray-900">${Number(r.totalUsd).toFixed(2)}</p>
-                <p className="text-xs text-gray-400">Generated {new Date(r.generatedAt).toLocaleDateString()}</p>
-                {r.paidAt && <p className="text-xs text-green-600">Paid {new Date(r.paidAt).toLocaleDateString()}</p>}
+                <p className="text-xs text-gray-400">Generated {new Date(r.generatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
+                {r.paidAt && <p className="text-xs text-green-600">Paid {new Date(r.paidAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>}
                 {r.expenses.length > 0 && (
                   <div className="pt-1 space-y-1">
                     {r.expenses.map((e) => (
@@ -161,12 +161,12 @@ export default function PayoutReportsPage() {
                   <React.Fragment key={r.id}>
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">
-                        {new Date(r.periodStart).toLocaleDateString()} – {new Date(r.periodEnd).toLocaleDateString()}
+                        {new Date(r.periodStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} – {new Date(r.periodEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-3 font-semibold text-gray-900">${Number(r.totalUsd).toFixed(2)}</td>
                       <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge></td>
-                      <td className="px-4 py-3 text-gray-400">{new Date(r.generatedAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 text-gray-400">{r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '—'}</td>
+                      <td className="px-4 py-3 text-gray-400">{new Date(r.generatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
+                      <td className="px-4 py-3 text-gray-400">{r.paidAt ? new Date(r.paidAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {r.status !== 'PAID' && r.status !== 'EXPORTED' ? (
@@ -198,7 +198,7 @@ export default function PayoutReportsPage() {
                         <td className="px-4 py-2 text-xs text-gray-500">{e.employee.name}</td>
                         <td className="px-4 py-2 text-xs text-gray-400">{e.merchantName ?? '—'}</td>
                         <td className="px-4 py-2 text-xs text-gray-400">
-                          {e.transactionDate ? new Date(e.transactionDate).toLocaleDateString() : '—'}
+                          {e.transactionDate ? new Date(e.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-2">
                           <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs font-medium text-indigo-600 hover:underline">

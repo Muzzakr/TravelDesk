@@ -229,7 +229,7 @@ export default async function FinanceDashboard() {
                           <Badge variant={statusToBadgeVariant(ev.status)}>{ev.status}</Badge>
                         </td>
                         <td className="px-4 py-3 text-gray-400">
-                          {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : '—'}
+                          {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">${budget.toFixed(0)}</td>
                         <td className="px-4 py-3 text-right text-gray-700">${spent.toFixed(0)}</td>
@@ -267,12 +267,12 @@ export default async function FinanceDashboard() {
                 <div key={r.id} className="rounded-xl border bg-white px-4 py-3 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-gray-900">
-                      {new Date(r.periodStart).toLocaleDateString()} – {new Date(r.periodEnd).toLocaleDateString()}
+                      {new Date(r.periodStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} – {new Date(r.periodEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                     </p>
                     <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
                   </div>
                   <p className="text-xl font-bold text-gray-900">${Number(r.totalUsd).toFixed(2)}</p>
-                  <p className="text-xs text-gray-400">Generated {new Date(r.generatedAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-400">Generated {new Date(r.generatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                 </div>
               ))}
             </div>
@@ -291,11 +291,11 @@ export default async function FinanceDashboard() {
                   {reports.map((r) => (
                     <tr key={r.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">
-                        {new Date(r.periodStart).toLocaleDateString()} – {new Date(r.periodEnd).toLocaleDateString()}
+                        {new Date(r.periodStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} – {new Date(r.periodEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-3">${Number(r.totalUsd).toFixed(2)}</td>
                       <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge></td>
-                      <td className="px-4 py-3 text-gray-400">{new Date(r.generatedAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-gray-400">{new Date(r.generatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                     </tr>
                   ))}
                 </tbody>

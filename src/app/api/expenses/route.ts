@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { checkExpensePolicy } from '@/lib/policy-engine'
 import { notifyExpenseSubmitted } from '@/lib/notify'
+import { emailExpenseToManager } from '@/lib/mail'
 import { z } from 'zod'
 
 const CreateSchema = z.object({
@@ -100,6 +101,22 @@ export async function POST(req: NextRequest) {
     description: parsed.data.description,
     eventCode: event.eventCode,
   }).catch(() => {})
+
+  // Email manager
+  const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
+  if (emp?.managerId) {
+    const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
+    if (manager?.email) {
+      emailExpenseToManager(manager.email, manager.name ?? 'Manager', {
+        employeeName: session.user.name ?? session.user.email ?? 'Employee',
+        amountUsd: parsed.data.amountUsd,
+        category: parsed.data.category,
+        description: parsed.data.description,
+        eventCode: event.eventCode,
+        expenseId: expense.id,
+      }).catch(() => {})
+    }
+  }
 
   return NextResponse.json({ expense, warnings: policyFlags.filter((f) => f.severity === 'WARNING') }, { status: 201 })
 }

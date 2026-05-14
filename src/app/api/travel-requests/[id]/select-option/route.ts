@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { emailPendingManagerApproval } from '@/lib/mail'
 import { z } from 'zod'
 
 const SelectSchema = z.object({
@@ -76,6 +77,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     entityId: params.id,
     payload: { optionIds, totalUsd, vendors: selectedOptions.map((o) => o.vendor) },
   })
+
+  // Email manager to approve
+  const emp = await prisma.user.findUnique({
+    where: { id: travelRequest.employeeId },
+    select: { name: true, email: true, managerId: true },
+  })
+  if (emp?.managerId) {
+    const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
+    if (manager?.email) {
+      emailPendingManagerApproval(manager.email, manager.name ?? 'Manager', {
+        employeeName: emp.name ?? 'Employee',
+        origin: travelRequest.origin,
+        destination: travelRequest.destination,
+        departureDate: (travelRequest.travelDates as { departureDate: string }).departureDate,
+        requestId: params.id,
+      }).catch(() => {})
+    }
+  }
 
   return NextResponse.json({ success: true })
 }

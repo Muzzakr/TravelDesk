@@ -29,7 +29,7 @@ export async function getReceiptUrl(key: string): Promise<string> {
   })
   if (!res.ok) throw new Error('Failed to generate signed URL')
   const { signedURL } = await res.json()
-  return `${SUPABASE_URL}/storage/v1${signedURL}`
+  return `${SUPABASE_URL}${signedURL}`
 }
 
 export async function deleteReceipt(key: string): Promise<void> {

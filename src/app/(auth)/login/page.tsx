@@ -64,6 +64,11 @@ function LoginForm() {
             Account created! Please sign in.
           </div>
         )}
+        {params.get('message') === 'password-set' && (
+          <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+            Password set successfully. You can now sign in.
+          </div>
+        )}
         <div className="rounded-2xl bg-white p-8 shadow-lg">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
@@ -96,6 +101,11 @@ function LoginForm() {
             <Button type="submit" loading={loading} className="mt-2">
               Sign in
             </Button>
+            <p className="text-center text-sm text-gray-500">
+              <Link href="/forgot-password" className="font-medium text-indigo-600 hover:underline">
+                Forgot your password?
+              </Link>
+            </p>
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
             New company?{' '}

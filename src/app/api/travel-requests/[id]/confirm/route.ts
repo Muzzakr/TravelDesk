@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { emailBookingConfirmed } from '@/lib/mail'
 import { z } from 'zod'
 
 const ConfirmSchema = z.object({
@@ -90,6 +91,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     entityId: params.id,
     payload: { confirmationNumber: parsed.data.confirmationNumber },
   })
+
+  const employee = await prisma.user.findUnique({
+    where: { id: travelRequest.employeeId },
+    select: { name: true, email: true },
+  })
+  if (employee?.email) {
+    emailBookingConfirmed(employee.email, employee.name ?? 'there', {
+      origin: travelRequest.origin,
+      destination: travelRequest.destination,
+      departureDate: (travelRequest.travelDates as { departureDate: string }).departureDate,
+      confirmationNumber: parsed.data.confirmationNumber,
+      requestId: params.id,
+    }).catch(() => {})
+  }
 
   return NextResponse.json({ success: true })
 }

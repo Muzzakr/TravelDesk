@@ -28,10 +28,17 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 
 export default function TravelRequestsPage() {
   const [requests, setRequests] = useState<TravelRequest[]>([])
+  const [role, setRole] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/travel-requests').then((r) => r.json()).then(setRequests)
+    Promise.all([
+      fetch('/api/travel-requests').then((r) => r.json()),
+      fetch('/api/auth/session').then((r) => r.json()),
+    ]).then(([data, session]) => {
+      setRequests(data)
+      setRole(session?.user?.role ?? null)
+    })
   }, [])
 
   async function cancelRequest(id: string) {
@@ -51,17 +58,21 @@ export default function TravelRequestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Travel requests</h1>
-        <Link href="/employee/travel-requests/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-          + New
-        </Link>
+        {role === 'EMPLOYEE' && (
+          <Link href="/employee/travel-requests/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+            + New
+          </Link>
+        )}
       </div>
 
       {requests.length === 0 ? (
         <div className="rounded-xl border bg-white p-12 text-center text-gray-400">
           <p>No travel requests yet.</p>
-          <Link href="/employee/travel-requests/new" className="mt-3 inline-block text-sm font-medium text-indigo-600 hover:underline">
-            Create your first request →
-          </Link>
+          {role === 'EMPLOYEE' && (
+            <Link href="/employee/travel-requests/new" className="mt-3 inline-block text-sm font-medium text-indigo-600 hover:underline">
+              Create your first request →
+            </Link>
+          )}
         </div>
       ) : (
         <>
@@ -69,7 +80,7 @@ export default function TravelRequestsPage() {
           <div className="sm:hidden space-y-3">
             {requests.map((r) => {
               const dates = r.travelDates as { departureDate: string; returnDate: string }
-              const needsAction = r.status === 'OPTIONS_PROVIDED'
+              const needsAction = r.status === 'OPTIONS_PROVIDED' && role === 'EMPLOYEE'
               const isDraft = r.status === 'DRAFT'
               return (
                 <div key={r.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
@@ -94,7 +105,7 @@ export default function TravelRequestsPage() {
                     >
                       {needsAction ? '⚡ Choose option' : 'View →'}
                     </Link>
-                    {isDraft && (
+                    {isDraft && role === 'EMPLOYEE' && (
                       <button
                         type="button"
                         onClick={() => cancelRequest(r.id)}
@@ -126,7 +137,7 @@ export default function TravelRequestsPage() {
               <tbody className="divide-y divide-gray-50">
                 {requests.map((r) => {
                   const dates = r.travelDates as { departureDate: string; returnDate: string }
-                  const needsAction = r.status === 'OPTIONS_PROVIDED'
+                  const needsAction = r.status === 'OPTIONS_PROVIDED' && role === 'EMPLOYEE'
                   const isDraft = r.status === 'DRAFT'
                   return (
                     <tr key={r.id} className="hover:bg-gray-50">

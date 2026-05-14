@@ -98,6 +98,8 @@ export default function AdminEventsPage() {
   const [editForm, setEditForm] = useState(EMPTY_FORM)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Smart import state
   const [extracting, setExtracting] = useState(false)
@@ -137,6 +139,22 @@ export default function AdminEventsPage() {
 
   function closeDrawer() {
     setSelected(null)
+    setConfirmDelete(false)
+  }
+
+  async function deleteEvent() {
+    if (!selected) return
+    setDeleting(true)
+    const res = await fetch(`/api/events/${selected.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      closeDrawer()
+      loadEvents()
+    } else {
+      const d = await res.json()
+      setEditError(d.error ?? 'Failed to delete event')
+    }
+    setDeleting(false)
+    setConfirmDelete(false)
   }
 
   function openEditModal(ev: EventRow) {
@@ -320,7 +338,7 @@ export default function AdminEventsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <DetailRow
                     label="Date"
-                    value={selected.eventDate ? new Date(selected.eventDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : null}
+                    value={selected.eventDate ? new Date(selected.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : null}
                   />
                   <DetailRow label="Timing" value={selected.timing} />
                 </div>
@@ -343,8 +361,28 @@ export default function AdminEventsPage() {
             </div>
 
             {/* Footer */}
-            <div className="border-t px-6 py-4">
-              <Button type="button" onClick={() => openEditModal(selected)}>Edit</Button>
+            <div className="border-t px-6 py-4 flex items-center gap-3 flex-wrap">
+              {confirmDelete ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-red-600 font-medium">Delete {selected.eventName}?</span>
+                  <button type="button" onClick={deleteEvent} disabled={deleting}
+                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                    {deleting ? '…' : 'Yes, delete'}
+                  </button>
+                  <button type="button" onClick={() => setConfirmDelete(false)}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Button type="button" onClick={() => openEditModal(selected)}>Edit</Button>
+                  <button type="button" onClick={() => setConfirmDelete(true)}
+                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100">
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </>
@@ -677,7 +715,7 @@ export default function AdminEventsPage() {
                   <Badge variant={statusBadge[ev.status] ?? 'gray'}>{ev.status}</Badge>
                 </div>
                 {ev.venue && <p className="text-xs text-gray-600">📍 {ev.venue}{ev.address ? `, ${ev.address}` : ''}</p>}
-                {ev.eventDate && <p className="text-xs text-gray-500">📅 {new Date(ev.eventDate).toLocaleDateString('en-GB')}{ev.timing ? ` · ${ev.timing}` : ''}</p>}
+                {ev.eventDate && <p className="text-xs text-gray-500">📅 {new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}{ev.timing ? ` · ${ev.timing}` : ''}</p>}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                   {ev.assignedDj && <span>🎧 {ev.assignedDj}</span>}
                   {ev.assignedMc && <span>🎤 {ev.assignedMc}</span>}
@@ -716,7 +754,7 @@ export default function AdminEventsPage() {
                     <td className="px-2 py-2 text-gray-600 truncate">{ev.venue ?? '—'}</td>
                     <td className="px-2 py-2 text-gray-500 truncate">{ev.address ?? '—'}</td>
                     <td className="px-2 py-2 text-gray-500 whitespace-nowrap">
-                      {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString('en-GB') : '—'}
+                      {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
                     </td>
                     <td className="px-2 py-2 text-gray-500 truncate">{ev.timing ?? '—'}</td>
                     <td className="px-2 py-2 text-gray-700 truncate">{ev.assignedDj ?? '—'}</td>

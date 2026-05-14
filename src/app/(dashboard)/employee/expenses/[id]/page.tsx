@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { FileUpload } from '@/components/ui/FileUpload'
 import Link from 'next/link'
 
 interface Receipt {
@@ -68,7 +69,6 @@ export default function ExpenseDetailPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [uploadError, setUploadError] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const [expRes, sessionRes] = await Promise.all([
@@ -130,7 +130,6 @@ export default function ExpenseDetailPage() {
         }
         setUploadError(errorMsg)
       } else {
-        if (fileInputRef.current) fileInputRef.current.value = ''
         await load()
       }
     } catch {
@@ -214,7 +213,7 @@ export default function ExpenseDetailPage() {
         {expense.transactionDate && (
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase mb-1">Date</p>
-            <p className="text-gray-900">{new Date(expense.transactionDate).toLocaleDateString()}</p>
+            <p className="text-gray-900">{new Date(expense.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
           </div>
         )}
         <div>
@@ -223,7 +222,7 @@ export default function ExpenseDetailPage() {
         </div>
         <div>
           <p className="text-xs font-medium text-gray-400 uppercase mb-1">Submitted</p>
-          <p className="text-gray-500">{new Date(expense.createdAt).toLocaleDateString()}</p>
+          <p className="text-gray-500">{new Date(expense.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
         </div>
       </div>
 
@@ -239,7 +238,7 @@ export default function ExpenseDetailPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-900">{r.fileName}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Uploaded {new Date(r.uploadedAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Uploaded {new Date(r.uploadedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                   </div>
                   {receiptUrls[r.id] ? (
                     <a
@@ -273,7 +272,7 @@ export default function ExpenseDetailPage() {
                     </div>
                     <div>
                       <p className="text-indigo-400 font-medium uppercase">Date (OCR)</p>
-                      <p className="mt-0.5 text-indigo-800">{r.ocrDate ? new Date(r.ocrDate).toLocaleDateString() : '—'}</p>
+                      <p className="mt-0.5 text-indigo-800">{r.ocrDate ? new Date(r.ocrDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</p>
                     </div>
                   </div>
                 )}
@@ -286,26 +285,14 @@ export default function ExpenseDetailPage() {
         {!['PAID', 'REJECTED', 'APPROVED'].includes(expense.status) && (
           <div className="mt-4 border-t border-gray-100 pt-4">
             <p className="mb-2 text-xs font-medium text-gray-500 uppercase">Add receipt</p>
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-gray-300 px-4 py-3 hover:border-indigo-400 hover:bg-indigo-50 transition-colors">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                className="sr-only"
-                disabled={uploadingReceipt}
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) handleReceiptUpload(f)
-                }}
-              />
-              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586A2 2 0 0111 11h2a2 2 0 011.414.586L19 16M14 8h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              <span className="text-sm text-gray-500">
-                {uploadingReceipt ? 'Uploading…' : 'Click to attach a receipt (JPG, PNG, PDF — max 10 MB)'}
-              </span>
-            </label>
-            {uploadError && <p className="mt-1 text-xs text-red-600">{uploadError}</p>}
+            <FileUpload
+              label={uploadingReceipt ? 'Uploading…' : 'Add another receipt'}
+              hint="JPG, PNG, PDF, WebP — max 10 MB"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              disabled={uploadingReceipt}
+              onFile={handleReceiptUpload}
+            />
+            {uploadError && <p className="mt-2 text-sm text-red-600">{uploadError}</p>}
           </div>
         )}
       </div>
@@ -323,7 +310,7 @@ export default function ExpenseDetailPage() {
                     {action.actor.name} <span className="text-gray-400 font-normal">({action.actionType})</span>
                   </p>
                   {action.note && <p className="text-xs text-gray-500 mt-0.5">"{action.note}"</p>}
-                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             ))}
@@ -344,7 +331,7 @@ export default function ExpenseDetailPage() {
                   <p className="font-medium text-gray-900">
                     {c.authorId === currentUserId ? 'You' : c.authorName}
                   </p>
-                  <p className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
                 <p className="text-gray-700">{c.body}</p>
               </div>

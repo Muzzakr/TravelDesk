@@ -14,7 +14,7 @@ const roleBadge: Record<string, 'blue' | 'green' | 'purple' | 'yellow' | 'gray'>
 
 function fmtDate(d: Date | null | undefined) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-GB')
+  return new Date(d).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
 export default async function AdminUserProfilePage({ params }: { params: { id: string } }) {

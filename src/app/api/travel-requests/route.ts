@@ -5,6 +5,7 @@ import { writeAuditLog } from '@/lib/audit'
 import { checkEventBudget } from '@/lib/policy-engine'
 import { determineRoutingPath } from '@/lib/routing-engine'
 import { notifyTravelRequestCreated } from '@/lib/notify'
+import { emailRequestConfirmation, emailPendingManagerApproval, emailAgentActionRequired } from '@/lib/mail'
 import { z } from 'zod'
 
 const CreateSchema = z.object({
@@ -41,6 +42,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const creatorRoles = ['EMPLOYEE', 'TRAVEL_AGENT']
+  if (!creatorRoles.includes(session.user.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const body = await req.json()
   const parsed = CreateSchema.safeParse(body)
@@ -109,6 +115,50 @@ export async function POST(req: NextRequest) {
     status: initialStatus,
     requestId: travelRequest.id,
   }).catch(() => {})
+
+  // Email: confirmation to employee
+  if (session.user.email) {
+    emailRequestConfirmation(session.user.email, session.user.name ?? 'there', {
+      origin: parsed.data.origin,
+      destination: parsed.data.destination,
+      departureDate: parsed.data.travelDates.departureDate,
+      eventName: event.eventName,
+      estimatedCostUsd: parsed.data.estimatedCostUsd,
+      requestId: travelRequest.id,
+      nextStatus: initialStatus,
+    }).catch(() => {})
+  }
+
+  // Email: manager or agents depending on routing
+  if (initialStatus === 'PENDING_MANAGER') {
+    const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
+    if (emp?.managerId) {
+      const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
+      if (manager?.email) {
+        emailPendingManagerApproval(manager.email, manager.name ?? 'Manager', {
+          employeeName: session.user.name ?? session.user.email ?? 'Employee',
+          origin: parsed.data.origin,
+          destination: parsed.data.destination,
+          departureDate: parsed.data.travelDates.departureDate,
+          estimatedCostUsd: parsed.data.estimatedCostUsd,
+          requestId: travelRequest.id,
+        }).catch(() => {})
+      }
+    }
+  } else if (initialStatus === 'PENDING_AGENT') {
+    const agents = await prisma.user.findMany({
+      where: { companyId: session.user.companyId, role: 'TRAVEL_AGENT', isActive: true },
+      select: { name: true, email: true },
+    })
+    for (const agent of agents) {
+      emailAgentActionRequired(agent.email, agent.name ?? 'Agent', {
+        employeeName: session.user.name ?? session.user.email ?? 'Employee',
+        origin: parsed.data.origin,
+        destination: parsed.data.destination,
+        requestId: travelRequest.id,
+      }).catch(() => {})
+    }
+  }
 
   return NextResponse.json({ ...travelRequest, budgetWarning: budgetCheck.warningTriggered }, { status: 201 })
 }

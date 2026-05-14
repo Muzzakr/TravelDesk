@@ -2,21 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { createVerificationToken } from '@/lib/tokens'
+import { sendInviteEmail } from '@/lib/mail'
 import { z } from 'zod'
-import bcrypt from 'bcryptjs'
 
 const InviteSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
   role: z.enum(['EMPLOYEE', 'MANAGER', 'TRAVEL_AGENT', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']),
   managerId: z.string().optional(),
-  password: z.string().min(8),
 })
 
 export async function GET() {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SYSTEM_ADMIN', 'FINANCE_ADMIN'].includes(session.user.role ?? '')) {
+  if (!['SYSTEM_ADMIN', 'FINANCE_ADMIN', 'MANAGER'].includes(session.user.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -53,8 +53,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const passwordHash = await bcrypt.hash(parsed.data.password, 12)
-
   const user = await prisma.user.create({
     data: {
       companyId: session.user.companyId,
@@ -62,7 +60,7 @@ export async function POST(req: NextRequest) {
       name: parsed.data.name,
       role: parsed.data.role,
       managerId: parsed.data.managerId ?? null,
-      passwordHash,
+      passwordHash: null,
     },
     select: { id: true, email: true, name: true, role: true, createdAt: true },
   })
@@ -75,6 +73,14 @@ export async function POST(req: NextRequest) {
     entityId: user.id,
     payload: { email: user.email, role: user.role },
   })
+
+  try {
+    const rawToken = await createVerificationToken(user.id, 'INVITE')
+    await sendInviteEmail(user.email, user.name, rawToken)
+  } catch (err) {
+    console.error('Failed to send invite email:', err)
+    // User is created; email failure is non-fatal
+  }
 
   return NextResponse.json(user, { status: 201 })
 }

@@ -189,7 +189,7 @@ export default async function AgentBookingsPage() {
                     {b.estimatedCostUsd && <p className="mt-1 text-xs font-semibold text-gray-700">${Number(b.estimatedCostUsd).toFixed(0)}</p>}
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">{new Date(b.updatedAt).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-400">{new Date(b.updatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
               </Link>
             ))}
           </div>
@@ -219,7 +219,7 @@ export default async function AgentBookingsPage() {
                     <td className="px-4 py-3 text-gray-500">{b.event.eventName}</td>
                     <td className="px-4 py-3">{b.estimatedCostUsd ? `$${Number(b.estimatedCostUsd).toFixed(0)}` : '—'}</td>
                     <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(b.status)}>{b.status.replace(/_/g, ' ')}</Badge></td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{new Date(b.updatedAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">{new Date(b.updatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                   </tr>
                 ))}
               </tbody>

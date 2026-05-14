@@ -122,7 +122,7 @@ export default function ApproveExpensePage() {
                     <span className="font-medium text-gray-900">{a.actor.name}</span>
                     {a.note && <p className="text-gray-500 mt-0.5 text-xs">{a.note}</p>}
                   </div>
-                  <span className="text-xs text-gray-400 shrink-0">{new Date(a.createdAt).toLocaleDateString()}</span>
+                  <span className="text-xs text-gray-400 shrink-0">{new Date(a.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
                 </div>
               ))}
             </div>

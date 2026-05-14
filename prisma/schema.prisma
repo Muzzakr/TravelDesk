@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Multi-tenant root ───────────────────────────────────────────────────────
@@ -39,6 +40,11 @@ enum Role {
   SYSTEM_ADMIN
 }
 
+enum TokenType {
+  INVITE
+  PASSWORD_RESET
+}
+
 model User {
   id            String    @id @default(cuid())
   companyId     String
@@ -53,19 +59,31 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  manager              User?           @relation("ManagerReports", fields: [managerId], references: [id])
-  directReports        User[]          @relation("ManagerReports")
-  travelRequests       TravelRequest[] @relation("EmployeeTravelRequests")
-  agentBookings        TravelRequest[] @relation("AgentBookings")
+  company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager              User?                 @relation("ManagerReports", fields: [managerId], references: [id])
+  directReports        User[]                @relation("ManagerReports")
+  travelRequests       TravelRequest[]       @relation("EmployeeTravelRequests")
+  agentBookings        TravelRequest[]       @relation("AgentBookings")
   expenses             Expense[]
   approvalActions      ApprovalAction[]
   auditLogs            AuditLog[]
-  delegationsGiven     Delegation[]    @relation("DelegatorDelegations")
-  delegationsReceived  Delegation[]    @relation("DelegateDelegations")
+  delegationsGiven     Delegation[]          @relation("DelegatorDelegations")
+  delegationsReceived  Delegation[]          @relation("DelegateDelegations")
   travelerProfile      TravelerProfile?
+  verificationTokens   VerificationToken[]
+  eventDocuments       EventDocument[]
 
   @@unique([companyId, email])
+}
+
+model VerificationToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  type      TokenType
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Delegation {
@@ -122,8 +140,22 @@ model Event {
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   travelRequests TravelRequest[]
   expenses       Expense[]
+  documents      EventDocument[]
 
   @@unique([companyId, eventCode])
+}
+
+model EventDocument {
+  id         String   @id @default(cuid())
+  eventId    String
+  uploadedBy String
+  fileName   String
+  mimeType   String
+  fileData   Bytes
+  uploadedAt DateTime @default(now())
+
+  event    Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uploader User  @relation(fields: [uploadedBy], references: [id])
 }
 
 // ─── Travel Requests ─────────────────────────────────────────────────────────

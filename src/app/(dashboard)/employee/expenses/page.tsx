@@ -3,57 +3,108 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { FileUpload } from '@/components/ui/FileUpload'
 import Link from 'next/link'
 import type { TravelEvent } from '@/types/event'
 import type { Expense } from '@/types/expense'
 
-const CATEGORIES = ['MEALS', 'TRANSPORT', 'ACCOMMODATION', 'SUPPLIES', 'OTHER']
-const SERVICES = ['Flights', 'Hotel', 'Car Rental', 'Food', 'Taxi', 'Other']
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
+
+const EXPENSE_TYPES = [
+  { key: 'FLIGHT',     icon: '✈️', label: 'Flight' },
+  { key: 'HOTEL',      icon: '🏨', label: 'Hotel' },
+  { key: 'CAR_RENTAL', icon: '🚗', label: 'Car Rental' },
+  { key: 'FOOD',       icon: '🍽️', label: 'Food' },
+  { key: 'TAXI',       icon: '🚕', label: 'Taxi' },
+  { key: 'OTHER',      icon: '📦', label: 'Other' },
+]
+
+const EXPENSE_TYPE_MAP: Record<string, { category: string; service: string }> = {
+  FLIGHT:     { category: 'TRANSPORT',     service: 'Flights' },
+  HOTEL:      { category: 'ACCOMMODATION', service: 'Hotel' },
+  CAR_RENTAL: { category: 'TRANSPORT',     service: 'Car Rental' },
+  FOOD:       { category: 'MEALS',         service: 'Food' },
+  TAXI:       { category: 'TRANSPORT',     service: 'Taxi' },
+  OTHER:      { category: 'OTHER',         service: 'Other' },
+}
+
+// ─── Field helper ─────────────────────────────────────────────────────────────
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-medium text-gray-700">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+// ─── Main content ─────────────────────────────────────────────────────────────
 
 function ExpensesContent() {
   const params = useSearchParams()
-  const [expenses, setExpenses] = useState<Expense[]>([])
-  const [events, setEvents] = useState<TravelEvent[]>([])
-  const [showForm, setShowForm] = useState(params.get('add') === '1')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [expenses, setExpenses]     = useState<Expense[]>([])
+  const [events, setEvents]         = useState<TravelEvent[]>([])
+  const [showForm, setShowForm]     = useState(params.get('add') === '1')
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState('')
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
-  const [manager, setManager] = useState<{ name: string; email: string } | null | undefined>(undefined)
+  const [manager, setManager]       = useState<{ name: string; email: string } | null | undefined>(undefined)
+
+  // Expense type card selection
+  const [expenseType, setExpenseType] = useState('')
+
+  // Inline event combobox state
+  const [eventSearch, setEventSearch]     = useState('')
+  const [eventDropOpen, setEventDropOpen] = useState(false)
+
   const [form, setForm] = useState({
-    eventId: '',
-    category: 'MEALS',
-    service: '',
-    amountUsd: '',
-    currency: 'USD',
-    description: '',
-    merchantName: '',
-    transactionDate: '',
+    eventId: '', amountUsd: '', currency: 'USD',
+    description: '', merchantName: '', transactionDate: '',
   })
 
   useEffect(() => {
-    fetch('/api/expenses').then((r) => r.json()).then(setExpenses)
-    fetch('/api/events').then((r) => r.json()).then((data) => setEvents(data.filter((e: TravelEvent) => e.status !== 'CLOSED')))
-    fetch('/api/users/me').then((r) => r.json()).then((data) => setManager(data.manager ?? null))
+    fetch('/api/expenses').then(r => r.json()).then(setExpenses)
+    fetch('/api/events').then(r => r.json()).then(data => setEvents(data.filter((e: TravelEvent) => e.status !== 'CLOSED')))
+    fetch('/api/users/me').then(r => r.json()).then(data => setManager(data.manager ?? null))
   }, [])
+
+  // Filtered events for the combobox
+  const filteredEvents = events.filter(ev =>
+    !eventSearch ||
+    ev.eventName.toLowerCase().includes(eventSearch.toLowerCase()) ||
+    (ev.eventCode ?? '').toLowerCase().includes(eventSearch.toLowerCase())
+  )
+
+  function selectEvent(ev: TravelEvent) {
+    setForm(p => ({ ...p, eventId: ev.id }))
+    setEventSearch(`${ev.eventName} (${ev.eventCode})`)
+    setEventDropOpen(false)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.eventId) { setError('Please select an event'); return }
-    if (!pendingFile) { setError('A receipt is required — please attach a receipt before submitting'); return }
+    if (!form.eventId)  { setError('Please select an event.'); return }
+    if (!expenseType)   { setError('Please select an expense type.'); return }
+    if (!pendingFile)   { setError('A receipt is required — please attach a receipt before submitting.'); return }
     setLoading(true)
     setError('')
+
+    const mapped = EXPENSE_TYPE_MAP[expenseType] ?? { category: 'OTHER', service: 'Other' }
 
     const res = await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
+        category: mapped.category,
+        service: mapped.service,
         amountUsd: Number(form.amountUsd),
-        service: form.service || undefined,
       }),
     })
     const data = await res.json()
@@ -64,7 +115,6 @@ function ExpensesContent() {
       return
     }
 
-    // Upload receipt
     if (pendingFile && data.expense) {
       const fd = new FormData()
       fd.append('file', pendingFile)
@@ -72,10 +122,12 @@ function ExpensesContent() {
       await fetch('/api/receipts/upload', { method: 'POST', body: fd })
     }
 
-    const refreshed = await fetch('/api/expenses').then((r) => r.json())
+    const refreshed = await fetch('/api/expenses').then(r => r.json())
     setExpenses(refreshed)
     setShowForm(false)
-    setForm({ eventId: '', category: 'MEALS', service: '', amountUsd: '', currency: 'USD', description: '', merchantName: '', transactionDate: '' })
+    setExpenseType('')
+    setEventSearch('')
+    setForm({ eventId: '', amountUsd: '', currency: 'USD', description: '', merchantName: '', transactionDate: '' })
     setPendingFile(null)
     setLoading(false)
   }
@@ -87,7 +139,7 @@ function ExpensesContent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'SUBMITTED' }),
     })
-    const refreshed = await fetch('/api/expenses').then((r) => r.json())
+    const refreshed = await fetch('/api/expenses').then(r => r.json())
     setExpenses(refreshed)
     setSubmittingId(null)
   }
@@ -96,65 +148,177 @@ function ExpensesContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-        <Button onClick={() => setShowForm(!showForm)}>+ Add expense</Button>
+        <button
+          type="button"
+          onClick={() => setShowForm(!showForm)}
+          className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 text-sm font-semibold transition-colors"
+        >
+          + Add expense
+        </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-gray-800">New out-of-pocket expense</h2>
+        <div className="mx-auto max-w-2xl">
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900">New expense</h2>
 
-          {/* Approved by */}
-          <div className="rounded-lg bg-indigo-50 px-4 py-3 text-sm">
-            {manager === undefined && <span className="text-gray-400">Loading approver…</span>}
-            {manager === null && (
-              <span className="text-amber-700 font-medium">⚠ No manager assigned — contact your admin to set an approver.</span>
-            )}
-            {manager && (
-              <span className="text-indigo-800">
-                <span className="font-medium">Will be approved by:</span> {manager.name} ({manager.email})
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Event <span className="text-red-500">*</span></label>
-            <select title="Event" value={form.eventId} onChange={(e) => setForm((p) => ({ ...p, eventId: e.target.value }))} required className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
-              <option value="">Select event…</option>
-              {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.eventName} ({ev.eventCode})</option>)}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Category</label>
-              <select title="Category" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+            {/* Approver info */}
+            <div className="rounded-xl bg-indigo-50 px-4 py-3 text-sm">
+              {manager === undefined && <span className="text-gray-400">Loading approver…</span>}
+              {manager === null && (
+                <span className="text-amber-700 font-medium">⚠ No manager assigned — contact your admin to set an approver.</span>
+              )}
+              {manager && (
+                <span className="text-indigo-800">
+                  <span className="font-medium">Will be approved by:</span> {manager.name} ({manager.email})
+                </span>
+              )}
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Service</label>
-              <select title="Service" value={form.service} onChange={(e) => setForm((p) => ({ ...p, service: e.target.value }))} className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
-                <option value="">Select service…</option>
-                {SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+
+            {/* Event — searchable combobox */}
+            <div className="relative flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">
+                Event<span className="text-red-500 ml-0.5">*</span>
+              </label>
+              <input
+                type="text"
+                value={eventSearch}
+                onChange={e => {
+                  setEventSearch(e.target.value)
+                  setForm(p => ({ ...p, eventId: '' }))
+                  setEventDropOpen(true)
+                }}
+                onFocus={() => setEventDropOpen(true)}
+                onBlur={() => setTimeout(() => setEventDropOpen(false), 150)}
+                placeholder="Search events…"
+                autoComplete="off"
+                className={inputCls}
+              />
+              {eventDropOpen && filteredEvents.length > 0 && (
+                <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
+                  {filteredEvents.map(ev => (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onMouseDown={() => selectEvent(ev)}
+                      className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0"
+                    >
+                      <span className="font-medium">{ev.eventName}</span>
+                      <span className="text-gray-400 ml-1 text-xs">· {ev.eventCode}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
 
-          <Input label="Amount (USD)" type="number" step="0.01" value={form.amountUsd} onChange={(e) => setForm((p) => ({ ...p, amountUsd: e.target.value }))} required placeholder="45.00" />
+            {/* Expense type cards */}
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-gray-700">
+                Expense type<span className="text-red-500 ml-0.5">*</span>
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {EXPENSE_TYPES.map(({ key, icon, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setExpenseType(key)}
+                    className={`rounded-2xl border-2 p-4 flex flex-col items-center gap-1.5 transition-all ${
+                      expenseType === key
+                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-300'
+                    }`}
+                  >
+                    <span className="text-2xl">{icon}</span>
+                    <span className="text-xs font-semibold">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <Input label="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} required placeholder="Team lunch" />
-          <Input label="Merchant" value={form.merchantName} onChange={(e) => setForm((p) => ({ ...p, merchantName: e.target.value }))} placeholder="Restaurant name" />
-          <Input label="Date" type="date" value={form.transactionDate} onChange={(e) => setForm((p) => ({ ...p, transactionDate: e.target.value }))} />
+            {/* Amount + Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Amount (USD)" required>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.amountUsd}
+                  onChange={e => setForm(p => ({ ...p, amountUsd: e.target.value }))}
+                  placeholder="45.00"
+                  className={inputCls}
+                  required
+                />
+              </Field>
+              <Field label="Date">
+                <input
+                  type="date"
+                  title="Date"
+                  value={form.transactionDate}
+                  onChange={e => setForm(p => ({ ...p, transactionDate: e.target.value }))}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
 
-          <FileUpload label="Receipt *" onFile={setPendingFile} />
-          {pendingFile && <p className="text-xs text-green-600">✓ {pendingFile.name} attached</p>}
+            {/* Description */}
+            <Field label="Description" required>
+              <input
+                type="text"
+                value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                placeholder="E.g. Team lunch"
+                className={inputCls}
+                required
+              />
+            </Field>
 
-          {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-          <div className="flex gap-3">
-            <Button type="submit" loading={loading}>Save expense</Button>
-            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-          </div>
-        </form>
+            {/* Merchant */}
+            <Field label="Merchant">
+              <input
+                type="text"
+                value={form.merchantName}
+                onChange={e => setForm(p => ({ ...p, merchantName: e.target.value }))}
+                placeholder="Restaurant or vendor name"
+                className={inputCls}
+              />
+            </Field>
+
+            {/* Receipt upload */}
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-gray-700">
+                Receipt<span className="text-red-500 ml-0.5">*</span>
+              </p>
+              <FileUpload
+                label="Drag & drop or click to upload"
+                hint="JPG, PNG, PDF, WebP — max 10 MB"
+                file={pendingFile}
+                onFile={setPendingFile}
+                onClear={() => setPendingFile(null)}
+              />
+            </div>
+
+            {error && (
+              <p className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-6 py-2.5 text-sm font-semibold transition-colors"
+              >
+                {loading ? 'Saving…' : 'Save expense'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setError('') }}
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* Mobile cards */}
@@ -172,11 +336,15 @@ function ExpensesContent() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium text-gray-800">${Number(exp.amountUsd).toFixed(2)}</span>
-              <span className="text-xs text-gray-400">{exp.transactionDate ? new Date(exp.transactionDate).toLocaleDateString('en-GB') : '—'}</span>
+              <span className="text-xs text-gray-400">{exp.transactionDate ? new Date(exp.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</span>
             </div>
             {exp.status === 'DRAFT' && (
-              <button type="button" onClick={() => submitExpense(exp.id)} disabled={submittingId === exp.id}
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+              <button
+                type="button"
+                onClick={() => submitExpense(exp.id)}
+                disabled={submittingId === exp.id}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
                 {submittingId === exp.id ? 'Submitting…' : 'Submit for approval'}
               </button>
             )}
@@ -209,7 +377,7 @@ function ExpensesContent() {
                   <td className="px-4 py-3 text-gray-500">{exp.category}</td>
                   <td className="px-4 py-3 font-medium">${Number(exp.amountUsd).toFixed(2)}</td>
                   <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(exp.status)}>{exp.status}</Badge></td>
-                  <td className="px-4 py-3 text-gray-400">{exp.transactionDate ? new Date(exp.transactionDate).toLocaleDateString('en-GB') : '—'}</td>
+                  <td className="px-4 py-3 text-gray-400">{exp.transactionDate ? new Date(exp.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</td>
                   <td className="px-4 py-3 flex items-center gap-3">
                     <Link href={`/employee/expenses/${exp.id}`} className="text-xs font-medium text-indigo-600 hover:underline">
                       View →

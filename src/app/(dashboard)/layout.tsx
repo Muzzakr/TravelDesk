@@ -40,8 +40,7 @@ const navByRole: Record<Role, { label: string; href: string }[]> = {
     { label: 'Policy Limits', href: '/finance/policy' },
     { label: 'Audit Log', href: '/admin/audit-log' },
     { label: 'Team Spend', href: '/manager/team-spend' },
-    { label: 'Pending Requests', href: '/agent/bookings' },
-    { label: 'Travel Requests', href: '/employee/travel-requests' },
+{ label: 'Travel Requests', href: '/employee/travel-requests' },
     { label: 'Expenses', href: '/employee/expenses' },
   ],
 }

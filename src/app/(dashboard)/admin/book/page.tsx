@@ -6,18 +6,15 @@ import type { TravelEvent } from '@/types/event'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type Employee = { id: string; name: string; email: string }
 type AirportOption = { code: string; name: string; city: string; country: string }
-
 type FlightData = {
   originAirport: AirportOption | null
   destAirport: AirportOption | null
   tripType: 'one-way' | 'round-trip'
-  departureDate: string
-  departureTime: string
-  returnDate: string
-  returnTime: string
-  flexibleDates: boolean
-  notes: string
+  departureDate: string; departureTime: string
+  returnDate: string; returnTime: string
+  flexibleDates: boolean; notes: string
 }
 type HotelData = { city: string; checkIn: string; checkOut: string; area: string; notes: string }
 type TaxiData  = { pickup: string; dropoff: string; date: string; time: string; notes: string }
@@ -98,8 +95,6 @@ const AIRPORTS: AirportOption[] = [
   { code: 'MEX', name: 'Mexico City International',  city: 'Mexico City',   country: 'Mexico' },
 ]
 
-// ─── Hotel cities ─────────────────────────────────────────────────────────────
-
 const HOTEL_CITIES: string[] = [
   'Stockholm, Sweden', 'Gothenburg, Sweden', 'Malmö, Sweden',
   'Copenhagen, Denmark', 'Oslo, Norway', 'Helsinki, Finland',
@@ -121,8 +116,6 @@ const HOTEL_CITIES: string[] = [
   'São Paulo, Brazil', 'Mexico City, Mexico',
   'Johannesburg, South Africa', 'Cairo, Egypt',
 ]
-
-// ─── Travel locations (taxi + car rental) ────────────────────────────────────
 
 const TRAVEL_LOCATIONS: string[] = [
   'Stockholm Arlanda Airport (ARN)', 'Stockholm Bromma Airport (BMA)',
@@ -163,8 +156,7 @@ const TRAVEL_LOCATIONS: string[] = [
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
-const inputCls  = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
-const selectCls = inputCls
+const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
 
 // ─── Small components ─────────────────────────────────────────────────────────
 
@@ -172,11 +164,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   return (
     <div className="flex items-center gap-3">
       <button
-        type="button"
-        role="switch"
-        aria-checked={checked ? 'true' : 'false'}
-        aria-label={label}
-        title={label}
+        type="button" role="switch" aria-checked={checked} aria-label={label} title={label}
         onClick={() => onChange(!checked)}
         className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 ${checked ? 'bg-indigo-600' : 'bg-gray-200'}`}
       >
@@ -188,63 +176,40 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 }
 
 function AirportCombobox({ value, onChange, placeholder, label, required }: {
-  value: AirportOption | null
-  onChange: (a: AirportOption | null) => void
-  placeholder: string
-  label: string
-  required?: boolean
+  value: AirportOption | null; onChange: (a: AirportOption | null) => void
+  placeholder: string; label: string; required?: boolean
 }) {
   const [query, setQuery]     = useState(value ? `${value.name} (${value.code})` : '')
   const [open, setOpen]       = useState(false)
   const [results, setResults] = useState<AirportOption[]>([])
 
   function handleInput(q: string) {
-    setQuery(q)
-    onChange(null)
+    setQuery(q); onChange(null)
     if (q.length >= 1) {
-      const lower    = q.toLowerCase()
+      const lower = q.toLowerCase()
       const filtered = AIRPORTS.filter(a =>
-        a.code.toLowerCase().includes(lower) ||
-        a.name.toLowerCase().includes(lower) ||
-        a.city.toLowerCase().includes(lower)
+        a.code.toLowerCase().includes(lower) || a.name.toLowerCase().includes(lower) || a.city.toLowerCase().includes(lower)
       ).slice(0, 8)
-      setResults(filtered)
-      setOpen(filtered.length > 0)
-    } else {
-      setOpen(false)
-    }
+      setResults(filtered); setOpen(filtered.length > 0)
+    } else { setOpen(false) }
   }
 
   function select(airport: AirportOption) {
-    onChange(airport)
-    setQuery(`${airport.name} (${airport.code})`)
-    setOpen(false)
+    onChange(airport); setQuery(`${airport.name} (${airport.code})`); setOpen(false)
   }
 
   return (
     <div className="relative flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        type="text"
-        value={query}
-        onChange={e => handleInput(e.target.value)}
+      <label className="text-sm font-medium text-gray-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type="text" value={query} onChange={e => handleInput(e.target.value)}
         onFocus={() => { if (query.length >= 1 && results.length > 0) setOpen(true) }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={placeholder}
-        autoComplete="off"
-        className={inputCls}
-      />
+        placeholder={placeholder} autoComplete="off" className={inputCls} />
       {open && (
         <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
           {results.map(a => (
-            <button
-              key={a.code}
-              type="button"
-              onMouseDown={() => select(a)}
-              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex items-center justify-between gap-2 text-sm border-b border-gray-50 last:border-0"
-            >
+            <button key={a.code} type="button" onMouseDown={() => select(a)}
+              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex items-center justify-between gap-2 text-sm border-b border-gray-50 last:border-0">
               <span>
                 <span className="font-medium text-gray-900">{a.name}</span>
                 <span className="text-gray-400 ml-1 text-xs">· {a.city}, {a.country}</span>
@@ -259,12 +224,8 @@ function AirportCombobox({ value, onChange, placeholder, label, required }: {
 }
 
 function SearchCombobox({ value, onChange, suggestions, placeholder, label, required }: {
-  value: string
-  onChange: (v: string) => void
-  suggestions: string[]
-  placeholder: string
-  label: string
-  required?: boolean
+  value: string; onChange: (v: string) => void; suggestions: string[]
+  placeholder: string; label: string; required?: boolean
 }) {
   const [open, setOpen]       = useState(false)
   const [results, setResults] = useState<string[]>([])
@@ -272,39 +233,24 @@ function SearchCombobox({ value, onChange, suggestions, placeholder, label, requ
   function handleInput(q: string) {
     onChange(q)
     if (q.length >= 1) {
-      const lower    = q.toLowerCase()
+      const lower = q.toLowerCase()
       const filtered = suggestions.filter(s => s.toLowerCase().includes(lower)).slice(0, 8)
-      setResults(filtered)
-      setOpen(filtered.length > 0)
-    } else {
-      setOpen(false)
-    }
+      setResults(filtered); setOpen(filtered.length > 0)
+    } else { setOpen(false) }
   }
 
   return (
     <div className="relative flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        type="text"
-        value={value}
-        onChange={e => handleInput(e.target.value)}
+      <label className="text-sm font-medium text-gray-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type="text" value={value} onChange={e => handleInput(e.target.value)}
         onFocus={() => { if (value.length >= 1 && results.length > 0) setOpen(true) }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={placeholder}
-        autoComplete="off"
-        className={inputCls}
-      />
+        placeholder={placeholder} autoComplete="off" className={inputCls} />
       {open && (
         <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
           {results.map((s, i) => (
-            <button
-              key={i}
-              type="button"
-              onMouseDown={() => { onChange(s); setOpen(false) }}
-              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0"
-            >
+            <button key={i} type="button" onMouseDown={() => { onChange(s); setOpen(false) }}
+              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0">
               {s}
             </button>
           ))}
@@ -317,22 +263,18 @@ function SearchCombobox({ value, onChange, suggestions, placeholder, label, requ
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
+      <label className="text-sm font-medium text-gray-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       {children}
     </div>
   )
 }
 
 function ProgressBar({ step }: { step: number }) {
-  const steps = ['Event', 'Services', 'Details', 'Review']
+  const steps = ['Employee', 'Services', 'Details', 'Review']
   return (
     <div className="flex items-center mb-8">
       {steps.map((label, i) => {
-        const n      = i + 1
-        const done   = step > n
-        const active = step === n
+        const n = i + 1; const done = step > n; const active = step === n
         return (
           <div key={label} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center">
@@ -341,9 +283,7 @@ function ProgressBar({ step }: { step: number }) {
               </div>
               <span className={`mt-1 text-xs font-medium hidden sm:block ${active ? 'text-indigo-600' : done ? 'text-indigo-400' : 'text-gray-400'}`}>{label}</span>
             </div>
-            {i < steps.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-2 rounded transition-colors ${step > n ? 'bg-indigo-400' : 'bg-gray-200'}`} />
-            )}
+            {i < steps.length - 1 && <div className={`flex-1 h-0.5 mx-2 rounded transition-colors ${step > n ? 'bg-indigo-400' : 'bg-gray-200'}`} />}
           </div>
         )
       })}
@@ -398,24 +338,24 @@ const SERVICE_META: Record<string, { icon: string; label: string }> = {
   TAXI:       { icon: '🚕', label: 'Taxi / Transfer' },
 }
 
-export default function NewTravelRequestPage() {
+export default function AdminBookPage() {
   const router = useRouter()
 
-  const [step, setStep]         = useState(1)
-  const [events, setEvents]     = useState<TravelEvent[]>([])
-  const [search, setSearch]     = useState('')
-  const [eventId, setEventId]   = useState('')
+  const [step, setStep]           = useState(1)
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [employeeId, setEmployeeId] = useState('')
+  const [events, setEvents]       = useState<TravelEvent[]>([])
+  const [search, setSearch]       = useState('')
+  const [eventId, setEventId]     = useState('')
   const [selectedEvent, setSelectedEvent] = useState<TravelEvent | null>(null)
-  const [services, setServices] = useState<string[]>([])
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
-  const [warning, setWarning]   = useState('')
+  const [services, setServices]   = useState<string[]>([])
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+  const [warning, setWarning]     = useState('')
 
   const [flight, setFlight] = useState<FlightData>({
-    originAirport: null, destAirport: null,
-    tripType: 'round-trip',
-    departureDate: '', departureTime: '',
-    returnDate: '', returnTime: '',
+    originAirport: null, destAirport: null, tripType: 'round-trip',
+    departureDate: '', departureTime: '', returnDate: '', returnTime: '',
     flexibleDates: false, notes: '',
   })
   const [hotel, setHotel] = useState<HotelData>({ city: '', checkIn: '', checkOut: '', area: '', notes: '' })
@@ -426,22 +366,22 @@ export default function NewTravelRequestPage() {
   const [paymentResponsibility, setPaymentResponsibility] = useState('m4u')
 
   useEffect(() => {
-    fetch('/api/events')
-      .then(r => r.json())
-      .then(data => setEvents(data.filter((e: TravelEvent) => e.status !== 'CLOSED')))
+    fetch('/api/agent/employees').then(r => r.json()).then(setEmployees)
+    fetch('/api/events').then(r => r.json()).then((data: TravelEvent[]) =>
+      setEvents(data.filter(e => e.status !== 'CLOSED'))
+    )
   }, [])
 
-  function selectEvent(ev: TravelEvent) {
-    setEventId(ev.id)
-    setSelectedEvent(ev)
-  }
-
+  function selectEvent(ev: TravelEvent) { setEventId(ev.id); setSelectedEvent(ev) }
   function toggleService(s: string) {
     setServices(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   }
 
   function validate(): string {
-    if (step === 1 && !eventId)              return 'Please select an event.'
+    if (step === 1) {
+      if (!employeeId) return 'Please select an employee.'
+      if (!eventId)    return 'Please select an event.'
+    }
     if (step === 2 && services.length === 0) return 'Please select at least one service.'
     if (step === 3) {
       if (services.includes('FLIGHT')) {
@@ -466,7 +406,7 @@ export default function NewTravelRequestPage() {
         if (!car.pickupDate) return 'Please select a pickup date.'
         if (!car.returnDate) return 'Please select a return date.'
       }
-      if (!purpose.trim()) return 'Please describe the purpose of your trip.'
+      if (!purpose.trim()) return 'Please describe the purpose of the trip.'
     }
     return ''
   }
@@ -474,19 +414,13 @@ export default function NewTravelRequestPage() {
   function next() {
     const err = validate()
     if (err) { setError(err); return }
-    setError('')
-    setStep(s => s + 1)
+    setError(''); setStep(s => s + 1)
   }
 
-  function back() {
-    setError('')
-    setStep(s => s - 1)
-  }
+  function back() { setError(''); setStep(s => s - 1) }
 
   async function submit() {
-    setLoading(true)
-    setError('')
-    setWarning('')
+    setLoading(true); setError(''); setWarning('')
 
     const parts: string[] = []
     if (services.includes('FLIGHT') && flight.originAirport && flight.destAirport) {
@@ -518,10 +452,11 @@ export default function NewTravelRequestPage() {
       return d > 0 ? d : undefined
     }
 
-    const res = await fetch('/api/travel-requests', {
+    const res = await fetch('/api/agent/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        employeeId,
         eventId,
         origin,
         destination,
@@ -543,7 +478,7 @@ export default function NewTravelRequestPage() {
       return
     }
     if (data.budgetWarning) setWarning('Note: this request is approaching the event budget cap.')
-    router.push('/employee/travel-requests')
+    router.push('/admin')
   }
 
   const filteredEvents = events.filter(ev =>
@@ -552,63 +487,82 @@ export default function NewTravelRequestPage() {
     (ev.eventCode ?? '').toLowerCase().includes(search.toLowerCase())
   )
 
+  const selectedEmployee = employees.find(e => e.id === employeeId)
+
   return (
     <div className="mx-auto max-w-2xl pb-12">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">New travel request</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Create travel request</h1>
 
       <ProgressBar step={step} />
 
       <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
 
-        {/* ─── Step 1: Select Event ─────────────────────────── */}
+        {/* ─── Step 1: Employee + Event ────────────────────── */}
         {step === 1 && (
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Select event</h2>
-            <p className="text-sm text-gray-500 mb-4">Choose the event this trip is for.</p>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Select employee</h2>
+              <p className="text-sm text-gray-500 mb-4">Choose the employee you are booking for.</p>
+              <Field label="Employee" required>
+                <select
+                  title="Employee"
+                  value={employeeId}
+                  onChange={e => setEmployeeId(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">Select employee…</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
-            <input
-              type="text"
-              placeholder="Search events…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className={inputCls + ' mb-4'}
-            />
+            <div className="h-px bg-gray-100" />
 
-            {filteredEvents.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-10">No active events found.</p>
-            ) : (
-              <div className="grid gap-3">
-                {filteredEvents.map(ev => {
-                  const sel = ev.id === eventId
-                  return (
-                    <button
-                      key={ev.id}
-                      type="button"
-                      onClick={() => selectEvent(ev)}
-                      className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${sel ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-gray-900">{ev.eventName}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {ev.eventCode}
-                            {ev.venue ? ` · ${ev.venue}` : ''}
-                            {ev.eventDate ? ` · ${fmtDisplayDate(new Date(ev.eventDate).toISOString().split('T')[0])}` : ''}
-                          </p>
-                        </div>
-                        {sel && (
-                          <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
-                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Select event</h2>
+              <p className="text-sm text-gray-500 mb-4">Choose the event this trip is for.</p>
+
+              <input
+                type="text" placeholder="Search events…" value={search}
+                onChange={e => setSearch(e.target.value)} className={inputCls + ' mb-4'}
+              />
+
+              {filteredEvents.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-10">No active events found.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {filteredEvents.map(ev => {
+                    const sel = ev.id === eventId
+                    return (
+                      <button
+                        key={ev.id} type="button" onClick={() => selectEvent(ev)}
+                        className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${sel ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-gray-900">{ev.eventName}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {ev.eventCode}
+                              {ev.venue ? ` · ${ev.venue}` : ''}
+                              {ev.eventDate ? ` · ${fmtDisplayDate(new Date(ev.eventDate).toISOString().split('T')[0])}` : ''}
+                            </p>
                           </div>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+                          {sel && (
+                            <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -619,13 +573,9 @@ export default function NewTravelRequestPage() {
             <p className="text-sm text-gray-500 mb-5">Select all services for this trip. You can choose multiple.</p>
             <div className="grid grid-cols-2 gap-3">
               {(['FLIGHT', 'HOTEL', 'CAR_RENTAL', 'TAXI'] as const).map(svc => {
-                const meta = SERVICE_META[svc]
-                const sel  = services.includes(svc)
+                const meta = SERVICE_META[svc]; const sel = services.includes(svc)
                 return (
-                  <button
-                    key={svc}
-                    type="button"
-                    onClick={() => toggleService(svc)}
+                  <button key={svc} type="button" onClick={() => toggleService(svc)}
                     className={`rounded-2xl border-2 p-5 flex flex-col items-center gap-2 transition-all ${sel ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 bg-white hover:border-indigo-300 text-gray-700'}`}
                   >
                     <span className="text-3xl">{meta.icon}</span>
@@ -652,33 +602,22 @@ export default function NewTravelRequestPage() {
               <p className="text-sm text-gray-500">Complete the information for each service.</p>
             </div>
 
-            {/* ── Flight ── */}
             {services.includes('FLIGHT') && (
               <section className="space-y-4">
                 <ServiceHeader icon="✈️" title="Flight" />
-
-                {/* Trip type */}
                 <div className="grid grid-cols-2 gap-3">
                   {(['one-way', 'round-trip'] as const).map(type => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setFlight(f => ({ ...f, tripType: type }))}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${flight.tripType === type ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200'}`}
-                    >
+                    <button key={type} type="button" onClick={() => setFlight(f => ({ ...f, tripType: type }))}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${flight.tripType === type ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200'}`}>
                       <span className="text-lg">{type === 'one-way' ? '✈️' : '↔️'}</span>
                       <span>{type === 'one-way' ? 'One-way' : 'Round Trip'}</span>
                     </button>
                   ))}
                 </div>
-
-                {/* Airports */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <AirportCombobox label="Departure Airport" required placeholder="Search city or IATA code…" value={flight.originAirport} onChange={v => setFlight(f => ({ ...f, originAirport: v }))} />
                   <AirportCombobox label="Destination Airport" required placeholder="Search city or IATA code…" value={flight.destAirport} onChange={v => setFlight(f => ({ ...f, destAirport: v }))} />
                 </div>
-
-                {/* Departure date + time */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Departure Date" required>
                     <input type="date" title="Departure Date" value={flight.departureDate} onChange={e => setFlight(f => ({ ...f, departureDate: e.target.value }))} className={inputCls} />
@@ -687,8 +626,6 @@ export default function NewTravelRequestPage() {
                     <input type="time" title="Departure Time" value={flight.departureTime} onChange={e => setFlight(f => ({ ...f, departureTime: e.target.value }))} className={inputCls} />
                   </Field>
                 </div>
-
-                {/* Return date + time (round-trip only) */}
                 {flight.tripType === 'round-trip' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Return Date" required>
@@ -699,28 +636,17 @@ export default function NewTravelRequestPage() {
                     </Field>
                   </div>
                 )}
-
                 <Toggle checked={flight.flexibleDates} onChange={v => setFlight(f => ({ ...f, flexibleDates: v }))} label="Flexible dates" />
-
                 <Field label="Additional Notes">
                   <textarea value={flight.notes} onChange={e => setFlight(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="E.g. aisle seat preferred…" className={inputCls + ' resize-none'} />
                 </Field>
               </section>
             )}
 
-            {/* ── Hotel ── */}
             {services.includes('HOTEL') && (
               <section className="space-y-4">
                 <ServiceHeader icon="🏨" title="Hotel" />
-
-                <SearchCombobox
-                  label="City" required
-                  value={hotel.city}
-                  onChange={v => setHotel(h => ({ ...h, city: v }))}
-                  suggestions={HOTEL_CITIES}
-                  placeholder="Search city…"
-                />
-
+                <SearchCombobox label="City" required value={hotel.city} onChange={v => setHotel(h => ({ ...h, city: v }))} suggestions={HOTEL_CITIES} placeholder="Search city…" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Check-in Date" required>
                     <input type="date" title="Check-in Date" value={hotel.checkIn} onChange={e => setHotel(h => ({ ...h, checkIn: e.target.value }))} className={inputCls} />
@@ -729,32 +655,25 @@ export default function NewTravelRequestPage() {
                     <input type="date" title="Check-out Date" value={hotel.checkOut} onChange={e => setHotel(h => ({ ...h, checkOut: e.target.value }))} className={inputCls} />
                   </Field>
                 </div>
-
                 <div className="flex flex-col gap-2">
                   <Field label="Preferred Area">
                     <input type="text" value={hotel.area} onChange={e => setHotel(h => ({ ...h, area: e.target.value }))} placeholder="E.g. City Center, Near Airport…" className={inputCls} />
                   </Field>
                   <div className="flex flex-wrap gap-2">
                     {['City Center', 'Near Airport', 'Near Venue'].map(chip => (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => setHotel(h => ({ ...h, area: chip }))}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${hotel.area === chip ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}
-                      >
+                      <button key={chip} type="button" onClick={() => setHotel(h => ({ ...h, area: chip }))}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${hotel.area === chip ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}>
                         {chip}
                       </button>
                     ))}
                   </div>
                 </div>
-
                 <Field label="Notes">
                   <textarea value={hotel.notes} onChange={e => setHotel(h => ({ ...h, notes: e.target.value }))} rows={2} placeholder="Any special requests…" className={inputCls + ' resize-none'} />
                 </Field>
               </section>
             )}
 
-            {/* ── Taxi ── */}
             {services.includes('TAXI') && (
               <section className="space-y-4">
                 <ServiceHeader icon="🚕" title="Taxi / Transfer" />
@@ -776,7 +695,6 @@ export default function NewTravelRequestPage() {
               </section>
             )}
 
-            {/* ── Car Rental ── */}
             {services.includes('CAR_RENTAL') && (
               <section className="space-y-4">
                 <ServiceHeader icon="🚗" title="Car Rental" />
@@ -798,7 +716,6 @@ export default function NewTravelRequestPage() {
               </section>
             )}
 
-            {/* ── Purpose + Cost + Payment ── */}
             <section className="space-y-4">
               <div className="h-px bg-gray-100" />
               <Field label="Purpose of trip" required>
@@ -807,18 +724,13 @@ export default function NewTravelRequestPage() {
               <Field label="Estimated cost (USD)">
                 <input type="number" min="0" value={estimatedCostUsd} onChange={e => setEstimatedCostUsd(e.target.value)} placeholder="0" className={inputCls} />
               </Field>
-
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-1">Payment Responsibility</p>
                 <p className="text-xs text-gray-400 mb-3">Who is covering the cost of this trip?</p>
                 <div className="grid grid-cols-2 gap-3">
                   {([['m4u', 'M4U is paying'], ['client', 'Client is paying']] as [string, string][]).map(([val, lbl]) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setPaymentResponsibility(val)}
-                      className={`flex items-center justify-center rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${paymentResponsibility === val ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200'}`}
-                    >
+                    <button key={val} type="button" onClick={() => setPaymentResponsibility(val)}
+                      className={`flex items-center justify-center rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${paymentResponsibility === val ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200'}`}>
                       {lbl}
                     </button>
                   ))}
@@ -836,6 +748,14 @@ export default function NewTravelRequestPage() {
               <p className="text-sm text-gray-500">Double-check everything before submitting.</p>
             </div>
 
+            {selectedEmployee && (
+              <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Employee</p>
+                <p className="font-semibold text-gray-900">{selectedEmployee.name}</p>
+                <p className="text-sm text-gray-500">{selectedEmployee.email}</p>
+              </div>
+            )}
+
             {selectedEvent && (
               <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-4">
                 <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-1">Event</p>
@@ -850,9 +770,9 @@ export default function NewTravelRequestPage() {
 
             {services.includes('FLIGHT') && flight.originAirport && flight.destAirport && (
               <ReviewBlock icon="✈️" title="Flight" onEdit={() => setStep(3)}>
-                <ReviewRow label="Route"      value={`${flight.originAirport.name} (${flight.originAirport.code}) → ${flight.destAirport.name} (${flight.destAirport.code})`} />
-                <ReviewRow label="Trip type"  value={flight.tripType === 'one-way' ? 'One-way' : 'Round trip'} />
-                <ReviewRow label="Departure"  value={`${fmtDisplayDate(flight.departureDate)}${flight.departureTime ? ' at ' + flight.departureTime : ''}`} />
+                <ReviewRow label="Route"     value={`${flight.originAirport.name} (${flight.originAirport.code}) → ${flight.destAirport.name} (${flight.destAirport.code})`} />
+                <ReviewRow label="Trip type" value={flight.tripType === 'one-way' ? 'One-way' : 'Round trip'} />
+                <ReviewRow label="Departure" value={`${fmtDisplayDate(flight.departureDate)}${flight.departureTime ? ' at ' + flight.departureTime : ''}`} />
                 {flight.tripType === 'round-trip' && (
                   <ReviewRow label="Return" value={`${fmtDisplayDate(flight.returnDate)}${flight.returnTime ? ' at ' + flight.returnTime : ''}`} />
                 )}
@@ -890,9 +810,9 @@ export default function NewTravelRequestPage() {
             )}
 
             <ReviewBlock icon="📋" title="Trip details" onEdit={() => setStep(3)}>
-              <ReviewRow label="Purpose"   value={purpose || '—'} />
+              <ReviewRow label="Purpose"  value={purpose || '—'} />
               {estimatedCostUsd && <ReviewRow label="Est. cost" value={`$${Number(estimatedCostUsd).toLocaleString('en-US')}`} />}
-              <ReviewRow label="Payment"   value={paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'} />
+              <ReviewRow label="Payment"  value={paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'} />
             </ReviewBlock>
 
             {warning && <p className="rounded-xl bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">{warning}</p>}
@@ -900,12 +820,10 @@ export default function NewTravelRequestPage() {
           </div>
         )}
 
-        {/* Inline error for steps 1–3 */}
         {error && step < 4 && (
           <p className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</p>
         )}
 
-        {/* Navigation */}
         <div className={`flex gap-3 pt-2 ${step > 1 ? 'justify-between' : 'justify-end'}`}>
           {step > 1 && (
             <button type="button" onClick={back} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">

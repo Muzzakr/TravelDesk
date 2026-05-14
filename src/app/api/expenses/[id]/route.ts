@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyExpenseStatusChanged } from '@/lib/notify'
+import { emailExpenseApproved, emailExpenseRejected } from '@/lib/mail'
 import { z } from 'zod'
 
 const UpdateSchema = z.object({
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const expense = await prisma.expense.findFirst({
     where: { id: params.id, companyId: session.user.companyId },
-    include: { employee: { select: { name: true } } },
+    include: { employee: { select: { name: true, email: true } } },
   })
   if (!expense) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -149,6 +150,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       newStatus: parsed.data.status,
       actorName: session.user.name ?? 'Team member',
       rejectionNote: parsed.data.rejectionNote,
+    }).catch(() => {})
+  }
+
+  const employeeEmail = (expense.employee as { name: string; email: string }).email
+  if (parsed.data.status === 'APPROVED' && employeeEmail) {
+    emailExpenseApproved(employeeEmail, expense.employee.name ?? 'there', {
+      amountUsd: Number(expense.amountUsd),
+      description: expense.description,
+      actorName: session.user.name ?? 'Your manager',
+      expenseId: params.id,
+    }).catch(() => {})
+  } else if (parsed.data.status === 'REJECTED' && employeeEmail) {
+    emailExpenseRejected(employeeEmail, expense.employee.name ?? 'there', {
+      amountUsd: Number(expense.amountUsd),
+      description: expense.description,
+      rejectionNote: parsed.data.rejectionNote,
+      actorName: session.user.name ?? 'Your manager',
+      expenseId: params.id,
     }).catch(() => {})
   }
 

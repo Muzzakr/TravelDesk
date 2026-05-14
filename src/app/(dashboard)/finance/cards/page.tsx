@@ -107,7 +107,7 @@ export default function CardTransactionsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium text-gray-900">{t.merchant}</p>
-                    <p className="text-xs text-gray-400">{new Date(t.transactionDate).toLocaleDateString()} · {t.cardProgram}</p>
+                    <p className="text-xs text-gray-400">{new Date(t.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} · {t.cardProgram}</p>
                     {t.employeeName && <p className="text-xs text-gray-500">{t.employeeName}</p>}
                   </div>
                   <div className="shrink-0 text-right">
@@ -165,7 +165,7 @@ export default function CardTransactionsPage() {
               <tbody className="divide-y divide-gray-50">
                 {transactions.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-500">{new Date(t.transactionDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-gray-500">{new Date(t.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{t.merchant}</td>
                     <td className="px-4 py-3 font-semibold text-gray-900">
                       ${Number(t.amountUsd).toFixed(2)}

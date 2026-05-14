@@ -46,14 +46,19 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', role: 'EMPLOYEE', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', role: 'EMPLOYEE' })
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Drawer state
   const [selected, setSelected] = useState<UserRow | null>(null)
-  const [editMode, setEditMode] = useState(false)
+
+  // Edit modal state (separate from drawer — avoids select dropdown focus issues)
+  const [editModal, setEditModal] = useState<UserRow | null>(null)
   const [editForm, setEditForm] = useState({ name: '', role: '', isActive: true })
+  const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
   // Import state
@@ -82,7 +87,6 @@ export default function AdminUsersPage() {
     function onMouseDown(e: MouseEvent) {
       if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
         setSelected(null)
-        setEditMode(false)
         setEditError('')
       }
     }
@@ -92,45 +96,58 @@ export default function AdminUsersPage() {
 
   function openDetail(u: UserRow) {
     setSelected(u)
-    setEditMode(false)
     setEditError('')
     setShowForm(false)
   }
 
   function closeDrawer() {
     setSelected(null)
-    setEditMode(false)
     setEditError('')
+    setConfirmDelete(false)
   }
 
-  function enterEdit() {
-    if (!selected) return
-    setEditForm({ name: selected.name, role: selected.role, isActive: selected.isActive })
-    setEditMode(true)
+  function openEditModal(u: UserRow) {
+    setEditForm({ name: u.name, role: u.role, isActive: u.isActive })
     setEditError('')
+    setEditModal(u)
+  }
+
+  async function deleteUser() {
+    if (!selected) return
+    setDeleting(true)
+    const res = await fetch(`/api/users/${selected.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      closeDrawer()
+      loadUsers()
+    } else {
+      const d = await res.json()
+      setEditError(d.error ?? 'Failed to delete user')
+    }
+    setDeleting(false)
+    setConfirmDelete(false)
   }
 
   async function saveEdit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selected) return
-    setSaving(true)
+    if (!editModal) return
+    setEditSaving(true)
     setEditError('')
-    const res = await fetch(`/api/users/${selected.id}`, {
+    const res = await fetch(`/api/users/${editModal.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editForm.name, role: editForm.role, isActive: editForm.isActive }),
     })
     if (res.ok) {
-      await loadUsers()
       const fresh = await fetch('/api/users').then((r) => r.json()) as UserRow[]
-      const updated = fresh.find((u) => u.id === selected.id)
+      setUsers(fresh)
+      const updated = fresh.find((u) => u.id === editModal.id)
       if (updated) setSelected(updated)
-      setEditMode(false)
+      setEditModal(null)
     } else {
       const d = await res.json()
       setEditError(d.error ?? 'Failed to save')
     }
-    setSaving(false)
+    setEditSaving(false)
   }
 
   async function createUser(e: React.FormEvent) {
@@ -144,7 +161,7 @@ export default function AdminUsersPage() {
     })
     if (res.ok) {
       setShowForm(false)
-      setForm({ name: '', email: '', role: 'EMPLOYEE', password: '' })
+      setForm({ name: '', email: '', role: 'EMPLOYEE' })
       loadUsers()
     } else {
       const d = await res.json()
@@ -196,7 +213,7 @@ export default function AdminUsersPage() {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: u.name, email: u.email, role: u.role, password: u.password }),
+        body: JSON.stringify({ name: u.name, email: u.email, role: u.role }),
       })
       if (res.ok) {
         results.push({ email: u.email, ok: true })
@@ -242,104 +259,127 @@ export default function AdminUsersPage() {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
-              {editMode ? (
-                <form id="edit-user-form" onSubmit={saveEdit} className="space-y-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Full name</label>
-                    <input
-                      required
-                      title="Full name"
-                      placeholder="Full name"
-                      value={editForm.name}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Email</label>
-                    <input
-                      title="Email"
-                      placeholder="Email"
-                      value={selected.email}
-                      readOnly
-                      className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Role</label>
-                    <select
-                      title="Role"
-                      value={editForm.role}
-                      onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-                    >
-                      {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Status</label>
-                    <select
-                      title="Status"
-                      value={editForm.isActive ? 'active' : 'inactive'}
-                      onChange={(e) => setEditForm({ ...editForm, isActive: e.target.value === 'active' })}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
-                  {editError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{editError}</p>}
-                </form>
-              ) : (
-                <div className="space-y-5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant={roleBadge[selected.role] ?? 'gray'}>{selected.role.replace(/_/g, ' ')}</Badge>
-                    <Badge variant={selected.isActive ? 'green' : 'gray'}>{selected.isActive ? 'Active' : 'Inactive'}</Badge>
-                  </div>
-
-                  <div className="h-px bg-gray-100" />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <DetailRow label="Email" value={selected.email} />
-                    <DetailRow label="Manager" value={selected.manager?.name ?? null} />
-                  </div>
-
-                  <DetailRow
-                    label="Joined"
-                    value={new Date(selected.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  />
-
-                  <div className="h-px bg-gray-100" />
-
-                  <div>
-                    <Link
-                      href={`/admin/users/${selected.id}`}
-                      className="text-sm font-medium text-indigo-600 hover:underline"
-                    >
-                      View full profile →
-                    </Link>
-                  </div>
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={roleBadge[selected.role] ?? 'gray'}>{selected.role.replace(/_/g, ' ')}</Badge>
+                  <Badge variant={selected.isActive ? 'green' : 'gray'}>{selected.isActive ? 'Active' : 'Inactive'}</Badge>
                 </div>
-              )}
+
+                <div className="h-px bg-gray-100" />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <DetailRow label="Email" value={selected.email} />
+                  <DetailRow label="Manager" value={selected.manager?.name ?? null} />
+                </div>
+
+                <DetailRow
+                  label="Joined"
+                  value={new Date(selected.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                />
+
+                <div className="h-px bg-gray-100" />
+
+                <div>
+                  <Link
+                    href={`/admin/users/${selected.id}`}
+                    className="text-sm font-medium text-indigo-600 hover:underline"
+                  >
+                    View full profile →
+                  </Link>
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
-            <div className="border-t px-6 py-4 flex items-center gap-3">
-              {editMode ? (
-                <>
-                  <Button type="submit" form="edit-user-form" loading={saving}>Save changes</Button>
-                  <button
-                    type="button"
-                    onClick={() => { setEditMode(false); setEditError('') }}
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                  >
+            <div className="border-t px-6 py-4 flex items-center gap-3 flex-wrap">
+              {confirmDelete ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-red-600 font-medium">Delete {selected?.name}?</span>
+                  <button type="button" onClick={deleteUser} disabled={deleting}
+                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                    {deleting ? '…' : 'Yes, delete'}
+                  </button>
+                  <button type="button" onClick={() => setConfirmDelete(false)}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                     Cancel
                   </button>
-                </>
+                </div>
               ) : (
-                <Button onClick={enterEdit}>Edit</Button>
+                <>
+                  <Button onClick={() => openEditModal(selected!)}>Edit</Button>
+                  <button type="button" onClick={() => setConfirmDelete(true)}
+                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100">
+                    Delete
+                  </button>
+                </>
               )}
             </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Edit modal ────────────────────────────────── */}
+      {editModal && (
+        <>
+          <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setEditModal(null); setEditError('') }} />
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+            <form
+              onSubmit={saveEdit}
+              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-semibold text-gray-900">Edit user</h2>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Full name</label>
+                <input
+                  required title="Full name"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Email</label>
+                <input
+                  title="Email" value={editModal.email} readOnly
+                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Role</label>
+                <select
+                  title="Role"
+                  value={editForm.role}
+                  onChange={e => setEditForm({ ...editForm, role: e.target.value })}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+                >
+                  {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Status</label>
+                <select
+                  title="Status"
+                  value={editForm.isActive ? 'active' : 'inactive'}
+                  onChange={e => setEditForm({ ...editForm, isActive: e.target.value === 'active' })}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              {editError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{editError}</p>}
+              <div className="flex gap-3 pt-2">
+                <Button type="submit" loading={editSaving}>Save changes</Button>
+                <button
+                  type="button"
+                  onClick={() => { setEditModal(null); setEditError('') }}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </>
       )}
@@ -370,8 +410,8 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="p-6 space-y-4">
-            <p className="rounded-lg bg-yellow-50 px-4 py-3 text-sm text-yellow-700">
-              Temporary passwords shown below — share with users and ask them to change on first login.
+            <p className="rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+              Each user will receive an invite email to set their own password.
             </p>
 
             {createResults && (
@@ -413,17 +453,12 @@ export default function AdminUsersPage() {
                       <input value={u.email} onChange={(e) => updatePreviewRow(i, 'email', e.target.value)}
                         className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:border-indigo-400 focus:outline-none" placeholder="email@example.com" />
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="col-span-2 flex flex-col gap-1">
                       <label className="text-xs font-medium text-gray-500">Role</label>
                       <select title="Role" value={u.role} onChange={(e) => updatePreviewRow(i, 'role', e.target.value)}
                         className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:border-indigo-400 focus:outline-none">
                         {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500">Password</label>
-                      <input value={u.password} onChange={(e) => updatePreviewRow(i, 'password', e.target.value)}
-                        className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-mono focus:border-indigo-400 focus:outline-none" placeholder="Temporary password" />
                     </div>
                   </div>
                 </div>
@@ -499,18 +534,14 @@ export default function AdminUsersPage() {
               <label className="text-sm font-medium text-gray-700">Email</label>
               <input type="email" required title="Email" placeholder="email@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              <p className="text-xs text-indigo-500 mt-0.5">An invite email will be sent automatically.</p>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="col-span-2 flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">Role</label>
               <select title="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
                 {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Password</label>
-              <input type="password" required title="Password" placeholder="Min. 8 characters" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             </div>
             {formError && <p className="col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-600">{formError}</p>}
             <div className="col-span-2">
@@ -551,7 +582,7 @@ export default function AdminUsersPage() {
                   <Badge variant={roleBadge[u.role] ?? 'gray'}>{u.role.replace(/_/g, ' ')}</Badge>
                   {u.manager && <span className="text-xs text-gray-400">Manager: {u.manager.name}</span>}
                 </div>
-                <p className="text-xs text-gray-400">Joined {new Date(u.createdAt).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-400">Joined {new Date(u.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
               </button>
             ))}
           </div>
@@ -585,7 +616,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3">
                       <Badge variant={u.isActive ? 'green' : 'gray'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 hidden lg:table-cell whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-gray-400 hidden lg:table-cell whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                   </tr>
                 ))}
               </tbody>

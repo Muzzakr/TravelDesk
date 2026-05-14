@@ -109,6 +109,9 @@ export default async function AdminDashboard() {
         <Link href="/admin/accounts" className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
           View all accounts
         </Link>
+        <Link href="/admin/book" className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100">
+          + Create request
+        </Link>
       </div>
 
       {/* Spend overview */}
@@ -294,7 +297,7 @@ export default async function AdminDashboard() {
                           <Badge variant={statusToBadgeVariant(ev.status)}>{ev.status}</Badge>
                         </td>
                         <td className="px-4 py-3 text-gray-400">
-                          {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : '—'}
+                          {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">${budget.toFixed(0)}</td>
                         <td className="px-4 py-3 text-right text-gray-700">${spent.toFixed(0)}</td>
@@ -333,12 +336,12 @@ export default async function AdminDashboard() {
                 <div key={r.id} className="rounded-xl border bg-white px-4 py-3 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-gray-900">
-                      {new Date(r.periodStart).toLocaleDateString()} – {new Date(r.periodEnd).toLocaleDateString()}
+                      {new Date(r.periodStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} – {new Date(r.periodEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                     </p>
                     <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
                   </div>
                   <p className="text-xl font-bold text-gray-900">${Number(r.totalUsd).toFixed(2)}</p>
-                  <p className="text-xs text-gray-400">Generated {new Date(r.generatedAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-400">Generated {new Date(r.generatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                 </div>
               ))}
             </div>
@@ -357,11 +360,11 @@ export default async function AdminDashboard() {
                   {payoutReports.map((r) => (
                     <tr key={r.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">
-                        {new Date(r.periodStart).toLocaleDateString()} – {new Date(r.periodEnd).toLocaleDateString()}
+                        {new Date(r.periodStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} – {new Date(r.periodEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-3">${Number(r.totalUsd).toFixed(2)}</td>
                       <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge></td>
-                      <td className="px-4 py-3 text-gray-400">{new Date(r.generatedAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-gray-400">{new Date(r.generatedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -430,7 +433,7 @@ export default async function AdminDashboard() {
               <p className="font-mono text-xs font-medium text-gray-800">{log.action}</p>
               <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>{log.entityType} · {log.actor?.name ?? 'System'}</span>
-                <span>{new Date(log.createdAt).toLocaleDateString()}</span>
+                <span>{new Date(log.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
               </div>
             </div>
           ))}
@@ -451,7 +454,7 @@ export default async function AdminDashboard() {
                   <td className="px-4 py-3 font-mono text-xs text-gray-700">{log.action}</td>
                   <td className="px-4 py-3 text-gray-500">{log.entityType}</td>
                   <td className="px-4 py-3 text-gray-500">{log.actor?.name ?? 'System'}</td>
-                  <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                 </tr>
               ))}
             </tbody>

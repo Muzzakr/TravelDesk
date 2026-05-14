@@ -78,7 +78,7 @@ export default async function EmployeeDashboard() {
                     <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
                   </div>
                   <p className="text-xs text-gray-400">{r.event.eventName}</p>
-                  <p className="text-xs text-gray-400">{r.createdAt.toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-400">{r.createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                 </Link>
               ))}
             </div>
@@ -101,7 +101,7 @@ export default async function EmployeeDashboard() {
                       </td>
                       <td className="px-4 py-3 text-gray-500">{r.event.eventName}</td>
                       <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge></td>
-                      <td className="px-4 py-3 text-gray-400">{r.createdAt.toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-gray-400">{r.createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
                     </tr>
                   ))}
                 </tbody>

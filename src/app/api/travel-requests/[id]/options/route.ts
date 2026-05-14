@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyOptionsProvided } from '@/lib/notify'
+import { emailOptionsProvided } from '@/lib/mail'
 import { z } from 'zod'
 
 const OptionsSchema = z.object({
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const travelRequest = await prisma.travelRequest.findFirst({
     where: { id: params.id, companyId: session.user.companyId, agentId: session.user.id },
-    include: { employee: { select: { name: true } } },
+    include: { employee: { select: { name: true, email: true } } },
   })
   if (!travelRequest) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -74,6 +75,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     employeeName: travelRequest.employee.name ?? 'Employee',
     destination: travelRequest.destination,
     optionCount: parsed.data.options.length,
+  }).catch(() => {})
+
+  emailOptionsProvided(travelRequest.employee.email, travelRequest.employee.name ?? 'there', {
+    destination: travelRequest.destination,
+    optionCount: parsed.data.options.length,
+    requestId: params.id,
   }).catch(() => {})
 
   return NextResponse.json({ success: true })

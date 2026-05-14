@@ -323,7 +323,7 @@ export default function EmployeeTravelRequestDetailPage() {
         </div>
         <div>
           <p className="text-xs font-medium text-gray-400 uppercase mb-1">Submitted</p>
-          <p className="text-gray-500 text-xs">{new Date(request.createdAt).toLocaleDateString()}</p>
+          <p className="text-gray-500 text-xs">{new Date(request.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
         </div>
       </div>
 
@@ -377,7 +377,7 @@ export default function EmployeeTravelRequestDetailPage() {
                     {action.actor.name} <span className="text-gray-400 font-normal">({action.actionType})</span>
                   </p>
                   {action.note && <p className="text-gray-500 text-xs mt-0.5">"{action.note}"</p>}
-                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             ))}

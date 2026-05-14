@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyTravelRequestStatusChanged } from '@/lib/notify'
+import { emailRequestApproved, emailRequestRejected, emailAgentActionRequired } from '@/lib/mail'
 import { z } from 'zod'
 import type { TravelRequestStatus } from '@prisma/client'
 
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const request = await prisma.travelRequest.findFirst({
     where: { id: params.id, companyId: session.user.companyId },
-    include: { employee: { select: { name: true } } },
+    include: { employee: { select: { name: true, email: true } } },
   })
   if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -125,6 +126,51 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       rejectionNote: parsed.data.rejectionNote,
       confirmationNumber: (updated as Record<string, unknown>).confirmationNumber as string | null,
     }).catch(() => {})
+  }
+
+  const employeeEmail = (request.employee as { name: string; email: string }).email
+
+  if (nextStatus === 'APPROVED') {
+    if (employeeEmail) {
+      emailRequestApproved(employeeEmail, request.employee.name ?? 'there', {
+        destination: request.destination,
+        requestId: params.id,
+        actorName: session.user.name ?? 'Your manager',
+      }).catch(() => {})
+    }
+    if (request.agentId) {
+      const agent = await prisma.user.findUnique({ where: { id: request.agentId }, select: { name: true, email: true } })
+      if (agent?.email) {
+        emailAgentActionRequired(agent.email, agent.name ?? 'Agent', {
+          employeeName: request.employee.name ?? 'Employee',
+          origin: request.origin,
+          destination: request.destination,
+          requestId: params.id,
+        }).catch(() => {})
+      }
+    }
+  } else if (nextStatus === 'PENDING_AGENT') {
+    const agents = await prisma.user.findMany({
+      where: { companyId: session.user.companyId, role: 'TRAVEL_AGENT', isActive: true },
+      select: { name: true, email: true },
+    })
+    for (const agent of agents) {
+      emailAgentActionRequired(agent.email, agent.name ?? 'Agent', {
+        employeeName: request.employee.name ?? 'Employee',
+        origin: request.origin,
+        destination: request.destination,
+        requestId: params.id,
+      }).catch(() => {})
+    }
+  } else if (nextStatus === 'REJECTED') {
+    if (employeeEmail) {
+      emailRequestRejected(employeeEmail, request.employee.name ?? 'there', {
+        destination: request.destination,
+        rejectionNote: parsed.data.rejectionNote,
+        requestId: params.id,
+        actorName: session.user.name ?? 'Your manager',
+      }).catch(() => {})
+    }
   }
 
   return NextResponse.json(updated)

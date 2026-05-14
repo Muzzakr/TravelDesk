@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { determineRoutingPath } from '@/lib/routing-engine'
+import { emailRequestCreatedOnBehalf } from '@/lib/mail'
 import { z } from 'zod'
 
 const BookSchema = z.object({
@@ -23,7 +24,7 @@ const BookSchema = z.object({
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'TRAVEL_AGENT') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['TRAVEL_AGENT', 'SYSTEM_ADMIN'].includes(session.user.role ?? '')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
   const parsed = BookSchema.safeParse(body)
@@ -77,6 +78,15 @@ export async function POST(req: NextRequest) {
     entityId: travelRequest.id,
     payload: { employeeId: parsed.data.employeeId, routingPath, estimatedCostUsd: parsed.data.estimatedCostUsd },
   })
+
+  emailRequestCreatedOnBehalf(employee.email, employee.name ?? 'there', {
+    origin: parsed.data.origin,
+    destination: parsed.data.destination,
+    departureDate: parsed.data.travelDates.departureDate,
+    eventName: event.eventName,
+    agentName: session.user.name ?? 'Your travel agent',
+    requestId: travelRequest.id,
+  }).catch(() => {})
 
   return NextResponse.json(travelRequest, { status: 201 })
 }

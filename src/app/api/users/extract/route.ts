@@ -7,18 +7,10 @@ export type ExtractedUser = {
   name: string
   email: string
   role: string
-  password: string
   errors: string[]
 }
 
 const VALID_ROLES = ['EMPLOYEE', 'MANAGER', 'TRAVEL_AGENT', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']
-
-function randomPassword(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  let s = ''
-  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)]
-  return `Temp_${s}!`
-}
 
 function normaliseRole(raw: string): string {
   const upper = raw.trim().toUpperCase().replace(/\s+/g, '_')
@@ -30,7 +22,7 @@ function normaliseRole(raw: string): string {
   return upper
 }
 
-function validate(raw: { name?: string; email?: string; role?: string; password?: string }): ExtractedUser {
+function validate(raw: { name?: string; email?: string; role?: string }): ExtractedUser {
   const errors: string[] = []
   if (!raw.name?.trim()) errors.push('Name is required')
   if (!raw.email?.trim()) errors.push('Email is required')
@@ -39,13 +31,10 @@ function validate(raw: { name?: string; email?: string; role?: string; password?
   const role = normaliseRole(raw.role ?? '')
   if (!VALID_ROLES.includes(role)) errors.push(`Role "${raw.role}" is not valid — use EMPLOYEE, MANAGER, TRAVEL_AGENT, FINANCE_ADMIN, or SYSTEM_ADMIN`)
 
-  const password = raw.password?.trim() || randomPassword()
-
   return {
     name: raw.name?.trim() ?? '',
     email: raw.email?.trim().toLowerCase() ?? '',
     role: VALID_ROLES.includes(role) ? role : 'EMPLOYEE',
-    password,
     errors,
   }
 }
@@ -64,10 +53,9 @@ const AI_PROMPT = `Extract all users from this document and return a JSON array.
 - name: string    (full name — required)
 - email: string   (email address — required)
 - role: string    (one of: EMPLOYEE, MANAGER, TRAVEL_AGENT, FINANCE_ADMIN, SYSTEM_ADMIN — default "EMPLOYEE")
-- password: string (password if provided, otherwise "")
 
 Return ONLY the raw JSON array — no markdown, no explanation. Example:
-[{"name":"Anna Svensson","email":"anna@example.com","role":"EMPLOYEE","password":""},{"name":"Erik Holm","email":"erik@example.com","role":"MANAGER","password":""}]`
+[{"name":"Anna Svensson","email":"anna@example.com","role":"EMPLOYEE"},{"name":"Erik Holm","email":"erik@example.com","role":"MANAGER"}]`
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -106,7 +94,6 @@ export async function POST(req: NextRequest) {
           name: get('Name') || get('name') || get('Full Name') || get('fullName'),
           email: get('Email') || get('email') || get('Email Address'),
           role: get('Role') || get('role'),
-          password: get('Password') || get('password'),
         })
       })
   } else if (isCSV) {
@@ -120,7 +107,6 @@ export async function POST(req: NextRequest) {
         name: row['Name'] ?? row['name'] ?? row['Full Name'] ?? row['fullName'],
         email: row['Email'] ?? row['email'] ?? row['Email Address'],
         role: row['Role'] ?? row['role'],
-        password: row['Password'] ?? row['password'],
       })
     )
   } else {
@@ -157,7 +143,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'AI extraction failed. Please try a CSV file instead.' }, { status: 502 })
     }
 
-    let rawUsers: { name?: string; email?: string; role?: string; password?: string }[] = []
+    let rawUsers: { name?: string; email?: string; role?: string }[] = []
     try {
       const match = responseText.match(/\[[\s\S]*\]/)
       if (!match) throw new Error('No JSON array found')

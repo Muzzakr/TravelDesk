@@ -103,8 +103,8 @@ export default function ApproveTravelPage() {
           <div>
             <span className="text-gray-500">Travel dates</span>
             <p className="font-medium text-gray-900">
-              {dates.departureDate ? new Date(dates.departureDate).toLocaleDateString() : '—'}
-              {dates.returnDate ? ` – ${new Date(dates.returnDate).toLocaleDateString()}` : ''}
+              {dates.departureDate ? new Date(dates.departureDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
+              {dates.returnDate ? ` – ${new Date(dates.returnDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}` : ''}
             </p>
           </div>
           <div>
@@ -186,7 +186,7 @@ export default function ApproveTravelPage() {
                 <span className="font-medium text-gray-900">{a.actor.name}</span>
                 {a.note && <p className="text-gray-500 mt-0.5 text-xs">{a.note}</p>}
               </div>
-              <span className="text-xs text-gray-400 shrink-0">{new Date(a.createdAt).toLocaleDateString()}</span>
+              <span className="text-xs text-gray-400 shrink-0">{new Date(a.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
             </div>
           ))}
         </div>

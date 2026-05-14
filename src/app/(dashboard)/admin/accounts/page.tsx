@@ -74,7 +74,7 @@ export default function AccountsPage() {
           </div>
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wide">Created</p>
-            <p className="text-sm font-medium text-gray-700">{new Date(company.createdAt).toLocaleDateString()}</p>
+            <p className="text-sm font-medium text-gray-700">{new Date(company.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wide">Users</p>
@@ -102,7 +102,7 @@ export default function AccountsPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
                       <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                      <p className="text-xs text-gray-300 mt-0.5">{new Date(user.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-300 mt-0.5">{new Date(user.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                     </div>
                     <Badge variant={user.isActive ? 'green' : 'gray'}>
                       {user.isActive ? 'Active' : 'Inactive'}

@@ -4,7 +4,7 @@ import { getToken } from 'next-auth/jwt'
 import type { Role } from '@/types/user'
 import { verifyMfaCookie } from '@/lib/mfa-cookie'
 
-const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/companies/signup']
+const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/companies/signup', '/set-password', '/forgot-password']
 
 const ROLE_PATHS: Record<string, Role[]> = {
   '/employee': ['EMPLOYEE', 'MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],

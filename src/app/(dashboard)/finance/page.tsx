@@ -6,6 +6,7 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { EscalateButton } from './EscalateButton'
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 
 export default async function FinanceDashboard() {
   const session = await auth()
@@ -163,11 +164,11 @@ export default async function FinanceDashboard() {
       </section>
 
       {/* Event budget tracker */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-800">Event budgets</h2>
-          <Link href="/finance/events" className="text-sm font-medium text-indigo-600 hover:underline">Manage budgets →</Link>
-        </div>
+      <CollapsibleSection
+        title="Event budgets"
+        count={events.length}
+        rightLink={<Link href="/finance/events" className="text-sm font-medium text-indigo-600 hover:underline">Manage budgets →</Link>}
+      >
 
         {events.length === 0 ? (
           <div className="rounded-xl border bg-white p-6 text-sm text-gray-400">No events found.</div>
@@ -249,7 +250,7 @@ export default async function FinanceDashboard() {
             </div>
           </>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* Payout reports */}
       <section>

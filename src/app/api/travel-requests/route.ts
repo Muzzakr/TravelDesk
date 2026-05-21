@@ -6,6 +6,7 @@ import { checkEventBudget } from '@/lib/policy-engine'
 import { determineRoutingPath } from '@/lib/routing-engine'
 import { notifyTravelRequestCreated } from '@/lib/notify'
 import { emailRequestConfirmation, emailPendingManagerApproval, emailAgentActionRequired } from '@/lib/mail'
+import { getProfileStatus } from '@/lib/profile-check'
 import { z } from 'zod'
 
 const CreateSchema = z.object({
@@ -48,6 +49,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  if (session.user.role === 'EMPLOYEE') {
+    const profileStatus = await getProfileStatus(session.user.id, session.user.role)
+    if (!profileStatus.complete) {
+      return NextResponse.json(
+        { error: 'Complete your profile before requesting travel.', missingFields: profileStatus.missingFields },
+        { status: 403 }
+      )
+    }
+  }
+
   const body = await req.json()
   const parsed = CreateSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
@@ -74,8 +85,7 @@ export async function POST(req: NextRequest) {
     servicesRequested: parsed.data.servicesRequested,
   })
 
-  const initialStatus =
-    routingPath === 'AGENT_FIRST' || routingPath === 'PARALLEL' ? 'PENDING_AGENT' : 'PENDING_MANAGER'
+  const initialStatus = 'PENDING_MANAGER'
 
   const travelRequest = await prisma.travelRequest.create({
     data: {
@@ -129,32 +139,17 @@ export async function POST(req: NextRequest) {
     }).catch(() => {})
   }
 
-  // Email: manager or agents depending on routing
-  if (initialStatus === 'PENDING_MANAGER') {
-    const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
-    if (emp?.managerId) {
-      const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
-      if (manager?.email) {
-        emailPendingManagerApproval(manager.email, manager.name ?? 'Manager', {
-          employeeName: session.user.name ?? session.user.email ?? 'Employee',
-          origin: parsed.data.origin,
-          destination: parsed.data.destination,
-          departureDate: parsed.data.travelDates.departureDate,
-          estimatedCostUsd: parsed.data.estimatedCostUsd,
-          requestId: travelRequest.id,
-        }).catch(() => {})
-      }
-    }
-  } else if (initialStatus === 'PENDING_AGENT') {
-    const agents = await prisma.user.findMany({
-      where: { companyId: session.user.companyId, role: 'TRAVEL_AGENT', isActive: true },
-      select: { name: true, email: true },
-    })
-    for (const agent of agents) {
-      emailAgentActionRequired(agent.email, agent.name ?? 'Agent', {
+  // Email: always notify manager first
+  const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
+  if (emp?.managerId) {
+    const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
+    if (manager?.email) {
+      emailPendingManagerApproval(manager.email, manager.name ?? 'Manager', {
         employeeName: session.user.name ?? session.user.email ?? 'Employee',
         origin: parsed.data.origin,
         destination: parsed.data.destination,
+        departureDate: parsed.data.travelDates.departureDate,
+        estimatedCostUsd: parsed.data.estimatedCostUsd,
         requestId: travelRequest.id,
       }).catch(() => {})
     }

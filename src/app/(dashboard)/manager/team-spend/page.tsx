@@ -4,134 +4,283 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
-export default async function TeamSpendPage() {
+export default async function TeamSpendPage({
+  searchParams,
+}: {
+  searchParams: { tab?: string }
+}) {
   const session = await auth()
   if (!session?.user?.companyId) redirect('/login')
   const companyId = session.user.companyId
+  const activeTab = searchParams?.tab === 'travel' ? 'travel' : 'expenses'
 
-  const reports = await prisma.user.findMany({
-    where: { companyId, role: 'EMPLOYEE' },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      expenses: {
-        select: {
-          id: true,
-          description: true,
-          amountUsd: true,
-          status: true,
-          category: true,
-          createdAt: true,
-          event: { select: { eventName: true } },
+  const [employees, travelRequests] = await Promise.all([
+    prisma.user.findMany({
+      where: { companyId, role: 'EMPLOYEE' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        expenses: {
+          select: {
+            id: true,
+            description: true,
+            amountUsd: true,
+            status: true,
+            category: true,
+            createdAt: true,
+            event: { select: { eventName: true } },
+          },
+          orderBy: { createdAt: 'desc' },
         },
-        orderBy: { createdAt: 'desc' },
       },
-    },
-  })
+    }),
+    prisma.travelRequest.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        employeeId: true,
+        origin: true,
+        destination: true,
+        status: true,
+        estimatedCostUsd: true,
+        createdAt: true,
+        event: { select: { eventName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ])
 
-  const totals = reports.map((r) => ({
+  // Expense aggregates
+  const expenseTotals = employees.map((r) => ({
     ...r,
     total: r.expenses.reduce((s, e) => s + Number(e.amountUsd), 0),
-    approved: r.expenses.filter((e) => ['APPROVED', 'PAID'].includes(e.status)).reduce((s, e) => s + Number(e.amountUsd), 0),
-    pending: r.expenses.filter((e) => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)).reduce((s, e) => s + Number(e.amountUsd), 0),
+    approved: r.expenses
+      .filter((e) => ['APPROVED', 'PAID'].includes(e.status))
+      .reduce((s, e) => s + Number(e.amountUsd), 0),
+    pending: r.expenses
+      .filter((e) => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status))
+      .reduce((s, e) => s + Number(e.amountUsd), 0),
   }))
+  const grandExpenseTotal = expenseTotals.reduce((s, r) => s + r.total, 0)
+  const totalPendingExpenses = expenseTotals.reduce((s, r) => s + r.pending, 0)
 
-  const grandTotal = totals.reduce((s, r) => s + r.total, 0)
+  // Travel request aggregates
+  const employeeIds = new Set(employees.map((e) => e.id))
+  const teamTravelRequests = travelRequests.filter((t) => employeeIds.has(t.employeeId))
+  const travelByEmployee = Object.fromEntries(
+    employees.map((e) => [e.id, travelRequests.filter((t) => t.employeeId === e.id)])
+  )
+  const pendingTR = teamTravelRequests.filter((t) => t.status === 'PENDING_MANAGER').length
+  const confirmedTR = teamTravelRequests.filter((t) => t.status === 'BOOKING_CONFIRMED').length
+  const totalEstimatedCost = teamTravelRequests.reduce((s, t) => s + Number(t.estimatedCostUsd ?? 0), 0)
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-gray-900">Team spend</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Team members</p>
-          <p className="mt-1 text-3xl font-bold text-indigo-600">{reports.length}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Total expenses</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">${grandTotal.toFixed(2)}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Pending approval</p>
-          <p className="mt-1 text-3xl font-bold text-yellow-600">
-            ${totals.reduce((s, r) => s + r.pending, 0).toFixed(2)}
-          </p>
-        </div>
+      {/* Tab bar */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <Link
+          href="?tab=expenses"
+          className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'expenses' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Expenses
+        </Link>
+        <Link
+          href="?tab=travel"
+          className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'travel' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Travel requests
+        </Link>
       </div>
 
-      {totals.length === 0 ? (
-        <p className="rounded-xl bg-white p-6 text-sm text-gray-400 shadow-sm">
-          No employees found.
-        </p>
-      ) : totals.map((r) => (
-        <section key={r.id}>
-          <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800">{r.name}</h2>
-              <p className="text-sm text-gray-400">{r.email}</p>
+      {activeTab === 'expenses' ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Team members</p>
+              <p className="mt-1 text-3xl font-bold text-indigo-600">{employees.length}</p>
             </div>
-            <div className="text-right text-sm">
-              <p className="font-semibold text-gray-900">Total: ${r.total.toFixed(2)}</p>
-              <p className="text-green-600">Approved: ${r.approved.toFixed(2)}</p>
-              <p className="text-yellow-600">Pending: ${r.pending.toFixed(2)}</p>
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Total expenses</p>
+              <p className="mt-1 text-3xl font-bold text-gray-900">${grandExpenseTotal.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Pending approval</p>
+              <p className="mt-1 text-3xl font-bold text-yellow-600">${totalPendingExpenses.toFixed(2)}</p>
             </div>
           </div>
 
-          {r.expenses.length === 0 ? (
-            <div className="rounded-xl border bg-white p-4 text-sm text-gray-400">No expenses submitted.</div>
-          ) : (
-            <>
-              {/* Mobile */}
-              <div className="sm:hidden space-y-2">
-                {r.expenses.map((ex) => (
-                  <div key={ex.id} className="rounded-xl border bg-white px-4 py-3 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-gray-900 truncate text-sm">{ex.description}</p>
-                      <p className="font-semibold text-gray-900 shrink-0">${Number(ex.amountUsd).toFixed(2)}</p>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-gray-400">{ex.category} · {ex.event.eventName}</p>
-                      <Badge variant={statusToBadgeVariant(ex.status)}>{ex.status.replace(/_/g, ' ')}</Badge>
-                    </div>
-                    <p className="text-xs text-gray-300">{new Date(ex.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
-                  </div>
-                ))}
+          {expenseTotals.length === 0 ? (
+            <p className="rounded-xl bg-white p-6 text-sm text-gray-400 shadow-sm">No employees found.</p>
+          ) : expenseTotals.map((r) => (
+            <section key={r.id}>
+              <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">{r.name}</h2>
+                  <p className="text-sm text-gray-400">{r.email}</p>
+                </div>
+                <div className="text-right text-sm">
+                  <p className="font-semibold text-gray-900">Total: ${r.total.toFixed(2)}</p>
+                  <p className="text-green-600">Approved: ${r.approved.toFixed(2)}</p>
+                  <p className="text-yellow-600">Pending: ${r.pending.toFixed(2)}</p>
+                </div>
               </div>
-              {/* Desktop */}
-              <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white">
-                <table className="min-w-[600px] w-full divide-y divide-gray-100 text-sm">
-                  <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Description</th>
-                      <th className="px-4 py-3 text-left">Category</th>
-                      <th className="px-4 py-3 text-left">Event</th>
-                      <th className="px-4 py-3 text-left">Amount</th>
-                      <th className="px-4 py-3 text-left">Status</th>
-                      <th className="px-4 py-3 text-left">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
+
+              {r.expenses.length === 0 ? (
+                <div className="rounded-xl border bg-white p-4 text-sm text-gray-400">No expenses submitted.</div>
+              ) : (
+                <>
+                  <div className="sm:hidden space-y-2">
                     {r.expenses.map((ex) => (
-                      <tr key={ex.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-900">{ex.description}</td>
-                        <td className="px-4 py-3 text-gray-500">{ex.category}</td>
-                        <td className="px-4 py-3 text-gray-500">{ex.event.eventName}</td>
-                        <td className="px-4 py-3 font-medium">${Number(ex.amountUsd).toFixed(2)}</td>
-                        <td className="px-4 py-3">
+                      <div key={ex.id} className="rounded-xl border bg-white px-4 py-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-gray-900 truncate text-sm">{ex.description}</p>
+                          <p className="font-semibold text-gray-900 shrink-0">${Number(ex.amountUsd).toFixed(2)}</p>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-gray-400">{ex.category} · {ex.event.eventName}</p>
                           <Badge variant={statusToBadgeVariant(ex.status)}>{ex.status.replace(/_/g, ' ')}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{new Date(ex.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
-                      </tr>
+                        </div>
+                        <p className="text-xs text-gray-300">{new Date(ex.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </section>
-      ))}
+                  </div>
+                  <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white">
+                    <table className="min-w-[600px] w-full divide-y divide-gray-100 text-sm">
+                      <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                        <tr>
+                          <th className="px-4 py-3 text-left">Description</th>
+                          <th className="px-4 py-3 text-left">Category</th>
+                          <th className="px-4 py-3 text-left">Event</th>
+                          <th className="px-4 py-3 text-left">Amount</th>
+                          <th className="px-4 py-3 text-left">Status</th>
+                          <th className="px-4 py-3 text-left">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {r.expenses.map((ex) => (
+                          <tr key={ex.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-900">{ex.description}</td>
+                            <td className="px-4 py-3 text-gray-500">{ex.category}</td>
+                            <td className="px-4 py-3 text-gray-500">{ex.event.eventName}</td>
+                            <td className="px-4 py-3 font-medium">${Number(ex.amountUsd).toFixed(2)}</td>
+                            <td className="px-4 py-3">
+                              <Badge variant={statusToBadgeVariant(ex.status)}>{ex.status.replace(/_/g, ' ')}</Badge>
+                            </td>
+                            <td className="px-4 py-3 text-gray-400 text-xs">{new Date(ex.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </section>
+          ))}
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Total requests</p>
+              <p className="mt-1 text-3xl font-bold text-indigo-600">{teamTravelRequests.length}</p>
+            </div>
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Pending your approval</p>
+              <p className="mt-1 text-3xl font-bold text-yellow-600">{pendingTR}</p>
+            </div>
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Confirmed bookings</p>
+              <p className="mt-1 text-3xl font-bold text-green-600">{confirmedTR}</p>
+            </div>
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Total est. cost</p>
+              <p className="mt-1 text-3xl font-bold text-gray-900">
+                ${totalEstimatedCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+          </div>
+
+          {employees.length === 0 ? (
+            <p className="rounded-xl bg-white p-6 text-sm text-gray-400 shadow-sm">No employees found.</p>
+          ) : employees.map((emp) => {
+            const reqs = travelByEmployee[emp.id] ?? []
+            const empCost = reqs.reduce((s, t) => s + Number(t.estimatedCostUsd ?? 0), 0)
+            return (
+              <section key={emp.id}>
+                <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-800">{emp.name}</h2>
+                    <p className="text-sm text-gray-400">{emp.email}</p>
+                  </div>
+                  <div className="text-right text-sm">
+                    <p className="font-semibold text-gray-900">{reqs.length} request{reqs.length !== 1 ? 's' : ''}</p>
+                    {empCost > 0 && <p className="text-gray-500">Est. ${empCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>}
+                  </div>
+                </div>
+
+                {reqs.length === 0 ? (
+                  <div className="rounded-xl border bg-white p-4 text-sm text-gray-400">No travel requests submitted.</div>
+                ) : (
+                  <>
+                    <div className="sm:hidden space-y-2">
+                      {reqs.map((tr) => (
+                        <div key={tr.id} className="rounded-xl border bg-white px-4 py-3 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium text-gray-900 text-sm">{tr.origin} → {tr.destination}</p>
+                            {tr.estimatedCostUsd && (
+                              <p className="font-semibold text-gray-900 shrink-0">${Number(tr.estimatedCostUsd).toFixed(0)}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-gray-400">{tr.event.eventName}</p>
+                            <Badge variant={statusToBadgeVariant(tr.status)}>{tr.status.replace(/_/g, ' ')}</Badge>
+                          </div>
+                          <p className="text-xs text-gray-300">{new Date(tr.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white">
+                      <table className="min-w-[600px] w-full divide-y divide-gray-100 text-sm">
+                        <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Route</th>
+                            <th className="px-4 py-3 text-left">Event</th>
+                            <th className="px-4 py-3 text-left">Est. cost</th>
+                            <th className="px-4 py-3 text-left">Status</th>
+                            <th className="px-4 py-3 text-left">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {reqs.map((tr) => (
+                            <tr key={tr.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">{tr.origin} → {tr.destination}</td>
+                              <td className="px-4 py-3 text-gray-500">{tr.event.eventName}</td>
+                              <td className="px-4 py-3">{tr.estimatedCostUsd ? `$${Number(tr.estimatedCostUsd).toFixed(0)}` : '—'}</td>
+                              <td className="px-4 py-3">
+                                <Badge variant={statusToBadgeVariant(tr.status)}>{tr.status.replace(/_/g, ' ')}</Badge>
+                              </td>
+                              <td className="px-4 py-3 text-gray-400 text-xs">{new Date(tr.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </section>
+            )
+          })}
+        </>
+      )}
     </div>
   )
 }

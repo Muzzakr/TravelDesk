@@ -17,18 +17,24 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const request = await prisma.travelRequest.findFirst({
-    where: { id: params.id, companyId: session.user.companyId },
-    include: {
-      employee: { select: { id: true, name: true, email: true } },
-      event: true,
-      approvalActions: { include: { actor: { select: { name: true, role: true } } }, orderBy: { createdAt: 'asc' } },
-      bookingOptions: { orderBy: { createdAt: 'asc' } },
-      expenses: { select: { id: true, description: true, amountUsd: true, category: true, status: true, merchantName: true } },
-    },
-  })
-  if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(request)
+  try {
+    const request = await prisma.travelRequest.findFirst({
+      where: { id: params.id, companyId: session.user.companyId },
+      include: {
+        employee: { select: { id: true, name: true, email: true } },
+        event: true,
+        approvalActions: { include: { actor: { select: { name: true, role: true } } }, orderBy: { createdAt: 'asc' } },
+        bookingOptions:        { orderBy: { createdAt: 'asc' } },
+        bookingConfirmations:  { orderBy: { createdAt: 'asc' } },
+        expenses: { select: { id: true, description: true, amountUsd: true, category: true, status: true, merchantName: true } },
+      },
+    })
+    if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json(request)
+  } catch (err) {
+    console.error('[GET /api/travel-requests/[id]]', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -63,18 +69,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   let nextStatus: string | undefined = parsed.data.status
-  if (parsed.data.status === 'APPROVED') {
-    const full = await prisma.travelRequest.findUnique({
-      where: { id: params.id },
-      include: { _count: { select: { bookingOptions: true } } },
-    })
-    if (
-      full?.routingPath === 'MANAGER_FIRST' &&
-      full?.status === 'PENDING_MANAGER' &&
-      full?._count.bookingOptions === 0
-    ) {
-      nextStatus = 'PENDING_AGENT'
-    }
+  if (parsed.data.status === 'APPROVED' && request.status === 'PENDING_MANAGER') {
+    // Always forward to travel agent after manager approval
+    nextStatus = 'PENDING_AGENT'
   }
 
   const updated = await prisma.travelRequest.update({

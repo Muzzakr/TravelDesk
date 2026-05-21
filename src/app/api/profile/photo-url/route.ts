@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getReceiptUrl } from '@/lib/s3'
+import { getProfilePhotoUrl } from '@/lib/storage'
 
 const ALLOWED_FIELDS = ['profilePhotoKey', 'passportPhotoKey', 'driversLicensePhotoKey'] as const
 type PhotoField = (typeof ALLOWED_FIELDS)[number]
@@ -22,6 +22,6 @@ export async function GET(req: NextRequest) {
   const key = profile?.[field] as string | null | undefined
   if (!key) return NextResponse.json({ url: null })
 
-  const url = await getReceiptUrl(key)
+  const url = await getProfilePhotoUrl(key)
   return NextResponse.json({ url })
 }

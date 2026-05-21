@@ -15,6 +15,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const url = await getReceiptUrl(receipt.s3Key)
+  const url = receipt.s3Key
+    ? await getReceiptUrl(receipt.s3Key)
+    : `${process.env.NEXTAUTH_URL ?? ''}/api/receipts/${params.id}/file`
   return NextResponse.json({ url })
 }

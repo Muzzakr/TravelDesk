@@ -9,6 +9,10 @@ import { z } from 'zod'
 const UpdateSchema = z.object({
   status: z.enum(['SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
   rejectionNote: z.string().optional(),
+  amountUsd: z.number().positive().optional(),
+  description: z.string().min(1).optional(),
+  merchantName: z.string().optional(),
+  transactionDate: z.string().optional(),
 })
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -56,6 +60,42 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json()
   const parsed = UpdateSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+
+  const isFieldEdit = !parsed.data.status && (
+    parsed.data.amountUsd !== undefined ||
+    parsed.data.description !== undefined ||
+    parsed.data.merchantName !== undefined ||
+    parsed.data.transactionDate !== undefined
+  )
+
+  if (isFieldEdit) {
+    if (expense.status !== 'DRAFT') {
+      return NextResponse.json({ error: 'Only DRAFT expenses can be edited' }, { status: 403 })
+    }
+    if (expense.employeeId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const updated = await prisma.expense.update({
+      where: { id: params.id },
+      data: {
+        ...(parsed.data.amountUsd !== undefined && { amountUsd: parsed.data.amountUsd }),
+        ...(parsed.data.description !== undefined && { description: parsed.data.description }),
+        ...(parsed.data.merchantName !== undefined && { merchantName: parsed.data.merchantName || null }),
+        ...(parsed.data.transactionDate !== undefined && {
+          transactionDate: parsed.data.transactionDate ? new Date(parsed.data.transactionDate) : null,
+        }),
+      },
+    })
+    await writeAuditLog({
+      companyId: session.user.companyId,
+      actorId: session.user.id,
+      action: 'EXPENSE_UPDATED',
+      entityType: 'Expense',
+      entityId: params.id,
+      payload: { fields: Object.keys(parsed.data) },
+    })
+    return NextResponse.json(updated)
+  }
 
   if (parsed.data.status === 'REJECTED' && !parsed.data.rejectionNote) {
     return NextResponse.json({ error: 'rejectionNote required when rejecting' }, { status: 400 })

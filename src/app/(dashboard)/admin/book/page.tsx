@@ -3,11 +3,15 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { TravelEvent } from '@/types/event'
+import { AIRPORTS, HOTEL_CITIES, TRAVEL_LOCATIONS, type AirportOption } from '@/lib/travel-locations'
+import { DateInput } from '@/components/ui/DateInput'
+import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
+import type { ComponentType, SVGProps } from 'react'
+type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Employee = { id: string; name: string; email: string }
-type AirportOption = { code: string; name: string; city: string; country: string }
 type FlightData = {
   originAirport: AirportOption | null
   destAirport: AirportOption | null
@@ -18,141 +22,7 @@ type FlightData = {
 }
 type HotelData = { city: string; checkIn: string; checkOut: string; area: string; notes: string }
 type TaxiData  = { pickup: string; dropoff: string; date: string; time: string; notes: string }
-type CarData   = { pickupCity: string; pickupDate: string; pickupTime: string; returnDate: string; notes: string }
-
-// ─── Airport list ─────────────────────────────────────────────────────────────
-
-const AIRPORTS: AirportOption[] = [
-  { code: 'ARN', name: 'Stockholm Arlanda',          city: 'Stockholm',     country: 'Sweden' },
-  { code: 'BMA', name: 'Stockholm Bromma',           city: 'Stockholm',     country: 'Sweden' },
-  { code: 'GOT', name: 'Gothenburg Landvetter',      city: 'Gothenburg',    country: 'Sweden' },
-  { code: 'MMX', name: 'Malmö Airport',              city: 'Malmö',         country: 'Sweden' },
-  { code: 'CPH', name: 'Copenhagen Airport',         city: 'Copenhagen',    country: 'Denmark' },
-  { code: 'OSL', name: 'Oslo Gardermoen',            city: 'Oslo',          country: 'Norway' },
-  { code: 'HEL', name: 'Helsinki-Vantaa',            city: 'Helsinki',      country: 'Finland' },
-  { code: 'LHR', name: 'London Heathrow',            city: 'London',        country: 'UK' },
-  { code: 'LGW', name: 'London Gatwick',             city: 'London',        country: 'UK' },
-  { code: 'STN', name: 'London Stansted',            city: 'London',        country: 'UK' },
-  { code: 'MAN', name: 'Manchester Airport',         city: 'Manchester',    country: 'UK' },
-  { code: 'EDI', name: 'Edinburgh Airport',          city: 'Edinburgh',     country: 'UK' },
-  { code: 'CDG', name: 'Paris Charles de Gaulle',    city: 'Paris',         country: 'France' },
-  { code: 'ORY', name: 'Paris Orly',                 city: 'Paris',         country: 'France' },
-  { code: 'AMS', name: 'Amsterdam Schiphol',         city: 'Amsterdam',     country: 'Netherlands' },
-  { code: 'BRU', name: 'Brussels Airport',           city: 'Brussels',      country: 'Belgium' },
-  { code: 'FRA', name: 'Frankfurt Airport',          city: 'Frankfurt',     country: 'Germany' },
-  { code: 'MUC', name: 'Munich Airport',             city: 'Munich',        country: 'Germany' },
-  { code: 'BER', name: 'Berlin Brandenburg',         city: 'Berlin',        country: 'Germany' },
-  { code: 'HAM', name: 'Hamburg Airport',            city: 'Hamburg',       country: 'Germany' },
-  { code: 'VIE', name: 'Vienna International',       city: 'Vienna',        country: 'Austria' },
-  { code: 'ZRH', name: 'Zurich Airport',             city: 'Zurich',        country: 'Switzerland' },
-  { code: 'GVA', name: 'Geneva Airport',             city: 'Geneva',        country: 'Switzerland' },
-  { code: 'BCN', name: 'Barcelona El Prat',          city: 'Barcelona',     country: 'Spain' },
-  { code: 'MAD', name: 'Madrid Barajas',             city: 'Madrid',        country: 'Spain' },
-  { code: 'FCO', name: 'Rome Fiumicino',             city: 'Rome',          country: 'Italy' },
-  { code: 'MXP', name: 'Milan Malpensa',             city: 'Milan',         country: 'Italy' },
-  { code: 'LIN', name: 'Milan Linate',               city: 'Milan',         country: 'Italy' },
-  { code: 'ATH', name: 'Athens International',       city: 'Athens',        country: 'Greece' },
-  { code: 'LIS', name: 'Lisbon Airport',             city: 'Lisbon',        country: 'Portugal' },
-  { code: 'PRG', name: 'Prague Václav Havel',        city: 'Prague',        country: 'Czech Republic' },
-  { code: 'WAW', name: 'Warsaw Chopin',              city: 'Warsaw',        country: 'Poland' },
-  { code: 'BUD', name: 'Budapest Ferenc Liszt',      city: 'Budapest',      country: 'Hungary' },
-  { code: 'OTP', name: 'Bucharest Henri Coandă',     city: 'Bucharest',     country: 'Romania' },
-  { code: 'IST', name: 'Istanbul Airport',           city: 'Istanbul',      country: 'Turkey' },
-  { code: 'JFK', name: 'John F. Kennedy Intl',       city: 'New York',      country: 'USA' },
-  { code: 'LGA', name: 'LaGuardia Airport',          city: 'New York',      country: 'USA' },
-  { code: 'EWR', name: 'Newark Liberty Intl',        city: 'Newark',        country: 'USA' },
-  { code: 'LAX', name: 'Los Angeles Intl',           city: 'Los Angeles',   country: 'USA' },
-  { code: 'ORD', name: "O'Hare International",       city: 'Chicago',       country: 'USA' },
-  { code: 'MIA', name: 'Miami International',        city: 'Miami',         country: 'USA' },
-  { code: 'DFW', name: 'Dallas/Fort Worth Intl',     city: 'Dallas',        country: 'USA' },
-  { code: 'ATL', name: 'Hartsfield-Jackson Atlanta', city: 'Atlanta',       country: 'USA' },
-  { code: 'SFO', name: 'San Francisco Intl',         city: 'San Francisco', country: 'USA' },
-  { code: 'SEA', name: 'Seattle-Tacoma Intl',        city: 'Seattle',       country: 'USA' },
-  { code: 'BOS', name: 'Boston Logan Intl',          city: 'Boston',        country: 'USA' },
-  { code: 'DEN', name: 'Denver International',       city: 'Denver',        country: 'USA' },
-  { code: 'LAS', name: 'Las Vegas Harry Reid',       city: 'Las Vegas',     country: 'USA' },
-  { code: 'IAD', name: 'Washington Dulles Intl',     city: 'Washington DC', country: 'USA' },
-  { code: 'DXB', name: 'Dubai International',        city: 'Dubai',         country: 'UAE' },
-  { code: 'DOH', name: 'Hamad International',        city: 'Doha',          country: 'Qatar' },
-  { code: 'AUH', name: 'Abu Dhabi International',    city: 'Abu Dhabi',     country: 'UAE' },
-  { code: 'RUH', name: 'King Khalid International',  city: 'Riyadh',        country: 'Saudi Arabia' },
-  { code: 'SIN', name: 'Singapore Changi',           city: 'Singapore',     country: 'Singapore' },
-  { code: 'HND', name: 'Tokyo Haneda',               city: 'Tokyo',         country: 'Japan' },
-  { code: 'NRT', name: 'Tokyo Narita',               city: 'Tokyo',         country: 'Japan' },
-  { code: 'PEK', name: 'Beijing Capital Intl',       city: 'Beijing',       country: 'China' },
-  { code: 'PVG', name: 'Shanghai Pudong Intl',       city: 'Shanghai',      country: 'China' },
-  { code: 'HKG', name: 'Hong Kong International',    city: 'Hong Kong',     country: 'Hong Kong' },
-  { code: 'ICN', name: 'Incheon International',      city: 'Seoul',         country: 'South Korea' },
-  { code: 'BKK', name: 'Bangkok Suvarnabhumi',       city: 'Bangkok',       country: 'Thailand' },
-  { code: 'KUL', name: 'Kuala Lumpur Intl',          city: 'Kuala Lumpur',  country: 'Malaysia' },
-  { code: 'SYD', name: 'Sydney Kingsford Smith',     city: 'Sydney',        country: 'Australia' },
-  { code: 'MEL', name: 'Melbourne Airport',          city: 'Melbourne',     country: 'Australia' },
-  { code: 'JNB', name: 'O.R. Tambo International',   city: 'Johannesburg',  country: 'South Africa' },
-  { code: 'CAI', name: 'Cairo International',        city: 'Cairo',         country: 'Egypt' },
-  { code: 'YYZ', name: 'Toronto Pearson Intl',       city: 'Toronto',       country: 'Canada' },
-  { code: 'YVR', name: 'Vancouver International',    city: 'Vancouver',     country: 'Canada' },
-  { code: 'GRU', name: 'São Paulo Guarulhos',        city: 'São Paulo',     country: 'Brazil' },
-  { code: 'MEX', name: 'Mexico City International',  city: 'Mexico City',   country: 'Mexico' },
-]
-
-const HOTEL_CITIES: string[] = [
-  'Stockholm, Sweden', 'Gothenburg, Sweden', 'Malmö, Sweden',
-  'Copenhagen, Denmark', 'Oslo, Norway', 'Helsinki, Finland',
-  'London, UK', 'Manchester, UK', 'Edinburgh, UK',
-  'Paris, France', 'Amsterdam, Netherlands', 'Brussels, Belgium',
-  'Frankfurt, Germany', 'Munich, Germany', 'Berlin, Germany', 'Hamburg, Germany',
-  'Vienna, Austria', 'Zurich, Switzerland', 'Geneva, Switzerland',
-  'Barcelona, Spain', 'Madrid, Spain', 'Rome, Italy', 'Milan, Italy',
-  'Athens, Greece', 'Lisbon, Portugal', 'Prague, Czech Republic',
-  'Warsaw, Poland', 'Budapest, Hungary', 'Bucharest, Romania', 'Istanbul, Turkey',
-  'New York, USA', 'Los Angeles, USA', 'Chicago, USA', 'Miami, USA',
-  'San Francisco, USA', 'Seattle, USA', 'Boston, USA', 'Atlanta, USA',
-  'Washington DC, USA', 'Las Vegas, USA', 'Denver, USA', 'Dallas, USA',
-  'Dubai, UAE', 'Abu Dhabi, UAE', 'Doha, Qatar', 'Riyadh, Saudi Arabia',
-  'Singapore', 'Tokyo, Japan', 'Bangkok, Thailand', 'Kuala Lumpur, Malaysia',
-  'Hong Kong', 'Seoul, South Korea', 'Beijing, China', 'Shanghai, China',
-  'Sydney, Australia', 'Melbourne, Australia',
-  'Toronto, Canada', 'Vancouver, Canada',
-  'São Paulo, Brazil', 'Mexico City, Mexico',
-  'Johannesburg, South Africa', 'Cairo, Egypt',
-]
-
-const TRAVEL_LOCATIONS: string[] = [
-  'Stockholm Arlanda Airport (ARN)', 'Stockholm Bromma Airport (BMA)',
-  'Stockholm Central Station', 'Stockholm City Center',
-  'Gothenburg Landvetter Airport (GOT)', 'Gothenburg Central Station',
-  'Malmö Airport (MMX)', 'Malmö Central Station',
-  'Copenhagen Airport (CPH)', 'Copenhagen Central Station',
-  'Oslo Gardermoen Airport (OSL)', 'Oslo Central Station',
-  'Helsinki-Vantaa Airport (HEL)', 'Helsinki Central Station',
-  'London Heathrow Airport (LHR)', 'London Gatwick Airport (LGW)',
-  'London Stansted Airport (STN)', 'London St Pancras Station',
-  'London Victoria Station', 'London City Center',
-  'Manchester Airport (MAN)', 'Manchester Piccadilly Station',
-  'Edinburgh Airport (EDI)', 'Edinburgh Waverley Station',
-  'Paris Charles de Gaulle Airport (CDG)', 'Paris Orly Airport (ORY)',
-  'Paris Gare du Nord', 'Paris Gare de Lyon', 'Paris City Center',
-  'Amsterdam Schiphol Airport (AMS)', 'Amsterdam Centraal Station',
-  'Brussels Airport (BRU)', 'Brussels Midi Station', 'Brussels City Center',
-  'Frankfurt Airport (FRA)', 'Frankfurt Central Station',
-  'Munich Airport (MUC)', 'Munich Central Station',
-  'Berlin Brandenburg Airport (BER)', 'Berlin Hauptbahnhof',
-  'Vienna International Airport (VIE)', 'Vienna Hauptbahnhof',
-  'Zurich Airport (ZRH)', 'Zurich Central Station',
-  'Barcelona El Prat Airport (BCN)', 'Barcelona Sants Station',
-  'Madrid Barajas Airport (MAD)', 'Madrid City Center',
-  'Rome Fiumicino Airport (FCO)', 'Roma Termini Station',
-  'Milan Malpensa Airport (MXP)', 'Milan Linate Airport (LIN)', 'Milan Central Station',
-  'Dubai International Airport (DXB)', 'Dubai City Center', 'Dubai Mall / Downtown Dubai',
-  'JFK International Airport (JFK)', 'LaGuardia Airport (LGA)', 'Newark Liberty Airport (EWR)',
-  'New York Penn Station', 'New York City Center',
-  'Los Angeles International Airport (LAX)',
-  "Chicago O'Hare Airport (ORD)",
-  'Miami International Airport (MIA)',
-  'San Francisco Airport (SFO)',
-  'Singapore Changi Airport (SIN)', 'Singapore City Center',
-  'Tokyo Haneda Airport (HND)', 'Tokyo Narita Airport (NRT)',
-]
+type CarData   = { pickupCity: string; pickupDate: string; pickupTime: string; returnDate: string; vehicleType: string; notes: string }
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -291,21 +161,21 @@ function ProgressBar({ step }: { step: number }) {
   )
 }
 
-function ServiceHeader({ icon, title }: { icon: string; title: string }) {
+function ServiceHeader({ Icon, title }: { Icon: HeroIcon; title: string }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-indigo-50 border-l-4 border-indigo-600 px-4 py-3 mb-5">
-      <span className="text-2xl">{icon}</span>
+      <Icon className="w-6 h-6 text-indigo-600 shrink-0" />
       <span className="font-semibold text-indigo-900">{title}</span>
     </div>
   )
 }
 
-function ReviewBlock({ icon, title, onEdit, children }: { icon: string; title: string; onEdit: () => void; children: React.ReactNode }) {
+function ReviewBlock({ Icon, title, onEdit, children }: { Icon: HeroIcon; title: string; onEdit: () => void; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{icon}</span>
+          <Icon className="w-5 h-5 text-gray-600" />
           <span className="text-sm font-semibold text-gray-800">{title}</span>
         </div>
         <button type="button" onClick={onEdit} className="text-xs text-indigo-600 font-medium hover:underline">Edit</button>
@@ -331,11 +201,11 @@ function fmtDisplayDate(iso: string) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-const SERVICE_META: Record<string, { icon: string; label: string }> = {
-  FLIGHT:     { icon: '✈️', label: 'Flight' },
-  HOTEL:      { icon: '🏨', label: 'Hotel' },
-  CAR_RENTAL: { icon: '🚗', label: 'Car Rental' },
-  TAXI:       { icon: '🚕', label: 'Taxi / Transfer' },
+const SERVICE_META: Record<string, { Icon: HeroIcon; label: string }> = {
+  FLIGHT:     { Icon: PaperAirplaneIcon,  label: 'Flight' },
+  HOTEL:      { Icon: BuildingOfficeIcon, label: 'Hotel' },
+  CAR_RENTAL: { Icon: TruckIcon,          label: 'Car Rental' },
+  TAXI:       { Icon: MapPinIcon,         label: 'Taxi / Transfer' },
 }
 
 export default function AdminBookPage() {
@@ -360,7 +230,7 @@ export default function AdminBookPage() {
   })
   const [hotel, setHotel] = useState<HotelData>({ city: '', checkIn: '', checkOut: '', area: '', notes: '' })
   const [taxi, setTaxi]   = useState<TaxiData>({ pickup: '', dropoff: '', date: '', time: '', notes: '' })
-  const [car, setCar]     = useState<CarData>({ pickupCity: '', pickupDate: '', pickupTime: '', returnDate: '', notes: '' })
+  const [car, setCar]     = useState<CarData>({ pickupCity: '', pickupDate: '', pickupTime: '', returnDate: '', vehicleType: '', notes: '' })
   const [purpose, setPurpose]                   = useState('')
   const [estimatedCostUsd, setEstimatedCostUsd] = useState('')
   const [paymentResponsibility, setPaymentResponsibility] = useState('m4u')
@@ -437,7 +307,7 @@ export default function AdminBookPage() {
       parts.push(`TAXI: ${taxi.pickup} → ${taxi.dropoff}, ${taxi.date}${taxi.time ? ' at ' + taxi.time : ''}${taxi.notes ? ', notes: ' + taxi.notes : ''}`)
     }
     if (services.includes('CAR_RENTAL')) {
-      parts.push(`CAR: pickup ${car.pickupCity} ${car.pickupDate}${car.pickupTime ? ' at ' + car.pickupTime : ''}, return ${car.returnDate}${car.notes ? ', notes: ' + car.notes : ''}`)
+      parts.push(`CAR: pickup ${car.pickupCity} ${car.pickupDate}${car.pickupTime ? ' at ' + car.pickupTime : ''}, return ${car.returnDate}${car.vehicleType ? ', vehicle: ' + car.vehicleType : ''}${car.notes ? ', notes: ' + car.notes : ''}`)
     }
     parts.push(`Payment: ${paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'}`)
 
@@ -545,8 +415,7 @@ export default function AdminBookPage() {
                             <p className="font-semibold text-gray-900">{ev.eventName}</p>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {ev.eventCode}
-                              {ev.venue ? ` · ${ev.venue}` : ''}
-                              {ev.eventDate ? ` · ${fmtDisplayDate(new Date(ev.eventDate).toISOString().split('T')[0])}` : ''}
+                              {` · ${fmtDisplayDate(new Date(ev.dateStart).toISOString().split('T')[0])}`}
                             </p>
                           </div>
                           {sel && (
@@ -578,7 +447,7 @@ export default function AdminBookPage() {
                   <button key={svc} type="button" onClick={() => toggleService(svc)}
                     className={`rounded-2xl border-2 p-5 flex flex-col items-center gap-2 transition-all ${sel ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 bg-white hover:border-indigo-300 text-gray-700'}`}
                   >
-                    <span className="text-3xl">{meta.icon}</span>
+                    <meta.Icon className="w-8 h-8" />
                     <span className="text-sm font-semibold">{meta.label}</span>
                     {sel && (
                       <div className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center">
@@ -604,12 +473,12 @@ export default function AdminBookPage() {
 
             {services.includes('FLIGHT') && (
               <section className="space-y-4">
-                <ServiceHeader icon="✈️" title="Flight" />
+                <ServiceHeader Icon={PaperAirplaneIcon} title="Flight" />
                 <div className="grid grid-cols-2 gap-3">
                   {(['one-way', 'round-trip'] as const).map(type => (
                     <button key={type} type="button" onClick={() => setFlight(f => ({ ...f, tripType: type }))}
                       className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${flight.tripType === type ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200'}`}>
-                      <span className="text-lg">{type === 'one-way' ? '✈️' : '↔️'}</span>
+                      {type === 'one-way' ? <PaperAirplaneIcon className="w-5 h-5" /> : <span>↔️</span>}
                       <span>{type === 'one-way' ? 'One-way' : 'Round Trip'}</span>
                     </button>
                   ))}
@@ -620,7 +489,7 @@ export default function AdminBookPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Departure Date" required>
-                    <input type="date" title="Departure Date" value={flight.departureDate} onChange={e => setFlight(f => ({ ...f, departureDate: e.target.value }))} className={inputCls} />
+                    <DateInput title="Departure Date" value={flight.departureDate} onChange={v => setFlight(f => ({ ...f, departureDate: v }))} className={inputCls} />
                   </Field>
                   <Field label="Departure Time">
                     <input type="time" title="Departure Time" value={flight.departureTime} onChange={e => setFlight(f => ({ ...f, departureTime: e.target.value }))} className={inputCls} />
@@ -629,7 +498,7 @@ export default function AdminBookPage() {
                 {flight.tripType === 'round-trip' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Return Date" required>
-                      <input type="date" title="Return Date" value={flight.returnDate} onChange={e => setFlight(f => ({ ...f, returnDate: e.target.value }))} className={inputCls} />
+                      <DateInput title="Return Date" value={flight.returnDate} onChange={v => setFlight(f => ({ ...f, returnDate: v }))} className={inputCls} />
                     </Field>
                     <Field label="Return Time">
                       <input type="time" title="Return Time" value={flight.returnTime} onChange={e => setFlight(f => ({ ...f, returnTime: e.target.value }))} className={inputCls} />
@@ -645,14 +514,14 @@ export default function AdminBookPage() {
 
             {services.includes('HOTEL') && (
               <section className="space-y-4">
-                <ServiceHeader icon="🏨" title="Hotel" />
+                <ServiceHeader Icon={BuildingOfficeIcon} title="Hotel" />
                 <SearchCombobox label="City" required value={hotel.city} onChange={v => setHotel(h => ({ ...h, city: v }))} suggestions={HOTEL_CITIES} placeholder="Search city…" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Check-in Date" required>
-                    <input type="date" title="Check-in Date" value={hotel.checkIn} onChange={e => setHotel(h => ({ ...h, checkIn: e.target.value }))} className={inputCls} />
+                    <DateInput title="Check-in Date" value={hotel.checkIn} onChange={v => setHotel(h => ({ ...h, checkIn: v }))} className={inputCls} />
                   </Field>
                   <Field label="Check-out Date" required>
-                    <input type="date" title="Check-out Date" value={hotel.checkOut} onChange={e => setHotel(h => ({ ...h, checkOut: e.target.value }))} className={inputCls} />
+                    <DateInput title="Check-out Date" value={hotel.checkOut} onChange={v => setHotel(h => ({ ...h, checkOut: v }))} className={inputCls} />
                   </Field>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -676,14 +545,14 @@ export default function AdminBookPage() {
 
             {services.includes('TAXI') && (
               <section className="space-y-4">
-                <ServiceHeader icon="🚕" title="Taxi / Transfer" />
+                <ServiceHeader Icon={MapPinIcon} title="Taxi / Transfer" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <SearchCombobox label="Pickup Location" required value={taxi.pickup} onChange={v => setTaxi(t => ({ ...t, pickup: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
                   <SearchCombobox label="Drop-off Location" required value={taxi.dropoff} onChange={v => setTaxi(t => ({ ...t, dropoff: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Date" required>
-                    <input type="date" title="Date" value={taxi.date} onChange={e => setTaxi(t => ({ ...t, date: e.target.value }))} className={inputCls} />
+                    <DateInput title="Date" value={taxi.date} onChange={v => setTaxi(t => ({ ...t, date: v }))} className={inputCls} />
                   </Field>
                   <Field label="Time" required>
                     <input type="time" title="Time" value={taxi.time} onChange={e => setTaxi(t => ({ ...t, time: e.target.value }))} className={inputCls} />
@@ -697,18 +566,29 @@ export default function AdminBookPage() {
 
             {services.includes('CAR_RENTAL') && (
               <section className="space-y-4">
-                <ServiceHeader icon="🚗" title="Car Rental" />
+                <ServiceHeader Icon={TruckIcon} title="Car Rental" />
+                <Field label="Type of vehicle">
+                  <select title="Type of vehicle" value={car.vehicleType} onChange={e => setCar(c => ({ ...c, vehicleType: e.target.value }))} className={inputCls}>
+                    <option value="">Select type…</option>
+                    <option value="Economy">Economy</option>
+                    <option value="Compact">Compact</option>
+                    <option value="SUV">SUV</option>
+                    <option value="Van">Van</option>
+                    <option value="Minibus">Minibus</option>
+                    <option value="Luxury">Luxury</option>
+                  </select>
+                </Field>
                 <SearchCombobox label="Pickup Location" required value={car.pickupCity} onChange={v => setCar(c => ({ ...c, pickupCity: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Pickup Date" required>
-                    <input type="date" title="Pickup Date" value={car.pickupDate} onChange={e => setCar(c => ({ ...c, pickupDate: e.target.value }))} className={inputCls} />
+                    <DateInput title="Pickup Date" value={car.pickupDate} onChange={v => setCar(c => ({ ...c, pickupDate: v }))} className={inputCls} />
                   </Field>
                   <Field label="Pickup Time">
                     <input type="time" title="Pickup Time" value={car.pickupTime} onChange={e => setCar(c => ({ ...c, pickupTime: e.target.value }))} className={inputCls} />
                   </Field>
                 </div>
                 <Field label="Return Date" required>
-                  <input type="date" title="Return Date" value={car.returnDate} onChange={e => setCar(c => ({ ...c, returnDate: e.target.value }))} className={inputCls} />
+                  <DateInput title="Return Date" value={car.returnDate} onChange={v => setCar(c => ({ ...c, returnDate: v }))} className={inputCls} />
                 </Field>
                 <Field label="Notes">
                   <textarea value={car.notes} onChange={e => setCar(c => ({ ...c, notes: e.target.value }))} rows={2} placeholder="Any special requirements…" className={inputCls + ' resize-none'} />
@@ -762,14 +642,13 @@ export default function AdminBookPage() {
                 <p className="font-semibold text-gray-900">{selectedEvent.eventName}</p>
                 <p className="text-sm text-gray-500">
                   {selectedEvent.eventCode}
-                  {selectedEvent.eventDate ? ` · ${fmtDisplayDate(new Date(selectedEvent.eventDate).toISOString().split('T')[0])}` : ''}
-                  {selectedEvent.venue ? ` · ${selectedEvent.venue}` : ''}
+                  {` · ${fmtDisplayDate(new Date(selectedEvent.dateStart).toISOString().split('T')[0])}`}
                 </p>
               </div>
             )}
 
             {services.includes('FLIGHT') && flight.originAirport && flight.destAirport && (
-              <ReviewBlock icon="✈️" title="Flight" onEdit={() => setStep(3)}>
+              <ReviewBlock Icon={PaperAirplaneIcon} title="Flight" onEdit={() => setStep(3)}>
                 <ReviewRow label="Route"     value={`${flight.originAirport.name} (${flight.originAirport.code}) → ${flight.destAirport.name} (${flight.destAirport.code})`} />
                 <ReviewRow label="Trip type" value={flight.tripType === 'one-way' ? 'One-way' : 'Round trip'} />
                 <ReviewRow label="Departure" value={`${fmtDisplayDate(flight.departureDate)}${flight.departureTime ? ' at ' + flight.departureTime : ''}`} />
@@ -782,7 +661,7 @@ export default function AdminBookPage() {
             )}
 
             {services.includes('HOTEL') && (
-              <ReviewBlock icon="🏨" title="Hotel" onEdit={() => setStep(3)}>
+              <ReviewBlock Icon={BuildingOfficeIcon} title="Hotel" onEdit={() => setStep(3)}>
                 <ReviewRow label="City"      value={hotel.city || '—'} />
                 <ReviewRow label="Check-in"  value={fmtDisplayDate(hotel.checkIn)} />
                 <ReviewRow label="Check-out" value={fmtDisplayDate(hotel.checkOut)} />
@@ -792,7 +671,7 @@ export default function AdminBookPage() {
             )}
 
             {services.includes('TAXI') && (
-              <ReviewBlock icon="🚕" title="Taxi / Transfer" onEdit={() => setStep(3)}>
+              <ReviewBlock Icon={MapPinIcon} title="Taxi / Transfer" onEdit={() => setStep(3)}>
                 <ReviewRow label="Pickup"      value={taxi.pickup || '—'} />
                 <ReviewRow label="Drop-off"    value={taxi.dropoff || '—'} />
                 <ReviewRow label="Date & time" value={taxi.date ? `${fmtDisplayDate(taxi.date)}${taxi.time ? ' at ' + taxi.time : ''}` : '—'} />
@@ -801,15 +680,16 @@ export default function AdminBookPage() {
             )}
 
             {services.includes('CAR_RENTAL') && (
-              <ReviewBlock icon="🚗" title="Car Rental" onEdit={() => setStep(3)}>
+              <ReviewBlock Icon={TruckIcon} title="Car Rental" onEdit={() => setStep(3)}>
                 <ReviewRow label="Pickup"      value={car.pickupCity || '—'} />
+                {car.vehicleType && <ReviewRow label="Vehicle type" value={car.vehicleType} />}
                 <ReviewRow label="Pickup date" value={`${fmtDisplayDate(car.pickupDate)}${car.pickupTime ? ' at ' + car.pickupTime : ''}`} />
                 <ReviewRow label="Return date" value={fmtDisplayDate(car.returnDate)} />
                 {car.notes && <ReviewRow label="Notes" value={car.notes} />}
               </ReviewBlock>
             )}
 
-            <ReviewBlock icon="📋" title="Trip details" onEdit={() => setStep(3)}>
+            <ReviewBlock Icon={PlusCircleIcon} title="Trip details" onEdit={() => setStep(3)}>
               <ReviewRow label="Purpose"  value={purpose || '—'} />
               {estimatedCostUsd && <ReviewRow label="Est. cost" value={`$${Number(estimatedCostUsd).toLocaleString('en-US')}`} />}
               <ReviewRow label="Payment"  value={paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'} />

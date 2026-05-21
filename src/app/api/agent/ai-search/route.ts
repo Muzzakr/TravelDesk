@@ -27,18 +27,18 @@ function searchFlights(
   const mul = cabinClass === 'BUSINESS' ? 3.2 : cabinClass === 'FIRST' ? 5.5 : 1
   return [
     {
-      vendor: 'SAS',
-      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()}, dep ${departureDate} 07:30 / ret ${returnDate} 18:00`,
+      vendor: 'United Airlines',
+      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()}, dep ${departureDate} 7:30 AM / ret ${returnDate} 6:00 PM`,
       priceUsd: Math.round(base * mul * 0.95),
     },
     {
-      vendor: 'Norwegian',
-      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()}, dep ${departureDate} 11:45 / ret ${returnDate} 20:15`,
+      vendor: 'Delta Air Lines',
+      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()}, dep ${departureDate} 11:45 AM / ret ${returnDate} 8:15 PM`,
       priceUsd: Math.round(base * mul * 0.82),
     },
     {
-      vendor: 'British Airways',
-      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()} via LHR, dep ${departureDate} 06:00 / ret ${returnDate} 16:30`,
+      vendor: 'American Airlines',
+      description: `${cabinClass} ${origin.toUpperCase()} → ${destination.toUpperCase()} via ORD, dep ${departureDate} 6:00 AM / ret ${returnDate} 4:30 PM`,
       priceUsd: Math.round(base * mul * 1.15),
     },
   ]
@@ -50,12 +50,12 @@ function searchHotels(city: string, checkIn: string, checkOut: string, nights: n
   return [
     {
       vendor: 'Marriott',
-      description: `Marriott ${city} City Centre — ${nights} nights (${checkIn} → ${checkOut}), breakfast included`,
+      description: `Marriott ${city} City Center — ${nights} nights (${checkIn} → ${checkOut}), breakfast included`,
       priceUsd: Math.round(rate * nights * 1.05),
     },
     {
       vendor: 'Hilton',
-      description: `Hilton ${city} — ${nights} nights (${checkIn} → ${checkOut}), free WiFi, fitness centre`,
+      description: `Hilton ${city} — ${nights} nights (${checkIn} → ${checkOut}), free WiFi, fitness center`,
       priceUsd: Math.round(rate * nights * 0.95),
     },
     {
@@ -91,17 +91,17 @@ function searchRentalCars(city: string, pickupDate: string, returnDate: string, 
   return [
     {
       vendor: 'Hertz',
-      description: `Hertz ${city} — Compact (VW Golf), ${days} days (${pickupDate} → ${returnDate}), unlimited km`,
+      description: `Hertz ${city} — Compact (Toyota Corolla), ${days} days (${pickupDate} → ${returnDate}), unlimited miles`,
       priceUsd: Math.round(rate * days * 0.98),
     },
     {
       vendor: 'Avis',
-      description: `Avis ${city} — Intermediate (Toyota Corolla), ${days} days (${pickupDate} → ${returnDate}), GPS included`,
+      description: `Avis ${city} — Intermediate (Honda Accord), ${days} days (${pickupDate} → ${returnDate}), GPS included`,
       priceUsd: Math.round(rate * days * 1.05),
     },
     {
-      vendor: 'Europcar',
-      description: `Europcar ${city} — Economy (Ford Focus), ${days} days (${pickupDate} → ${returnDate}), full insurance`,
+      vendor: 'Enterprise',
+      description: `Enterprise ${city} — Economy (Hyundai Elantra), ${days} days (${pickupDate} → ${returnDate}), full coverage`,
       priceUsd: Math.round(rate * days * 0.85),
     },
   ]
@@ -109,7 +109,8 @@ function searchRentalCars(city: string, pickupDate: string, returnDate: string, 
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user?.companyId || session.user.role !== 'TRAVEL_AGENT') {
+  const allowedRoles = ['TRAVEL_AGENT', 'EMPLOYEE']
+  if (!session?.user?.companyId || !allowedRoles.includes(session.user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -1,7 +1,10 @@
 'use client'
 
+import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, UserGroupIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
+import type { ComponentType, SVGProps } from 'react'
+type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 
@@ -12,6 +15,21 @@ interface BookingOption {
   description: string
   priceUsd: number
   isSelected: boolean
+}
+
+interface BookingConfirmation {
+  id: string
+  serviceType: string
+  confirmationNumber: string | null
+  notes: string | null
+  fileName: string | null
+}
+
+const SERVICE_ICON: Record<string, HeroIcon> = {
+  FLIGHT: PaperAirplaneIcon, HOTEL: BuildingOfficeIcon, CAR_RENTAL: TruckIcon, TAXI: MapPinIcon, AGENT_CHOOSES: UserGroupIcon,
+}
+const SERVICE_LABEL: Record<string, string> = {
+  FLIGHT: 'Flight', HOTEL: 'Hotel', CAR_RENTAL: 'Car Rental', TAXI: 'Taxi / Transfer', AGENT_CHOOSES: 'Agent Chooses',
 }
 
 interface Expense {
@@ -58,31 +76,30 @@ interface TravelRequest {
   carRentalDays: number | null
   specialInstructions: string | null
   confirmationNumber: string | null
+  confirmationDocUrl: string | null
   rejectionNote: string | null
   createdAt: string
   event: { eventName: string; eventCode: string; budgetUsd: number; approvedSpendUsd: number }
   bookingOptions: BookingOption[]
+  bookingConfirmations: BookingConfirmation[]
   expenses: Expense[]
   approvalActions: { actionType: string; note: string | null; createdAt: string; actor: { name: string; role: string } }[]
 }
 
 const STATUS_STEPS = [
-  'DRAFT',
   'SUBMITTED',
-  'PENDING_AGENT',
-  'OPTIONS_PROVIDED',
   'PENDING_MANAGER',
-  'APPROVED',
+  'PENDING_AGENT',
   'BOOKING_CONFIRMED',
 ]
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Draft',
+  DRAFT: 'Submitted',
   SUBMITTED: 'Submitted',
-  PENDING_AGENT: 'With travel agent',
-  OPTIONS_PROVIDED: 'Choose your option',
   PENDING_MANAGER: 'Manager review',
-  APPROVED: 'Approved',
+  PENDING_AGENT: 'With travel agent',
+  APPROVED: 'With travel agent',
+  OPTIONS_PROVIDED: 'With travel agent',
   BOOKING_CONFIRMED: 'Booking confirmed',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
@@ -90,7 +107,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function EmployeeTravelRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const router = useRouter()
   const [request, setRequest] = useState<TravelRequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
@@ -194,10 +210,57 @@ export default function EmployeeTravelRequestDetailPage() {
 
       {/* Booking confirmed banner */}
       {request.status === 'BOOKING_CONFIRMED' && (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-semibold text-green-800">Booking confirmed!</p>
-          {request.confirmationNumber && (
-            <p className="mt-1 text-sm text-green-700">Confirmation number: <span className="font-mono font-bold">{request.confirmationNumber}</span></p>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-3">
+          <p className="text-sm font-semibold text-green-800">Your trip is booked!</p>
+
+          {/* Per-service booking confirmations */}
+          {request.bookingConfirmations && request.bookingConfirmations.length > 0 ? (
+            <div className="space-y-2">
+              {request.bookingConfirmations.map((c) => {
+                const SvcIcon = SERVICE_ICON[c.serviceType] ?? PlusCircleIcon
+                return (
+                <div key={c.id} className="flex items-start gap-3 rounded-lg border border-green-100 bg-white px-3 py-2.5">
+                  <SvcIcon className="w-5 h-5 shrink-0 text-gray-500 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{SERVICE_LABEL[c.serviceType] ?? c.serviceType}</p>
+                    {c.confirmationNumber && (
+                      <p className="text-sm font-mono font-bold text-green-700 mt-0.5">{c.confirmationNumber}</p>
+                    )}
+                    {c.notes && <p className="text-xs text-gray-600 mt-0.5">{c.notes}</p>}
+                    {c.fileName && (
+                      <a
+                        href={`/api/booking-confirmations/${c.id}/file`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-1"
+                      >
+                        📎 {c.fileName}
+                      </a>
+                    )}
+                  </div>
+                </div>
+                )
+              })}
+            </div>
+          ) : (
+            /* Fallback: old flat confirmationNumber */
+            request.confirmationNumber && (
+              <p className="text-sm text-green-700">Confirmation: <span className="font-mono font-bold">{request.confirmationNumber}</span></p>
+            )
+          )}
+
+          {request.confirmationDocUrl && (
+            <a
+              href={request.confirmationDocUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+              View booking document →
+            </a>
           )}
         </div>
       )}
@@ -377,7 +440,7 @@ export default function EmployeeTravelRequestDetailPage() {
                     {action.actor.name} <span className="text-gray-400 font-normal">({action.actionType})</span>
                   </p>
                   {action.note && <p className="text-gray-500 text-xs mt-0.5">"{action.note}"</p>}
-                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
                 </div>
               </div>
             ))}

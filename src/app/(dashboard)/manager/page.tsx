@@ -1,6 +1,5 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
@@ -8,25 +7,21 @@ export default async function ManagerDashboard() {
   const session = await auth()
   if (!session?.user?.companyId) redirect('/login')
   const companyId = session.user.companyId
-  const managerId = session.user.id
-
-  const reports = await prisma.user.findMany({
-    where: { companyId, managerId },
-    select: { id: true },
-  })
-  const reportIds = reports.map((r) => r.id)
-  const employeeFilter = reportIds.length > 0 ? { in: reportIds } : undefined
-
-  const [pendingRequests, pendingExpenses] = await Promise.all([
+  const [pendingRequests, pendingExpenses, activeEvents] = await Promise.all([
     prisma.travelRequest.findMany({
-      where: { companyId, ...(employeeFilter ? { employeeId: employeeFilter } : {}), status: 'PENDING_MANAGER' },
+      where: { companyId, status: 'PENDING_MANAGER' },
       include: { employee: { select: { name: true } }, event: { select: { eventName: true } } },
       orderBy: { createdAt: 'asc' },
     }),
     prisma.expense.findMany({
-      where: { companyId, ...(employeeFilter ? { employeeId: employeeFilter } : {}), status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
+      where: { companyId, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
       include: { employee: { select: { name: true } }, event: { select: { eventName: true } } },
       orderBy: { createdAt: 'asc' },
+    }),
+    prisma.event.findMany({
+      where: { companyId, status: 'ACTIVE' },
+      select: { id: true, eventName: true, eventCode: true, budgetUsd: true, approvedSpendUsd: true },
+      orderBy: { createdAt: 'desc' },
     }),
   ])
 
@@ -143,6 +138,57 @@ export default async function ManagerDashboard() {
           </>
         )}
       </section>
+
+      {/* Event budgets */}
+      {activeEvents.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-gray-800">Event budgets</h2>
+          <div className="overflow-hidden rounded-xl border bg-white">
+            <table className="min-w-full divide-y divide-gray-100 text-sm">
+              <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">Event</th>
+                  <th className="px-4 py-3 text-right">Budget</th>
+                  <th className="px-4 py-3 text-right">Used</th>
+                  <th className="px-4 py-3 text-right">Remaining</th>
+                  <th className="px-4 py-3 text-left w-40">Usage</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {activeEvents.map((ev) => {
+                  const budget   = Number(ev.budgetUsd)
+                  const used     = Number(ev.approvedSpendUsd)
+                  const remaining = budget - used
+                  const pct      = budget > 0 ? Math.min(Math.round((used / budget) * 100), 100) : 0
+                  const barColor = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-green-500'
+                  return (
+                    <tr key={ev.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{ev.eventName}</p>
+                        <p className="text-xs text-gray-400 font-mono">{ev.eventCode}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-700">${budget.toLocaleString('en-US')}</td>
+                      <td className="px-4 py-3 text-right font-medium text-gray-900">${used.toLocaleString('en-US')}</td>
+                      <td className={`px-4 py-3 text-right font-semibold ${remaining < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                        {remaining < 0 ? '-' : ''}${Math.abs(remaining).toLocaleString('en-US')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                            {/* eslint-disable-next-line react/forbid-component-props */}
+                            <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className={`text-xs font-medium w-8 text-right ${pct >= 100 ? 'text-red-600' : pct >= 80 ? 'text-yellow-600' : 'text-gray-500'}`}>{pct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

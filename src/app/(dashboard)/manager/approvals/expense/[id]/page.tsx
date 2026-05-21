@@ -7,13 +7,14 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 
 function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
   const [loading, setLoading] = useState(false)
+  const [url, setUrl] = useState<string | null>(null)
 
-  async function open() {
+  async function loadUrl() {
     setLoading(true)
     const res = await fetch(`/api/receipts/${id}/url`)
     if (res.ok) {
-      const { url } = await res.json()
-      window.open(url, '_blank')
+      const data = await res.json()
+      setUrl(data.url)
     }
     setLoading(false)
   }
@@ -26,13 +27,25 @@ function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
         <span className="text-lg">{isPdf ? '📄' : '🖼️'}</span>
         <span className="truncate text-gray-700">{fileName}</span>
       </div>
-      <button
-        onClick={open}
-        disabled={loading}
-        className="ml-3 shrink-0 text-indigo-600 font-medium hover:underline disabled:opacity-50"
-      >
-        {loading ? 'Opening…' : 'View'}
-      </button>
+      {url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-3 shrink-0 text-indigo-600 font-medium hover:underline"
+        >
+          Open receipt →
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={loadUrl}
+          disabled={loading}
+          className="ml-3 shrink-0 text-indigo-600 font-medium hover:underline disabled:opacity-50"
+        >
+          {loading ? 'Loading…' : 'View receipt →'}
+        </button>
+      )}
     </div>
   )
 }
@@ -46,7 +59,11 @@ export default function ApproveExpensePage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(`/api/expenses/${id}`).then((r) => r.json()).then(setExpense)
+    async function load() {
+      const r = await fetch(`/api/expenses/${id}`)
+      if (r.ok) setExpense(await r.json())
+    }
+    load()
   }, [id])
 
   async function handle(status: 'APPROVED' | 'REJECTED') {
@@ -72,8 +89,16 @@ export default function ApproveExpensePage() {
   if (!expense) return <div className="p-8 text-gray-400">Loading…</div>
 
   const emp = expense.employee as { name: string; email: string }
-  const ev = expense.event as { eventName: string }
+  const ev = expense.event as { eventName: string; budgetUsd: number; approvedSpendUsd: number }
   const receipts = (expense.receipts as { id: string; fileName: string }[]) ?? []
+  const eventBudget    = Number(ev.budgetUsd)
+  const eventSpent     = Number(ev.approvedSpendUsd)
+  const expenseAmt     = Number(expense.amountUsd ?? 0)
+  const isAlreadyApproved = String(expense.status) === 'APPROVED'
+  const projectedSpent = isAlreadyApproved ? eventSpent : eventSpent + expenseAmt
+  const budgetPct      = eventBudget > 0 ? Math.min(Math.round((eventSpent / eventBudget) * 100), 100) : 0
+  const projectedPct   = eventBudget > 0 ? Math.min(Math.round((projectedSpent / eventBudget) * 100), 100) : 0
+  const budgetBarColor = projectedPct >= 100 ? 'bg-red-500' : projectedPct >= 80 ? 'bg-yellow-400' : 'bg-green-500'
   const actions = (expense.approvalActions as { actionType: string; note?: string; createdAt: string; actor: { name: string } }[]) ?? []
   const status = String(expense.status)
   const isDecided = ['APPROVED', 'REJECTED', 'PAID'].includes(status)
@@ -91,6 +116,31 @@ export default function ApproveExpensePage() {
           <div><span className="text-gray-500">Amount</span><p className="text-xl font-bold text-gray-900">${Number(expense.amountUsd).toFixed(2)}</p></div>
           <div><span className="text-gray-500">Status</span><p><Badge variant={statusToBadgeVariant(status)}>{status}</Badge></p></div>
         </div>
+
+        {/* Event budget */}
+        {eventBudget > 0 && (
+          <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <span>Event budget — {ev.eventName}</span>
+              <span className={projectedPct >= 100 ? 'text-red-600' : projectedPct >= 80 ? 'text-yellow-600' : 'text-gray-500'}>
+                {projectedPct}% {isAlreadyApproved ? 'used' : 'after approval'}
+              </span>
+            </div>
+            <div className="relative h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+              {/* eslint-disable-next-line react/forbid-component-props */}
+              <div className="absolute inset-y-0 left-0 bg-gray-300 rounded-full" style={{ width: `${budgetPct}%` }} />
+              {/* eslint-disable-next-line react/forbid-component-props */}
+              <div className={`absolute inset-y-0 left-0 rounded-full ${budgetBarColor}`} style={{ width: `${projectedPct}%` }} />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Spent: <span className="font-medium text-gray-800">${eventSpent.toLocaleString('en-US')}</span></span>
+              {!isAlreadyApproved && expenseAmt > 0 && (
+                <span>+ This expense: <span className="font-medium text-indigo-700">${expenseAmt.toLocaleString('en-US')}</span></span>
+              )}
+              <span>Budget: <span className="font-medium text-gray-800">${eventBudget.toLocaleString('en-US')}</span></span>
+            </div>
+          </div>
+        )}
 
         {/* Receipts */}
         <div className="border-t pt-4">

@@ -27,7 +27,8 @@ model Company {
   payoutReports    PayoutReport[]
   cardTransactions CardTransaction[]
   policyRules      PolicyRule[]
-  travelerProfiles TravelerProfile[]
+  travelerProfiles    TravelerProfile[]
+  travelInboxMessages TravelInboxMessage[]
 }
 
 // ─── Users & Auth ────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ model User {
   travelerProfile      TravelerProfile?
   verificationTokens   VerificationToken[]
   eventDocuments       EventDocument[]
+  assignedInboxMessages TravelInboxMessage[] @relation("InboxAssignee")
 
   @@unique([companyId, email])
 }
@@ -202,19 +204,37 @@ model TravelRequest {
   carRentalDays     Int?
   specialInstructions String?
   confirmationNumber  String?
+  confirmationDocUrl  String?
   status            TravelRequestStatus @default(DRAFT)
   routingPath       RoutingPath         @default(AGENT_FIRST)
   rejectionNote     String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
-  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employee        User             @relation("EmployeeTravelRequests", fields: [employeeId], references: [id])
-  agent           User?            @relation("AgentBookings", fields: [agentId], references: [id])
-  event           Event            @relation(fields: [eventId], references: [id])
-  approvalActions ApprovalAction[]
-  expenses        Expense[]
-  bookingOptions  BookingOption[]
+  company               Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee              User                  @relation("EmployeeTravelRequests", fields: [employeeId], references: [id])
+  agent                 User?                 @relation("AgentBookings", fields: [agentId], references: [id])
+  event                 Event                 @relation(fields: [eventId], references: [id])
+  approvalActions       ApprovalAction[]
+  expenses              Expense[]
+  bookingOptions        BookingOption[]
+  bookingConfirmations  BookingConfirmation[]
+}
+
+// ─── Booking Confirmations (per-service) ─────────────────────────────────────
+
+model BookingConfirmation {
+  id                 String        @id @default(cuid())
+  travelRequestId    String
+  serviceType        String
+  confirmationNumber String?
+  notes              String?
+  fileName           String?
+  fileData           Bytes?
+  mimeType           String?
+  createdAt          DateTime      @default(now())
+
+  travelRequest TravelRequest @relation(fields: [travelRequestId], references: [id], onDelete: Cascade)
 }
 
 // ─── Booking Options (Travel Agent) ──────────────────────────────────────────
@@ -433,6 +453,42 @@ model PolicyRule {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
+// ─── Travel Inbox ─────────────────────────────────────────────────────────────
+
+enum InboxChannel {
+  TRAVEL_CARS
+  TRAVEL_FLIGHTS
+  TRAVEL_HOTELS
+}
+
+enum InboxStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+  IGNORED
+}
+
+model TravelInboxMessage {
+  id              String       @id @default(cuid())
+  companyId       String
+  channel         InboxChannel
+  slackUserId     String?
+  slackUserName   String?
+  slackMsgTs      String?
+  slackThreadTs   String?
+  slackChannelId  String?
+  rawText         String
+  parsedData      Json?
+  status          InboxStatus  @default(NEW)
+  assignedToId    String?
+  travelRequestId String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo User?   @relation("InboxAssignee", fields: [assignedToId], references: [id])
+}
+
 // ─── Traveler Profile ─────────────────────────────────────────────────────────
 
 model TravelerProfile {
@@ -441,16 +497,26 @@ model TravelerProfile {
   companyId              String
 
   // Travel documents
+  dateOfBirth            DateTime?
   passportNumber         String?
+  passportIssueDate      DateTime?
   passportExpiry         DateTime?
   passportPhotoKey       String?
   driversLicenseNumber   String?
+  driversLicenseIssueDate DateTime?
   driversLicenseExpiry   DateTime?
   driversLicensePhotoKey String?
 
   // Travel programs
   ktnNumber              String?
   globalEntryNumber      String?
+
+  // Contact information
+  firstName              String?
+  lastName               String?
+  phoneNumber            String?
+  contactEmail           String?
+  homeAddress            String?
 
   // Profile photo
   profilePhotoKey        String?

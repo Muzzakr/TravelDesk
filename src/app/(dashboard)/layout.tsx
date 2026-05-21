@@ -6,7 +6,9 @@ import { MobileNav } from '@/components/ui/MobileNav'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
 
-const navByRole: Record<Role, { label: string; href: string }[]> = {
+type NavItem = { label: string; href: string } | { heading: string }
+
+const navByRole: Record<Role, NavItem[]> = {
   EMPLOYEE: [
     { label: 'Dashboard', href: '/employee' },
     { label: 'Travel Requests', href: '/employee/travel-requests' },
@@ -15,33 +17,41 @@ const navByRole: Record<Role, { label: string; href: string }[]> = {
   ],
   MANAGER: [
     { label: 'Dashboard', href: '/manager' },
+    { label: 'Travel Inbox', href: '/manager/inbox' },
     { label: 'Team Spend', href: '/manager/team-spend' },
     { label: 'Teams Travel', href: '/employee/travel-requests' },
   ],
   TRAVEL_AGENT: [
     { label: 'Dashboard', href: '/agent' },
-    { label: 'Requests to book', href: '/agent/bookings' },
-    { label: 'Book on behalf', href: '/agent/book' },
+    { label: 'Travel Inbox', href: '/agent/inbox' },
+    { label: 'Travel Requests', href: '/agent/bookings' },
+    { label: 'Create Travel Booking', href: '/agent/book' },
   ],
   FINANCE_ADMIN: [
     { label: 'Dashboard', href: '/finance' },
     { label: 'Events & Budgets', href: '/finance/events' },
+    { label: 'Spend Analytics', href: '/finance/spend-analytics' },
     { label: 'Payout Reports', href: '/finance/payout-reports' },
     { label: 'Policy Limits', href: '/finance/policy' },
     { label: 'Card Transactions', href: '/finance/cards' },
   ],
   SYSTEM_ADMIN: [
-    { label: 'Admin Dashboard', href: '/admin' },
-    { label: 'Users', href: '/admin/users' },
-    { label: 'Events', href: '/admin/events' },
-    { label: 'Spent categories', href: '/admin/spend-categories' },
-    { label: 'Payout Reports', href: '/finance/payout-reports' },
+    { heading: 'Operations' },
+    { label: 'Admin Dashboard',   href: '/admin' },
+    { label: 'Travel Requests',   href: '/employee/travel-requests' },
+    { label: '+ New Request',     href: '/admin/book' },
+    { label: 'Expenses',          href: '/employee/expenses?view=admin' },
     { label: 'Card Transactions', href: '/finance/cards' },
-    { label: 'Policy Limits', href: '/finance/policy' },
-    { label: 'Audit Log', href: '/admin/audit-log' },
-    { label: 'Team Spend', href: '/manager/team-spend' },
-{ label: 'Travel Requests', href: '/employee/travel-requests' },
-    { label: 'Expenses', href: '/employee/expenses' },
+    { heading: 'Finance' },
+    { label: 'Payout Reports',    href: '/finance/payout-reports' },
+    { label: 'Spend Analytics',   href: '/finance/spend-analytics' },
+    { label: 'Team Spend',        href: '/manager/team-spend' },
+    { heading: 'Management' },
+    { label: 'Users',             href: '/admin/users' },
+    { label: 'Events',            href: '/admin/events' },
+    { label: 'Spend Categories',  href: '/admin/spend-categories' },
+    { label: 'Policy Limits',     href: '/finance/policy' },
+    { label: 'Audit Log',         href: '/admin/audit-log' },
   ],
 }
 
@@ -68,16 +78,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
         <div className="flex h-16 items-center px-6 text-xl font-bold">TravelDesk</div>
-        <nav className="flex-1 px-3 py-4">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center rounded-lg px-3 py-2 text-sm font-medium text-indigo-100 hover:bg-indigo-800 hover:text-white"
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
+          {nav.map((item, i) =>
+            'heading' in item ? (
+              <p key={i} className="px-3 pt-4 pb-1 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                {item.heading}
+              </p>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-indigo-800 ${item.label.startsWith('+') ? 'text-indigo-400 hover:text-indigo-100' : 'text-indigo-100 hover:text-white'}`}
+              >
+                {item.label}
+              </Link>
+            )
+          )}
         </nav>
         <div className="border-t border-indigo-800 px-6 py-4">
           <p className="text-sm font-medium text-white">{session.user.name}</p>
@@ -96,6 +112,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <ProfileBanner
             missingFields={profileStatus.missingFields}
             userId={session.user.id}
+            blocking={profileStatus.blocking}
           />
         )}
         <main className="flex-1 p-4 pt-18 md:pt-8 md:p-8">{children}</main>

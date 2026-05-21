@@ -33,6 +33,7 @@ export interface Expense {
   payoutReportId: string | null
   createdAt: Date
   updatedAt: Date
+  receipts?: { id: string; fileName: string }[]
 }
 
 export interface CreateExpenseInput {

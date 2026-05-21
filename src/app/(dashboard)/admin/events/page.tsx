@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { DateInput } from '@/components/ui/DateInput'
 import type { ExtractedEvent } from '@/app/api/events/extract/route'
 
 type EventRow = {
@@ -58,6 +59,8 @@ function Field({
         </select>
       </div>
     )
+  if (type === 'date')
+    return <DateInput label={`${label}${required ? ' *' : ''}`} title={label} value={value} onChange={onChange} className={base} />
   return (
     <div>
       <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{label}{required && ' *'}</label>
@@ -447,11 +450,8 @@ export default function AdminEventsPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Date</label>
-                    <input type="date" title="Date" value={editForm.eventDate} onChange={(e) => ef('eventDate', e.target.value)}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
-                  </div>
+                  <DateInput label="Date" title="Date" value={editForm.eventDate} onChange={(v) => ef('eventDate', v)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Timing</label>
                     <input title="Timing" placeholder="18:00 – 23:00" value={editForm.timing} onChange={(e) => ef('timing', e.target.value)}
@@ -640,15 +640,12 @@ export default function AdminEventsPage() {
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">Address</label>
                 <input value={form.address} onChange={(e) => f('address', e.target.value)}
-                  placeholder="Main Street 1, Stockholm" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                  placeholder="123 Main St, New York, NY 10001" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Date</label>
-                <input type="date" title="Date" value={form.eventDate} onChange={(e) => f('eventDate', e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              </div>
+              <DateInput label="Date" title="Date" value={form.eventDate} onChange={(v) => f('eventDate', v)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">Timing</label>
                 <input value={form.timing} onChange={(e) => f('timing', e.target.value)}

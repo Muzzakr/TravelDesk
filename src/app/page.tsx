@@ -279,10 +279,10 @@ export default async function LandingPage() {
 
                     {/* Rows */}
                     {[
-                      { name: 'Alex Lindgren', route: 'Stockholm → Berlin', event: 'Q3 Kickoff',   cost: '$840',   status: 'PENDING',  color: 'text-amber-950 bg-amber-400' },
-                      { name: 'Sara Nilsson',  route: 'Göteborg → Paris',   event: 'Sales Summit', cost: '$1,240', status: 'APPROVED', color: 'text-emerald-950 bg-emerald-400' },
-                      { name: 'Kim Eriksson',  route: 'Malmö → London',     event: 'Q3 Kickoff',   cost: '$620',   status: 'BOOKED',   color: 'text-violet-950 bg-violet-400' },
-                      { name: 'Johan Berg',    route: 'Stockholm → Oslo',   event: 'Tech Conf',    cost: '$990',   status: 'PENDING',  color: 'text-amber-950 bg-amber-400' },
+                      { name: 'Alex Johnson',  route: 'New York → Chicago',    event: 'Q3 Kickoff',   cost: '$840',   status: 'PENDING',  color: 'text-amber-950 bg-amber-400' },
+                      { name: 'Sara Williams', route: 'Los Angeles → Miami',  event: 'Sales Summit', cost: '$1,240', status: 'APPROVED', color: 'text-emerald-950 bg-emerald-400' },
+                      { name: 'Kim Anderson',  route: 'Chicago → Dallas',     event: 'Q3 Kickoff',   cost: '$620',   status: 'BOOKED',   color: 'text-violet-950 bg-violet-400' },
+                      { name: 'John Davis',    route: 'New York → Seattle',   event: 'Tech Conf',    cost: '$990',   status: 'PENDING',  color: 'text-amber-950 bg-amber-400' },
                     ].map((row) => (
                       <div
                         key={row.name}

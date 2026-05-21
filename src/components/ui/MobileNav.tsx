@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-interface NavItem { label: string; href: string }
+type NavItem = { label: string; href: string } | { heading: string }
 
 export function MobileNav({ nav, userName, role, logoutAction }: {
   nav: NavItem[]
@@ -39,16 +39,22 @@ export function MobileNav({ nav, userName, role, logoutAction }: {
               </button>
             </div>
             <nav className="flex-1 px-3 py-4 space-y-1">
-              {nav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center rounded-lg px-3 py-2 text-sm font-medium text-indigo-100 hover:bg-indigo-800 hover:text-white"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {nav.map((item, i) =>
+                'heading' in item ? (
+                  <p key={i} className="px-3 pt-4 pb-1 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                    {item.heading}
+                  </p>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={`flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-indigo-800 ${item.label.startsWith('+') ? 'text-indigo-400 hover:text-indigo-100' : 'text-indigo-100 hover:text-white'}`}
+                  >
+                    {item.label}
+                  </Link>
+                )
+              )}
             </nav>
             <div className="border-t border-indigo-800 px-6 py-4">
               <p className="text-sm font-medium text-white">{userName}</p>

@@ -94,7 +94,7 @@ const AI_PROMPT = `Extract all events from this document and return a JSON array
 - status: "DRAFT" | "ACTIVE" | "CLOSED"  (default "DRAFT")
 
 Return ONLY the raw JSON array — no markdown, no explanation. Example:
-[{"eventCode":"EVT-001","eventName":"Summer Gala","venue":"Grand Hotel","address":"Main St 1, Stockholm","eventDate":"2026-08-15","timing":"18:00-23:00","assignedDj":"DJ Alex","assignedMc":"MC Sara","salesPerson":"John Smith","status":"DRAFT"}]`
+[{"eventCode":"EVT-001","eventName":"Summer Gala","venue":"Grand Ballroom","address":"123 Main St, New York, NY 10001","eventDate":"2026-08-15","timing":"6:00 PM - 11:00 PM","assignedDj":"DJ Alex","assignedMc":"MC Sara","salesPerson":"John Smith","status":"DRAFT"}]`
 
 export async function POST(req: NextRequest) {
   const session = await auth()

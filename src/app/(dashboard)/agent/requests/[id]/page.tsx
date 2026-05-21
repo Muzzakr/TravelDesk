@@ -1,8 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, UserGroupIcon, CreditCardIcon, PlusCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import type { ComponentType, SVGProps } from 'react'
+type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
+import { useEffect, useRef, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+
+interface BookingConfirmation {
+  id: string
+  serviceType: string
+  confirmationNumber: string | null
+  notes: string | null
+  fileName: string | null
+}
 
 interface TravelRequest {
   id: string
@@ -25,6 +36,7 @@ interface TravelRequest {
   employee: { name: string; email: string }
   event: { eventName: string; eventCode: string; budgetUsd: number; approvedSpendUsd: number }
   bookingOptions: BookingOption[]
+  bookingConfirmations: BookingConfirmation[]
 }
 
 interface BookingOption {
@@ -36,155 +48,128 @@ interface BookingOption {
   isSelected: boolean
 }
 
-interface OptionRow {
-  serviceType: string
-  vendor: string
-  description: string
-  priceUsd: string
+type ServiceEntry = {
+  confirmationNumber: string
+  notes: string
+  files: File[]
 }
 
-const STATUS_STEPS = [
-  'DRAFT', 'SUBMITTED', 'PENDING_AGENT', 'OPTIONS_PROVIDED',
-  'PENDING_MANAGER', 'APPROVED', 'BOOKING_CONFIRMED',
-]
+const STATUS_STEPS = ['SUBMITTED', 'PENDING_MANAGER', 'PENDING_AGENT', 'BOOKING_CONFIRMED']
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Draft',
+  DRAFT: 'Submitted',
   SUBMITTED: 'Submitted',
-  PENDING_AGENT: 'With agent',
-  OPTIONS_PROVIDED: 'Options provided',
   PENDING_MANAGER: 'Manager review',
-  APPROVED: 'Approved',
+  PENDING_AGENT: 'With agent',
+  APPROVED: 'With agent',
+  OPTIONS_PROVIDED: 'With agent',
   BOOKING_CONFIRMED: 'Booking confirmed',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
 }
 
-const VENDOR_URLS: Record<string, string> = {
-  sas: 'https://www.flysas.com',
-  norwegian: 'https://www.norwegian.com',
-  'british airways': 'https://www.britishairways.com',
-  marriott: 'https://www.marriott.com',
-  hilton: 'https://www.hilton.com',
-  citizenm: 'https://www.citizenm.com',
-  hertz: 'https://www.hertz.com',
-  avis: 'https://www.avis.com',
-  europcar: 'https://www.europcar.com',
-  uber: 'https://www.uber.com',
-  bolt: 'https://bolt.eu',
+const SERVICE_ICON: Record<string, HeroIcon> = {
+  FLIGHT: PaperAirplaneIcon,
+  HOTEL: BuildingOfficeIcon,
+  CAR_RENTAL: TruckIcon,
+  TAXI: MapPinIcon,
+  AGENT_CHOOSES: UserGroupIcon,
 }
 
-function getBookingUrl(vendor: string, serviceType: string, origin: string, destination: string, dates: { departureDate: string; returnDate: string }): string {
-  const base = VENDOR_URLS[vendor.toLowerCase()]
-  if (base) return base
-  const q = encodeURIComponent(`${vendor} ${serviceType.replace('_', ' ')} ${origin} ${destination} ${dates.departureDate}`)
-  return `https://www.google.com/search?q=${q}`
+const SERVICE_LABEL: Record<string, string> = {
+  FLIGHT: 'Flight',
+  HOTEL: 'Hotel',
+  CAR_RENTAL: 'Car Rental',
+  TAXI: 'Taxi / Transfer',
+  AGENT_CHOOSES: 'Agent Chooses',
 }
 
-interface AiOption {
-  vendor: string
-  description: string
-  priceUsd: number
+const ALL_SERVICES = ['FLIGHT', 'HOTEL', 'CAR_RENTAL', 'TAXI']
+
+const SERVICE_LINE_META: Record<string, { Icon: HeroIcon; label: string }> = {
+  FLIGHT:        { Icon: PaperAirplaneIcon,  label: 'Flight' },
+  HOTEL:         { Icon: BuildingOfficeIcon, label: 'Hotel' },
+  TAXI:          { Icon: MapPinIcon,         label: 'Taxi / Transfer' },
+  CAR:           { Icon: TruckIcon,          label: 'Car Rental' },
+  AGENT_CHOOSES: { Icon: UserGroupIcon,      label: 'Agent selects services' },
+  Payment:       { Icon: CreditCardIcon,     label: 'Payment' },
 }
 
-interface AiResults {
-  flights: AiOption[]
-  hotels: AiOption[]
-  cars: AiOption[]
-  taxis: AiOption[]
+function parseServiceLine(line: string): { Icon: HeroIcon; label: string; detail: string } {
+  const colon = line.indexOf(':')
+  if (colon === -1) return { Icon: DocumentTextIcon, label: 'Note', detail: line }
+  const key = line.slice(0, colon).trim()
+  const meta = SERVICE_LINE_META[key] ?? { Icon: DocumentTextIcon, label: key }
+  return { ...meta, detail: line.slice(colon + 1).trim() }
+}
+
+function emptyEntry(): ServiceEntry {
+  return { confirmationNumber: '', notes: '', files: [] }
 }
 
 export default function AgentRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const router = useRouter()
   const [request, setRequest] = useState<TravelRequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  const [options, setOptions] = useState<OptionRow[]>([
-    { serviceType: '', vendor: '', description: '', priceUsd: '' },
-  ])
+  // Per-service confirmation state
+  const [serviceEntries, setServiceEntries] = useState<Record<string, ServiceEntry>>({})
+  // For AGENT_CHOOSES: agent can pick which services they're confirming
+  const [agentPickedServices, setAgentPickedServices] = useState<string[]>([])
 
-  const [bookingTab, setBookingTab] = useState<'FLIGHT' | 'HOTEL' | 'CAR' | 'TAXI'>('FLIGHT')
-  const [flightConfirmNo, setFlightConfirmNo] = useState('')
-  const [flightNotes, setFlightNotes] = useState('')
-  const [hotelConfirmNo, setHotelConfirmNo] = useState('')
-  const [hotelNotes, setHotelNotes] = useState('')
-  const [carConfirmNo, setCarConfirmNo] = useState('')
-  const [carNotes, setCarNotes] = useState('')
-  const [taxiConfirmNo, setTaxiConfirmNo] = useState('')
-  const [taxiNotes, setTaxiNotes] = useState('')
-
-  const [aiResults, setAiResults] = useState<AiResults | null>(null)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError] = useState('')
-  const [selectedAi, setSelectedAi] = useState<Record<string, boolean>>({})
-
-  async function handleAiSearch() {
-    setAiLoading(true)
-    setAiError('')
-    setAiResults(null)
-    setSelectedAi({})
-    const res = await fetch('/api/agent/ai-search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ travelRequestId: id }),
-    })
-    if (res.ok) {
-      const data: AiResults = await res.json()
-      setAiResults(data)
-      const initial: Record<string, boolean> = {}
-      ;[...data.flights, ...data.hotels, ...data.cars, ...data.taxis].forEach((_, i) => { initial[i] = true })
-      setSelectedAi(initial)
-    } else {
-      const data = await res.json().catch(() => ({}))
-      setAiError(data.error ?? 'AI search failed. Check that OPENAI_API_KEY is set in .env and restart the dev server.')
-    }
-    setAiLoading(false)
-  }
-
-  async function saveAiOptions() {
-    if (!aiResults) return
-    setSubmitting(true)
-    setError('')
-    const all = [
-      ...aiResults.flights.map((o) => ({ serviceType: 'FLIGHT', ...o })),
-      ...aiResults.hotels.map((o) => ({ serviceType: 'HOTEL', ...o })),
-      ...aiResults.cars.map((o) => ({ serviceType: 'CAR_RENTAL', ...o })),
-      ...aiResults.taxis.map((o) => ({ serviceType: 'TAXI', ...o })),
-    ]
-    const chosen = all.filter((_, i) => selectedAi[i])
-    if (chosen.length === 0) { setError('Select at least one option'); setSubmitting(false); return }
-    const res = await fetch(`/api/travel-requests/${id}/options`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ options: chosen }),
-    })
-    if (res.ok) {
-      setSuccess('AI options saved. Status set to OPTIONS PROVIDED.')
-      setAiResults(null)
-      const updated = await fetch(`/api/travel-requests/${id}`).then((r) => r.json())
-      setRequest(updated)
-    } else {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to save options')
-    }
-    setSubmitting(false)
-  }
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
-    fetch('/api/auth/session')
-      .then((r) => r.json())
-      .then((s) => setCurrentUserId(s?.user?.id ?? null))
-
-    fetch(`/api/travel-requests/${id}`)
-      .then((r) => r.json())
-      .then((data) => { setRequest(data); setLoading(false) })
-      .catch(() => setLoading(false))
+    async function load() {
+      try {
+        const r = await fetch(`/api/travel-requests/${id}`)
+        if (!r.ok) { setLoading(false); return }
+        const data: TravelRequest = await r.json()
+        setRequest(data)
+        setLoading(false)
+        const initial: Record<string, ServiceEntry> = {}
+        const svcs = data.servicesRequested.includes('AGENT_CHOOSES') ? [] : data.servicesRequested
+        svcs.forEach((s) => { initial[s] = emptyEntry() })
+        setServiceEntries(initial)
+        if (data.servicesRequested.includes('AGENT_CHOOSES')) {
+          setAgentPickedServices(['AGENT_CHOOSES'])
+          setServiceEntries({ AGENT_CHOOSES: emptyEntry() })
+        }
+      } catch {
+        setLoading(false)
+      }
+    }
+    load()
   }, [id])
+
+  function updateEntry(svc: string, field: 'confirmationNumber' | 'notes', value: string) {
+    setServiceEntries((prev) => ({ ...prev, [svc]: { ...prev[svc], [field]: value } }))
+  }
+
+  function addFile(svc: string, file: File) {
+    setServiceEntries((prev) => ({ ...prev, [svc]: { ...prev[svc], files: [...(prev[svc]?.files ?? []), file] } }))
+    if (fileInputRefs.current[svc]) fileInputRefs.current[svc]!.value = ''
+  }
+
+  function removeFile(svc: string, index: number) {
+    setServiceEntries((prev) => ({ ...prev, [svc]: { ...prev[svc], files: prev[svc].files.filter((_, i) => i !== index) } }))
+  }
+
+  function toggleAgentService(svc: string) {
+    setAgentPickedServices((prev) => {
+      const next = prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
+      setServiceEntries((entries) => {
+        const updated = { ...entries }
+        if (!prev.includes(svc)) { updated[svc] = emptyEntry() }
+        else { delete updated[svc] }
+        return updated
+      })
+      return next
+    })
+  }
 
   async function handleAssign() {
     setSubmitting(true)
@@ -192,7 +177,6 @@ export default function AgentRequestDetailPage() {
     const res = await fetch(`/api/travel-requests/${id}/assign`, { method: 'POST' })
     if (res.ok) {
       setSuccess('Booking assigned to you.')
-      router.refresh()
       const updated = await fetch(`/api/travel-requests/${id}`).then((r) => r.json())
       setRequest(updated)
     } else {
@@ -202,81 +186,75 @@ export default function AgentRequestDetailPage() {
     setSubmitting(false)
   }
 
-  async function handleSubmitOptions(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError('')
-    const payload = options.map((o) => ({
-      serviceType: o.serviceType,
-      vendor: o.vendor,
-      description: o.description,
-      priceUsd: parseFloat(o.priceUsd),
-    }))
-    const res = await fetch(`/api/travel-requests/${id}/options`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ options: payload }),
-    })
-    if (res.ok) {
-      setSuccess('Booking options submitted. Status set to OPTIONS PROVIDED.')
-      const updated = await fetch(`/api/travel-requests/${id}`).then((r) => r.json())
-      setRequest(updated)
-    } else {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to submit options')
-    }
-    setSubmitting(false)
-  }
-
   async function handleConfirm(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     setError('')
-    const activeNo = bookingTab === 'FLIGHT' ? flightConfirmNo : bookingTab === 'HOTEL' ? hotelConfirmNo : bookingTab === 'CAR' ? carConfirmNo : taxiConfirmNo
-    const activeNotes = bookingTab === 'FLIGHT' ? flightNotes : bookingTab === 'HOTEL' ? hotelNotes : bookingTab === 'CAR' ? carNotes : taxiNotes
+
+    const services = Object.entries(serviceEntries).map(([serviceType, entry]) => ({
+      serviceType,
+      confirmationNumber: entry.confirmationNumber || undefined,
+      notes: entry.notes || undefined,
+    }))
+
+    if (services.length === 0) {
+      setError('Add at least one service confirmation.')
+      setSubmitting(false)
+      return
+    }
+
+    // Step 1: POST the JSON confirmation data
     const res = await fetch(`/api/travel-requests/${id}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmationNumber: activeNo, notes: activeNotes }),
+      body: JSON.stringify({ services }),
     })
-    if (res.ok) {
-      setSuccess('Booking confirmed!')
-      const updated = await fetch(`/api/travel-requests/${id}`).then((r) => r.json())
-      setRequest(updated)
-    } else {
+
+    if (!res.ok) {
       const data = await res.json()
-      setError(data.error ?? 'Failed to confirm')
+      setError(data.error ?? 'Failed to confirm booking')
+      setSubmitting(false)
+      return
     }
+
+    const { confirmationIds } = await res.json() as { confirmationIds: Record<string, string> }
+
+    // Step 2: Upload all files for each service
+    const fileUploads = Object.entries(serviceEntries)
+      .filter(([, entry]) => entry.files.length > 0)
+      .flatMap(([serviceType, entry]) => {
+        const confId = confirmationIds[serviceType]
+        if (!confId) return []
+        return entry.files.map(async (file) => {
+          const fd = new FormData()
+          fd.append('file', file)
+          await fetch(`/api/booking-confirmations/${confId}/file`, { method: 'POST', body: fd })
+        })
+      })
+
+    await Promise.all(fileUploads)
+
+    setSuccess('Booking confirmed! The employee has been notified.')
+    const updated = await fetch(`/api/travel-requests/${id}`).then((r) => r.json())
+    setRequest(updated)
     setSubmitting(false)
-  }
-
-  function addOptionRow() {
-    setOptions([...options, { serviceType: '', vendor: '', description: '', priceUsd: '' }])
-  }
-
-  function updateOption(index: number, field: keyof OptionRow, value: string) {
-    setOptions(options.map((o, i) => (i === index ? { ...o, [field]: value } : o)))
-  }
-
-  function removeOption(index: number) {
-    setOptions(options.filter((_, i) => i !== index))
   }
 
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
   if (!request) return <div className="p-8 text-red-500">Request not found.</div>
 
-  const isMyRequest = request.agentId === currentUserId
   const isUnassigned = !request.agentId && request.status === 'PENDING_AGENT'
-  const canAddOptions = isMyRequest && ['PENDING_AGENT', 'OPTIONS_PROVIDED'].includes(request.status)
-  const canConfirm = isMyRequest && ['APPROVED', 'OPTIONS_PROVIDED', 'PENDING_MANAGER'].includes(request.status)
+  const canConfirm = ['PENDING_AGENT', 'APPROVED'].includes(request.status) && request.status !== 'BOOKING_CONFIRMED'
+  const isAgentChooses = request.servicesRequested.includes('AGENT_CHOOSES')
 
-  const budgetPct =
-    request.event.budgetUsd > 0
-      ? Math.round((Number(request.event.approvedSpendUsd) / Number(request.event.budgetUsd)) * 100)
-      : 0
+  const budgetPct = request.event.budgetUsd > 0
+    ? Math.round((Number(request.event.approvedSpendUsd) / Number(request.event.budgetUsd)) * 100)
+    : 0
 
   const currentStep = STATUS_STEPS.indexOf(request.status)
   const isTerminal = ['REJECTED', 'CANCELLED'].includes(request.status)
+
+  const confirmSections = isAgentChooses ? agentPickedServices : request.servicesRequested
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -319,62 +297,61 @@ export default function AgentRequestDetailPage() {
       )}
 
       {/* Request details */}
-      <div className="rounded-xl border bg-white p-6 grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Employee</p>
-          <p className="font-medium text-gray-900">{request.employee.name}</p>
-          <p className="text-gray-500">{request.employee.email}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Event</p>
-          <p className="font-medium text-gray-900">{request.event.eventName}</p>
-          <p className="text-gray-500">{request.event.eventCode}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Route</p>
-          <p className="font-medium text-gray-900">{request.origin} → {request.destination}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Dates</p>
-          <p className="text-gray-900">{request.travelDates.departureDate} → {request.travelDates.returnDate}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Services</p>
-          <p className="text-gray-900">{request.servicesRequested.join(', ')}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Class / Est. cost</p>
-          <p className="text-gray-900">
-            {request.preferredClass}
-            {request.estimatedCostUsd ? ` · $${Number(request.estimatedCostUsd).toFixed(0)}` : ''}
-          </p>
-        </div>
-        {request.hotelNights && (
+      <div className="rounded-xl border bg-white p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Hotel nights</p>
-            <p className="text-gray-900">{request.hotelNights}</p>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Employee</p>
+            <p className="font-medium text-gray-900">{request.employee.name}</p>
+            <p className="text-gray-500">{request.employee.email}</p>
           </div>
-        )}
-        {request.carRentalDays && (
           <div>
-            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Car rental days</p>
-            <p className="text-gray-900">{request.carRentalDays}</p>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Event</p>
+            <p className="font-medium text-gray-900">{request.event.eventName}</p>
+            <p className="text-gray-500">{request.event.eventCode}</p>
           </div>
-        )}
-        <div className="col-span-2">
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Purpose</p>
-          <p className="text-gray-900">{request.purpose}</p>
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Route</p>
+            <p className="font-medium text-gray-900">{request.origin} → {request.destination}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Dates</p>
+            <p className="text-gray-900">{request.travelDates.departureDate} → {request.travelDates.returnDate}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Services</p>
+            <p className="text-gray-900">{request.servicesRequested.map((s) => SERVICE_LABEL[s] ?? s).join(', ')}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Class / Est. cost</p>
+            <p className="text-gray-900">
+              {request.preferredClass}
+              {request.estimatedCostUsd ? ` · $${Number(request.estimatedCostUsd).toFixed(0)}` : ''}
+            </p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Purpose</p>
+            <p className="text-gray-900">{request.purpose}</p>
+          </div>
         </div>
-        {request.specialInstructions && (
-          <div className="col-span-2">
-            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Special instructions</p>
-            <p className="text-gray-700 whitespace-pre-wrap">{request.specialInstructions}</p>
-          </div>
-        )}
-        {request.confirmationNumber && (
-          <div className="col-span-2">
-            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Confirmation number</p>
-            <p className="font-mono font-bold text-green-700">{request.confirmationNumber}</p>
+
+        {/* Trip details (structured) */}
+        {!!request.specialInstructions && (
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-2">Trip details</p>
+            <div className="space-y-2">
+              {String(request.specialInstructions).split('\n').filter(Boolean).map((line, i) => {
+                const { Icon: LineIcon, label, detail } = parseServiceLine(line)
+                return (
+                  <div key={i} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
+                    <LineIcon className="w-5 h-5 shrink-0 text-gray-500 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+                      <p className="text-sm text-gray-900 mt-0.5">{detail}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -384,9 +361,9 @@ export default function AgentRequestDetailPage() {
         <p className="text-xs font-medium text-gray-400 uppercase mb-2">Event budget</p>
         <div className="flex items-center gap-3">
           <div className="flex-1 bg-gray-100 rounded-full h-2">
-            {/* eslint-disable-next-line react/forbid-component-props */}
             <div
               className={`h-2 rounded-full ${budgetPct >= 100 ? 'bg-red-500' : budgetPct >= 80 ? 'bg-yellow-500' : 'bg-green-500'}`}
+              /* eslint-disable-next-line react/forbid-component-props */
               style={{ width: `${Math.min(budgetPct, 100)}%` }}
             />
           </div>
@@ -412,382 +389,169 @@ export default function AgentRequestDetailPage() {
         </div>
       )}
 
-      {/* Existing options */}
-      {request.bookingOptions && request.bookingOptions.length > 0 && (
-        <div className="rounded-xl border bg-white p-6">
-          <h2 className="text-base font-semibold text-gray-800 mb-4">Booking options</h2>
-          <table className="min-w-full text-sm divide-y divide-gray-100">
-            <thead className="text-xs uppercase text-gray-500">
-              <tr>
-                <th className="py-2 text-left pr-4">Service</th>
-                <th className="py-2 text-left pr-4">Vendor</th>
-                <th className="py-2 text-left pr-4">Description</th>
-                <th className="py-2 text-left pr-4">Price</th>
-                <th className="py-2 text-left">Book</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {request.bookingOptions.map((opt) => (
-                <tr key={opt.id} className={opt.isSelected ? 'bg-green-50' : ''}>
-                  <td className="py-2 pr-4 font-medium text-gray-700">{opt.serviceType}</td>
-                  <td className="py-2 pr-4 text-gray-600">
-                    {opt.isSelected && <span className="mr-1 text-green-600">✓</span>}
-                    {opt.vendor}
-                  </td>
-                  <td className="py-2 pr-4 text-gray-600">{opt.description}</td>
-                  <td className="py-2 pr-4 text-gray-900">${Number(opt.priceUsd).toFixed(2)}</td>
-                  <td className="py-2">
-                    <a
-                      href={getBookingUrl(opt.vendor, opt.serviceType, request.origin, request.destination, request.travelDates as { departureDate: string; returnDate: string })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
-                    >
-                      Book →
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* AI Search */}
-      {canAddOptions && (
-        <div className="rounded-xl border-2 border-indigo-100 bg-indigo-50 p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-indigo-900">Search with AI</h2>
-              <p className="text-xs text-indigo-700 mt-0.5">Claude searches flights, hotels and rental cars automatically and returns 3 options each.</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleAiSearch}
-              disabled={aiLoading}
-              className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-2"
-            >
-              {aiLoading ? (
-                <>
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Searching…
-                </>
-              ) : '✨ Search with AI'}
-            </button>
+      {/* Complete booking form */}
+      {canConfirm && (
+        <form onSubmit={handleConfirm} className="rounded-xl border-2 border-green-100 bg-green-50 p-6 space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-green-900">Complete booking</h2>
+            <p className="text-xs text-green-700 mt-0.5">
+              Fill in the confirmation details for each service. The employee will be notified.
+            </p>
           </div>
 
-          {aiError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{aiError}</p>}
-
-          {aiResults && (
-            <div className="space-y-4">
-              {([
-                { label: 'Flights', key: 'flights', items: aiResults.flights, offset: 0 },
-                { label: 'Hotels', key: 'hotels', items: aiResults.hotels, offset: aiResults.flights.length },
-                { label: 'Rental Cars', key: 'cars', items: aiResults.cars, offset: aiResults.flights.length + aiResults.hotels.length },
-                { label: 'Taxis', key: 'taxis', items: aiResults.taxis, offset: aiResults.flights.length + aiResults.hotels.length + aiResults.cars.length },
-              ] as const).map(({ label, items, offset }) => (
-                items.length > 0 && (
-                  <div key={label} className="rounded-lg bg-white border border-indigo-100 p-4">
-                    <p className="text-xs font-semibold uppercase text-indigo-600 tracking-wide mb-3">{label}</p>
-                    <div className="space-y-2">
-                      {items.map((opt, i) => {
-                        const idx = offset + i
-                        return (
-                          <label key={i} className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedAi[idx] ? 'border-indigo-300 bg-indigo-50' : 'border-gray-100 bg-gray-50'}`}>
-                            <input
-                              type="checkbox"
-                              checked={!!selectedAi[idx]}
-                              onChange={(e) => setSelectedAi((prev) => ({ ...prev, [idx]: e.target.checked }))}
-                              className="mt-0.5 accent-indigo-600"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900">{opt.vendor}</p>
-                              <p className="text-xs text-gray-500 mt-0.5 truncate">{opt.description}</p>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <p className="text-sm font-bold text-indigo-700">${opt.priceUsd}</p>
-                              <a
-                                href={getBookingUrl(opt.vendor, label, request.origin, request.destination, request.travelDates as { departureDate: string; returnDate: string })}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700"
-                              >
-                                Book →
-                              </a>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              ))}
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={saveAiOptions}
-                  disabled={submitting}
-                  className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Saving…' : 'Save selected options →'}
-                </button>
+          {/* For AGENT_CHOOSES: let agent pick which services they're confirming */}
+          {isAgentChooses && (
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-2">Which services did you book?</p>
+              <div className="flex flex-wrap gap-2">
+                {ALL_SERVICES.map((svc) => {
+                  const picked = agentPickedServices.includes(svc)
+                  const SvcIcon = SERVICE_ICON[svc] ?? PlusCircleIcon
+                  return (
+                    <button
+                      key={svc}
+                      type="button"
+                      onClick={() => toggleAgentService(svc)}
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        picked ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400'
+                      }`}
+                    >
+                      <SvcIcon className="w-4 h-4" /> {SERVICE_LABEL[svc]}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* Add/update options form */}
-      {canAddOptions && (
-        <form onSubmit={handleSubmitOptions} className="rounded-xl border bg-white p-6 space-y-4">
-          <h2 className="text-base font-semibold text-gray-800">
-            {request.bookingOptions?.length ? 'Update booking options' : 'Add booking options'}
-          </h2>
-          <p className="text-xs text-gray-500">Add up to 3 options per service type for the employee/manager to choose from.</p>
+          {/* Per-service sections */}
+          {confirmSections.filter((s) => s !== 'AGENT_CHOOSES').map((svc) => {
+            const entry = serviceEntries[svc] ?? emptyEntry()
+            const SvcIcon = SERVICE_ICON[svc] ?? PlusCircleIcon
+            return (
+              <div key={svc} className="rounded-xl border border-green-200 bg-white p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <SvcIcon className="w-5 h-5 text-gray-600 shrink-0" />
+                  <h3 className="text-sm font-semibold text-gray-800">{SERVICE_LABEL[svc] ?? svc}</h3>
+                </div>
 
-          {options.map((opt, i) => (
-            <div key={i} className="grid grid-cols-4 gap-2 items-end">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Service type</label>
-                <select
-                  title="Service type"
-                  required
-                  value={opt.serviceType}
-                  onChange={(e) => updateOption(i, 'serviceType', e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select...</option>
-                  <option value="FLIGHT">Flight</option>
-                  <option value="HOTEL">Hotel</option>
-                  <option value="CAR_RENTAL">Car rental</option>
-                  <option value="TAXI">Taxi</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Vendor</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="e.g. SAS, Scandic"
-                  value={opt.vendor}
-                  onChange={(e) => updateOption(i, 'vendor', e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Description</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="e.g. Economy 08:00 ARN-CPH"
-                  value={opt.description}
-                  onChange={(e) => updateOption(i, 'description', e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-xs text-gray-500 mb-1">Price (USD)</label>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Confirmation number</label>
                   <input
-                    required
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={opt.priceUsd}
-                    onChange={(e) => updateOption(i, 'priceUsd', e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    type="text"
+                    placeholder="e.g. UA-2026-8472"
+                    value={entry.confirmationNumber}
+                    onChange={(e) => updateEntry(svc, 'confirmationNumber', e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                   />
                 </div>
-                {options.length > 1 && (
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Documents (optional)</label>
+                  <input
+                    type="file"
+                    accept="*/*"
+                    title={`Upload document for ${SERVICE_LABEL[svc] ?? svc}`}
+                    aria-label={`Upload document for ${SERVICE_LABEL[svc] ?? svc}`}
+                    className="hidden"
+                    ref={(el) => { fileInputRefs.current[svc] = el }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) addFile(svc, f) }}
+                  />
+                  {entry.files.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {entry.files.map((file, i) => (
+                        <div key={i} className="flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs text-indigo-700 max-w-[180px]">
+                          <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          <span className="truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(svc, i)}
+                            aria-label="Remove file"
+                            className="shrink-0 w-3.5 h-3.5 rounded-full bg-indigo-200 hover:bg-red-200 hover:text-red-700 flex items-center justify-center transition-colors"
+                          >
+                            <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <button
                     type="button"
-                    onClick={() => removeOption(i)}
-                    className="self-end mb-0.5 text-gray-400 hover:text-red-500 text-lg leading-none"
+                    onClick={() => fileInputRefs.current[svc]?.click()}
+                    className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
                   >
-                    ×
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    {entry.files.length > 0 ? 'Add another file' : 'Upload file (PDF, image, any format)'}
                   </button>
-                )}
-              </div>
-            </div>
-          ))}
+                </div>
 
-          <div className="flex gap-3">
-            {options.length < 9 && (
-              <button
-                type="button"
-                onClick={addOptionRow}
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-              >
-                + Add another option
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="ml-auto rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {submitting ? 'Submitting...' : 'Submit options'}
-            </button>
-          </div>
-        </form>
-      )}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Notes (optional)</label>
+                  <textarea
+                    rows={2}
+                    placeholder={`Notes about this ${SERVICE_LABEL[svc] ?? svc} booking…`}
+                    value={entry.notes}
+                    onChange={(e) => updateEntry(svc, 'notes', e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+                  />
+                </div>
+              </div>
+            )
+          })}
 
-      {/* Confirm booking form */}
-      {canConfirm && request.status !== 'BOOKING_CONFIRMED' && (
-        <form onSubmit={handleConfirm} className="rounded-xl border bg-white p-6 space-y-4">
-          <h2 className="text-base font-semibold text-gray-800">Confirm booking</h2>
-
-          {/* Tabs */}
-          <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
-            {([
-              { key: 'FLIGHT', label: '✈ Flight' },
-              { key: 'HOTEL', label: '🏨 Hotel' },
-              { key: 'CAR', label: '🚗 Car' },
-              { key: 'TAXI', label: '🚕 Taxi' },
-            ] as const).map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setBookingTab(key)}
-                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
-                  bookingTab === key
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Flight fields */}
-          {bookingTab === 'FLIGHT' && (
-            <>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Confirmation number</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="e.g. SK-2026-8472"
-                  value={flightConfirmNo}
-                  onChange={(e) => setFlightConfirmNo(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Notes (optional)</label>
-                <textarea
-                  rows={2}
-                  placeholder="Any additional flight booking notes..."
-                  value={flightNotes}
-                  onChange={(e) => setFlightNotes(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </>
-          )}
-
-          {/* Hotel fields */}
-          {bookingTab === 'HOTEL' && (
-            <>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Confirmation number</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="e.g. HTL-2026-3310"
-                  value={hotelConfirmNo}
-                  onChange={(e) => setHotelConfirmNo(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Notes (optional)</label>
-                <textarea
-                  rows={2}
-                  placeholder="Any additional hotel booking notes..."
-                  value={hotelNotes}
-                  onChange={(e) => setHotelNotes(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </>
-          )}
-
-          {/* Car rental fields */}
-          {bookingTab === 'CAR' && (
-            <>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Confirmation number</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="e.g. CAR-2026-7791"
-                  value={carConfirmNo}
-                  onChange={(e) => setCarConfirmNo(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Notes (optional)</label>
-                <textarea
-                  rows={2}
-                  placeholder="Any additional car rental notes..."
-                  value={carNotes}
-                  onChange={(e) => setCarNotes(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </>
-          )}
-
-          {/* Taxi fields */}
-          {bookingTab === 'TAXI' && (
-            <>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Confirmation number</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="e.g. TAXI-2026-4421"
-                  value={taxiConfirmNo}
-                  onChange={(e) => setTaxiConfirmNo(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Notes (optional)</label>
-                <textarea
-                  rows={2}
-                  placeholder="Any additional taxi notes..."
-                  value={taxiNotes}
-                  onChange={(e) => setTaxiNotes(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </>
+          {confirmSections.length === 0 && isAgentChooses && (
+            <p className="text-sm text-gray-400 text-center py-2">Select at least one service above.</p>
           )}
 
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              disabled={submitting || (isAgentChooses && confirmSections.filter((s) => s !== 'AGENT_CHOOSES').length === 0)}
+              className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
             >
-              {submitting ? 'Confirming...' : 'Confirm booking'}
+              {submitting ? 'Confirming…' : 'Confirm & notify employee →'}
             </button>
           </div>
         </form>
       )}
 
+      {/* Already confirmed: show booking confirmations */}
       {request.status === 'BOOKING_CONFIRMED' && (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-medium text-green-800">
-            Booking confirmed — {request.confirmationNumber}
-          </p>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-3">
+          <p className="text-sm font-semibold text-green-800">Booking confirmed</p>
+          {request.bookingConfirmations.length > 0 ? (
+            <div className="space-y-2">
+              {request.bookingConfirmations.map((c) => {
+                const SvcIcon = SERVICE_ICON[c.serviceType] ?? PlusCircleIcon
+                return (
+                <div key={c.id} className="flex items-start gap-3 rounded-lg border border-green-100 bg-white px-3 py-2.5">
+                  <SvcIcon className="w-5 h-5 shrink-0 text-gray-500 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">{SERVICE_LABEL[c.serviceType] ?? c.serviceType}</p>
+                    {c.confirmationNumber && <p className="text-sm font-mono font-bold text-green-700 mt-0.5">{c.confirmationNumber}</p>}
+                    {c.notes && <p className="text-xs text-gray-600 mt-0.5">{c.notes}</p>}
+                    {c.fileName && (
+                      <a href={`/api/booking-confirmations/${c.id}/file`} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-1">
+                        📎 {c.fileName}
+                      </a>
+                    )}
+                  </div>
+                </div>
+                )
+              })}
+            </div>
+          ) : (
+            request.confirmationNumber && (
+              <p className="text-sm text-green-700">Confirmation: <span className="font-mono font-bold">{request.confirmationNumber}</span></p>
+            )
+          )}
         </div>
       )}
     </div>

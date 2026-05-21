@@ -55,7 +55,7 @@ const AI_PROMPT = `Extract all users from this document and return a JSON array.
 - role: string    (one of: EMPLOYEE, MANAGER, TRAVEL_AGENT, FINANCE_ADMIN, SYSTEM_ADMIN — default "EMPLOYEE")
 
 Return ONLY the raw JSON array — no markdown, no explanation. Example:
-[{"name":"Anna Svensson","email":"anna@example.com","role":"EMPLOYEE"},{"name":"Erik Holm","email":"erik@example.com","role":"MANAGER"}]`
+[{"name":"Jane Smith","email":"jane@example.com","role":"EMPLOYEE"},{"name":"John Davis","email":"john@example.com","role":"MANAGER"}]`
 
 export async function POST(req: NextRequest) {
   const session = await auth()

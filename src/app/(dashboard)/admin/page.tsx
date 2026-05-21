@@ -23,7 +23,7 @@ export default async function AdminDashboard() {
 
   const [
     users, recentAudit, eventCount, allEvents,
-    pendingRequests, approvedSpend, pendingSpend,
+    pendingRequests, approvedSpend,
     pendingPayoutExpenses, payoutReports,
   ] = await Promise.all([
     prisma.user.findMany({
@@ -50,10 +50,6 @@ export default async function AdminDashboard() {
       where: { companyId, status: { in: ['APPROVED', 'PAID'] } },
       _sum: { amountUsd: true },
     }),
-    prisma.expense.aggregate({
-      where: { companyId, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
-      _sum: { amountUsd: true },
-    }),
     prisma.expense.findMany({
       where: { companyId, status: 'APPROVED', payoutReportId: null },
       include: {
@@ -71,63 +67,76 @@ export default async function AdminDashboard() {
   ])
 
   const totalApproved = Number(approvedSpend._sum.amountUsd ?? 0)
-  const totalPending = Number(pendingSpend._sum.amountUsd ?? 0)
   const totalPendingPayout = pendingPayoutExpenses.reduce((s, e) => s + Number(e.amountUsd), 0)
+  const missingReceiptsCount = pendingPayoutExpenses.filter(e => e.receipts.length === 0).length
+
+  const stats = [
+    { label: 'Total Users',    value: users.length,             icon: '👥', color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-200',    href: '/admin/users',              highlight: false },
+    { label: 'Events',         value: eventCount,               icon: '📅', color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200',   href: '/admin/events',             highlight: false },
+    { label: 'Open Requests',  value: pendingRequests,          icon: '🕐', color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-300',  href: '/employee/travel-requests', highlight: pendingRequests > 0 },
+    { label: 'Approved Spend', value: `$${totalApproved.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, icon: '💰', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', href: '/finance', highlight: false },
+    { label: 'Pending Payout', value: `$${totalPendingPayout.toFixed(0)}`, icon: '💳', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-300', href: '/finance/payout-reports', highlight: totalPendingPayout > 0 },
+  ]
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900">Admin dashboard</h1>
-
-      {/* Top stat row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Total users</p>
-          <p className="mt-1 text-3xl font-bold text-indigo-600">{users.length}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Active users</p>
-          <p className="mt-1 text-3xl font-bold text-green-600">{users.filter((u) => u.isActive).length}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Events</p>
-          <p className="mt-1 text-3xl font-bold text-blue-600">{eventCount}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Open travel requests</p>
-          <p className="mt-1 text-3xl font-bold text-orange-500">{pendingRequests}</p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {pendingRequests > 0
+            ? `${pendingRequests} open travel request${pendingRequests > 1 ? 's' : ''} need attention`
+            : 'All caught up — manage your platform below'}
+        </p>
       </div>
 
-      {/* Quick actions */}
-      <div className="flex gap-3 flex-wrap">
-        <Link href="/admin/users" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-          Manage users
-        </Link>
-        <Link href="/admin/events" className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-          Manage events
-        </Link>
-        <Link href="/admin/accounts" className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
-          View all accounts
-        </Link>
-        <Link href="/admin/book" className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100">
-          + Create request
-        </Link>
-      </div>
+      {/* Needs Attention */}
+      {(pendingRequests > 0 || missingReceiptsCount > 0 || pendingPayoutExpenses.length > 0) && (
+        <section>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Needs attention</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {pendingRequests > 0 && (
+              <Link href="/employee/travel-requests" className="rounded-xl border-2 border-amber-300 bg-amber-50 px-5 py-4 flex items-center justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <p className="text-3xl font-bold text-amber-600">{pendingRequests}</p>
+                  <p className="text-sm font-medium text-amber-700 mt-0.5">Open requests</p>
+                </div>
+                <svg className="w-5 h-5 text-amber-500 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </Link>
+            )}
+            {missingReceiptsCount > 0 && (
+              <Link href="#pending-expenses" className="rounded-xl border-2 border-red-300 bg-red-50 px-5 py-4 flex items-center justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <p className="text-3xl font-bold text-red-600">{missingReceiptsCount}</p>
+                  <p className="text-sm font-medium text-red-700 mt-0.5">Missing receipts</p>
+                </div>
+                <svg className="w-5 h-5 text-red-500 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </Link>
+            )}
+            {pendingPayoutExpenses.length > 0 && (
+              <Link href="/finance/payout-reports" className="rounded-xl border-2 border-orange-300 bg-orange-50 px-5 py-4 flex items-center justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <p className="text-3xl font-bold text-orange-600">{pendingPayoutExpenses.length}</p>
+                  <p className="text-sm font-medium text-orange-700 mt-0.5">Pending payout</p>
+                </div>
+                <svg className="w-5 h-5 text-orange-500 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
-      {/* Spend overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Approved, awaiting payout</p>
-          <p className="mt-1 text-3xl font-bold text-green-600">${totalPendingPayout.toFixed(2)}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Approved spend (total)</p>
-          <p className="mt-1 text-3xl font-bold text-indigo-600">${totalApproved.toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Pending approval</p>
-          <p className="mt-1 text-3xl font-bold text-yellow-500">${totalPending.toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>
-        </div>
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {stats.map((s) => (
+          <Link key={s.label} href={s.href} className={`rounded-xl ${s.highlight ? 'border-2' : 'border'} ${s.border} ${s.bg} p-5 hover:shadow-md transition-shadow`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xl">{s.icon}</span>
+            </div>
+            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="mt-1 text-xs font-medium text-gray-600">{s.label}</p>
+          </Link>
+        ))}
       </div>
 
       {/* Pending expenses — awaiting payout */}
@@ -147,7 +156,7 @@ export default async function AdminDashboard() {
             {/* Mobile */}
             <div className="sm:hidden space-y-3">
               {pendingPayoutExpenses.map((e) => (
-                <div key={e.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
+                <div key={e.id} className={`rounded-xl border bg-white px-4 py-3 space-y-2 ${e.receipts.length === 0 ? 'border-red-200' : ''}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-medium text-gray-900 text-sm">{e.employee.name}</p>
@@ -165,7 +174,7 @@ export default async function AdminDashboard() {
                         📎 {e.receipts.length} receipt{e.receipts.length > 1 ? 's' : ''} — View →
                       </Link>
                     ) : (
-                      <span className="text-xs text-orange-500 font-medium">⚠ No receipt</span>
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-100 rounded-full px-2 py-0.5 border border-red-200">⚠ Missing</span>
                     )}
                   </div>
                 </div>
@@ -187,11 +196,13 @@ export default async function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {pendingPayoutExpenses.map((e) => (
-                    <tr key={e.id} className="hover:bg-gray-50">
+                    <tr key={e.id} className={`hover:bg-gray-50 ${e.receipts.length === 0 ? 'bg-red-50/40' : ''}`}>
                       <td className="px-4 py-3 font-medium text-gray-900">{e.employee.name}</td>
-                      <td className="px-4 py-3 text-gray-500">
-                        <span className="font-mono text-xs text-gray-400 mr-1">{e.event.eventCode}</span>
-                        {e.event.eventName}
+                      <td className="px-4 py-3 text-gray-500 max-w-[180px]">
+                        <span className="block truncate" title={e.event.eventName}>
+                          <span className="font-mono text-xs text-gray-400 mr-1">{e.event.eventCode}</span>
+                          {e.event.eventName}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{e.category.replace(/_/g, ' ')}</td>
                       <td className="px-4 py-3 text-gray-500">{e.merchantName ?? '—'}</td>
@@ -201,7 +212,7 @@ export default async function AdminDashboard() {
                             ✓ {e.receipts.length} receipt{e.receipts.length > 1 ? 's' : ''}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 bg-orange-50 rounded-full px-2 py-0.5">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-100 rounded-full px-2 py-0.5 border border-red-200">
                             ⚠ Missing
                           </span>
                         )}
@@ -292,7 +303,9 @@ export default async function AdminDashboard() {
                     return (
                       <tr key={ev.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-mono text-xs text-gray-500">{ev.eventCode}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{ev.eventName}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px]">
+                          <span className="block truncate" title={ev.eventName}>{ev.eventName}</span>
+                        </td>
                         <td className="px-4 py-3">
                           <Badge variant={statusToBadgeVariant(ev.status)}>{ev.status}</Badge>
                         </td>
@@ -454,7 +467,7 @@ export default async function AdminDashboard() {
                   <td className="px-4 py-3 font-mono text-xs text-gray-700">{log.action}</td>
                   <td className="px-4 py-3 text-gray-500">{log.entityType}</td>
                   <td className="px-4 py-3 text-gray-500">{log.actor?.name ?? 'System'}</td>
-                  <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</td>
                 </tr>
               ))}
             </tbody>

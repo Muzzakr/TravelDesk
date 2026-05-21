@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
 import Link from 'next/link'
+import { DateInput } from '@/components/ui/DateInput'
 
 interface Receipt {
   id: string
@@ -57,6 +58,8 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
   PAID: 'Reimbursed and included in a payout report.',
 }
 
+const inputCls = 'rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-200'
+
 export default function ExpenseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [expense, setExpense] = useState<ExpenseDetail | null>(null)
@@ -70,12 +73,29 @@ export default function ExpenseDetailPage() {
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [uploadError, setUploadError] = useState('')
 
+  // Edit mode
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState({ amountUsd: '', description: '', merchantName: '', transactionDate: '' })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
+
   async function load() {
     const [expRes, sessionRes] = await Promise.all([
       fetch(`/api/expenses/${id}`, { cache: 'no-store' }),
       fetch('/api/auth/session'),
     ])
-    if (expRes.ok) setExpense(await expRes.json())
+    if (expRes.ok) {
+      const data = await expRes.json()
+      setExpense(data)
+      setEditForm({
+        amountUsd: String(Number(data.amountUsd)),
+        description: data.description,
+        merchantName: data.merchantName ?? '',
+        transactionDate: data.transactionDate
+          ? new Date(data.transactionDate).toISOString().slice(0, 10)
+          : '',
+      })
+    }
     const session = await sessionRes.json()
     setCurrentUserId(session?.user?.id ?? null)
     setLoading(false)
@@ -126,7 +146,7 @@ export default function ExpenseDetailPage() {
           const d = await res.json()
           errorMsg = d.error ?? errorMsg
         } catch {
-          // response wasn't JSON (e.g. gateway timeout) — keep the status message
+          // response wasn't JSON — keep the status message
         }
         setUploadError(errorMsg)
       } else {
@@ -137,6 +157,29 @@ export default function ExpenseDetailPage() {
     } finally {
       setUploadingReceipt(false)
     }
+  }
+
+  async function saveEdit() {
+    setSavingEdit(true)
+    setEditError('')
+    const res = await fetch(`/api/expenses/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amountUsd: Number(editForm.amountUsd),
+        description: editForm.description,
+        merchantName: editForm.merchantName || undefined,
+        transactionDate: editForm.transactionDate || undefined,
+      }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setEditError(d.error ?? 'Save failed')
+    } else {
+      setEditMode(false)
+      await load()
+    }
+    setSavingEdit(false)
   }
 
   async function submitExpense() {
@@ -156,13 +199,33 @@ export default function ExpenseDetailPage() {
   return (
     <div className="max-w-2xl space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <Link href="/employee/expenses" className="text-xs text-indigo-600 hover:underline">← All expenses</Link>
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">{expense.description}</h1>
+          {editMode ? (
+            <input
+              title="Description"
+              className={`mt-1 w-full text-2xl font-bold text-gray-900 ${inputCls}`}
+              value={editForm.description}
+              onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+            />
+          ) : (
+            <h1 className="mt-1 text-2xl font-bold text-gray-900">{expense.description}</h1>
+          )}
           <p className="text-sm text-gray-500">{expense.event.eventName} · {expense.category}</p>
         </div>
-        <Badge variant={statusToBadgeVariant(expense.status)}>{expense.status}</Badge>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <Badge variant={statusToBadgeVariant(expense.status)}>{expense.status}</Badge>
+          {expense.status === 'DRAFT' && !editMode && (
+            <button
+              type="button"
+              onClick={() => setEditMode(true)}
+              className="text-xs font-medium text-indigo-600 hover:underline"
+            >
+              Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Status explanation */}
@@ -180,8 +243,91 @@ export default function ExpenseDetailPage() {
         </div>
       )}
 
-      {/* Actions for DRAFT */}
-      {expense.status === 'DRAFT' && (
+      {/* Expense details */}
+      <div className="rounded-xl border bg-white p-6 grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Amount</p>
+          {editMode ? (
+            <input
+              type="number" step="0.01" min="0"
+              title="Amount (USD)"
+              value={editForm.amountUsd}
+              onChange={e => setEditForm(p => ({ ...p, amountUsd: e.target.value }))}
+              className={`w-28 ${inputCls}`}
+            />
+          ) : (
+            <p className="text-lg font-bold text-gray-900">${Number(expense.amountUsd).toFixed(2)} {expense.currency}</p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Category</p>
+          <p className="text-gray-900">{expense.category}</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Merchant</p>
+          {editMode ? (
+            <input
+              type="text"
+              value={editForm.merchantName}
+              onChange={e => setEditForm(p => ({ ...p, merchantName: e.target.value }))}
+              placeholder="Restaurant or vendor"
+              className={`w-full ${inputCls}`}
+            />
+          ) : (
+            <p className="text-gray-900">{expense.merchantName ?? '—'}</p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Date</p>
+          {editMode ? (
+            <DateInput
+              title="Date"
+              value={editForm.transactionDate}
+              onChange={v => setEditForm(p => ({ ...p, transactionDate: v }))}
+              className={inputCls}
+            />
+          ) : (
+            <p className="text-gray-900">
+              {expense.transactionDate
+                ? new Date(expense.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                : '—'}
+            </p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Event</p>
+          <p className="text-gray-900">{expense.event.eventName} ({expense.event.eventCode})</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Submitted</p>
+          <p className="text-gray-500">{new Date(expense.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
+        </div>
+      </div>
+
+      {/* Edit mode action bar */}
+      {editMode && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={saveEdit}
+            disabled={savingEdit}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {savingEdit ? 'Saving…' : 'Save changes'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEditMode(false); setEditError('') }}
+            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          {editError && <p className="text-sm text-red-600">{editError}</p>}
+        </div>
+      )}
+
+      {/* Actions for DRAFT (submit) — only in read mode */}
+      {expense.status === 'DRAFT' && !editMode && (
         <div className="flex gap-3">
           <button
             type="button"
@@ -193,38 +339,6 @@ export default function ExpenseDetailPage() {
           </button>
         </div>
       )}
-
-      {/* Expense details */}
-      <div className="rounded-xl border bg-white p-6 grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Amount</p>
-          <p className="text-lg font-bold text-gray-900">${Number(expense.amountUsd).toFixed(2)} {expense.currency}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Category</p>
-          <p className="text-gray-900">{expense.category}</p>
-        </div>
-        {expense.merchantName && (
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Merchant</p>
-            <p className="text-gray-900">{expense.merchantName}</p>
-          </div>
-        )}
-        {expense.transactionDate && (
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase mb-1">Date</p>
-            <p className="text-gray-900">{new Date(expense.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
-          </div>
-        )}
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Event</p>
-          <p className="text-gray-900">{expense.event.eventName} ({expense.event.eventCode})</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Submitted</p>
-          <p className="text-gray-500">{new Date(expense.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
-        </div>
-      </div>
 
       {/* Receipts */}
       <div className="rounded-xl border bg-white p-6">
@@ -281,8 +395,8 @@ export default function ExpenseDetailPage() {
           </div>
         )}
 
-        {/* Upload receipt (only for non-paid/non-rejected expenses) */}
-        {!['PAID', 'REJECTED', 'APPROVED'].includes(expense.status) && (
+        {/* Upload receipt — only for DRAFT in edit mode */}
+        {expense.status === 'DRAFT' && editMode && (
           <div className="mt-4 border-t border-gray-100 pt-4">
             <p className="mb-2 text-xs font-medium text-gray-500 uppercase">Add receipt</p>
             <FileUpload
@@ -310,7 +424,7 @@ export default function ExpenseDetailPage() {
                     {action.actor.name} <span className="text-gray-400 font-normal">({action.actionType})</span>
                   </p>
                   {action.note && <p className="text-xs text-gray-500 mt-0.5">"{action.note}"</p>}
-                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
                 </div>
               </div>
             ))}
@@ -331,7 +445,7 @@ export default function ExpenseDetailPage() {
                   <p className="font-medium text-gray-900">
                     {c.authorId === currentUserId ? 'You' : c.authorName}
                   </p>
-                  <p className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
                 </div>
                 <p className="text-gray-700">{c.body}</p>
               </div>

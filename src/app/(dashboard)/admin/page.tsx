@@ -23,7 +23,7 @@ export default async function AdminDashboard() {
 
   const [
     users, recentAudit, eventCount, allEvents,
-    pendingRequests, approvedSpend,
+    allTravelRequests, approvedSpend,
     pendingPayoutExpenses, payoutReports,
   ] = await Promise.all([
     prisma.user.findMany({
@@ -43,8 +43,16 @@ export default async function AdminDashboard() {
       select: { id: true, eventCode: true, eventName: true, status: true, budgetUsd: true, approvedSpendUsd: true, eventDate: true },
       orderBy: [{ eventDate: 'asc' }, { eventCode: 'asc' }],
     }),
-    prisma.travelRequest.count({
-      where: { companyId, status: { in: ['PENDING_AGENT', 'PENDING_MANAGER', 'OPTIONS_PROVIDED'] } },
+    prisma.travelRequest.findMany({
+      where: { companyId },
+      select: {
+        id: true, status: true, createdAt: true,
+        origin: true, destination: true,
+        employee: { select: { name: true } },
+        event: { select: { eventName: true, eventCode: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
     }),
     prisma.expense.aggregate({
       where: { companyId, status: { in: ['APPROVED', 'PAID'] } },
@@ -65,6 +73,10 @@ export default async function AdminDashboard() {
       take: 10,
     }),
   ])
+
+  const pendingRequests = allTravelRequests.filter(r =>
+    ['PENDING_AGENT', 'PENDING_MANAGER', 'OPTIONS_PROVIDED'].includes(r.status)
+  ).length
 
   const totalApproved = Number(approvedSpend._sum.amountUsd ?? 0)
   const totalPendingPayout = pendingPayoutExpenses.reduce((s, e) => s + Number(e.amountUsd), 0)
@@ -138,6 +150,69 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Travel Requests */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-800">Travel requests</h2>
+          <Link href="/employee/travel-requests" className="text-sm font-medium text-indigo-600 hover:underline">View all →</Link>
+        </div>
+        {allTravelRequests.length === 0 ? (
+          <div className="rounded-xl border bg-white p-6 text-sm text-gray-400">No travel requests yet.</div>
+        ) : (
+          <>
+            {/* Mobile */}
+            <div className="sm:hidden space-y-3">
+              {allTravelRequests.map((r) => (
+                <div key={r.id} className="rounded-xl border bg-white px-4 py-3 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-gray-900 text-sm">{r.employee.name}</p>
+                    <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
+                  </div>
+                  <p className="text-xs text-gray-500">{r.origin} → {r.destination}</p>
+                  <p className="text-xs text-gray-400">
+                    <span className="font-mono mr-1">{r.event.eventCode}</span>{r.event.eventName}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {/* Desktop */}
+            <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white">
+              <table className="min-w-[650px] w-full divide-y divide-gray-100 text-sm">
+                <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Employee</th>
+                    <th className="px-4 py-3 text-left">Route</th>
+                    <th className="px-4 py-3 text-left">Event</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {allTravelRequests.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{r.employee.name}</td>
+                      <td className="px-4 py-3 text-gray-500">{r.origin} → {r.destination}</td>
+                      <td className="px-4 py-3 text-gray-500 max-w-[180px]">
+                        <span className="block truncate" title={r.event.eventName}>
+                          <span className="font-mono text-xs text-gray-400 mr-1">{r.event.eventCode}</span>
+                          {r.event.eventName}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                        {new Date(r.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Pending expenses — awaiting payout */}
       <section>

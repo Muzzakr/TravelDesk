@@ -39,7 +39,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { heading: 'Operations' },
     { label: 'Admin Dashboard',   href: '/admin' },
     { label: 'Travel Requests',   href: '/employee/travel-requests' },
-    { label: '+ New Request',     href: '/admin/book' },
     { label: 'Expenses',          href: '/employee/expenses?view=admin' },
     { label: 'Card Transactions', href: '/finance/cards' },
     { heading: 'Finance' },

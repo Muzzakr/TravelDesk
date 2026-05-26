@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { auth } from '@/lib/auth'
 
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
 function IconPlane({ className = 'w-5 h-5' }: { className?: string }) {
@@ -74,21 +73,7 @@ function IconArrow({ className = 'w-4 h-4' }: { className?: string }) {
 }
 
 
-export default async function LandingPage() {
-  const session = await auth()
-  const isLoggedIn = !!session?.user
-
-  const roleHome: Record<string, string> = {
-    SYSTEM_ADMIN: '/admin',
-    MANAGER: '/manager',
-    TRAVEL_AGENT: '/agent',
-    FINANCE_ADMIN: '/finance',
-    EMPLOYEE: '/employee',
-  }
-  const dashboardHref = isLoggedIn
-    ? (roleHome[session!.user!.role ?? ''] ?? '/employee')
-    : null
-
+export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900 antialiased">
 
@@ -173,134 +158,6 @@ export default async function LandingPage() {
               ))}
             </div>
 
-            {/* Mac window UI preview */}
-            <div className="mt-16 mx-auto max-w-5xl relative px-8">
-
-              {/* Floating stat card — top left */}
-              <div className="hidden lg:block absolute left-0 top-8 z-20 w-48">
-                <div className="rounded-2xl border border-white/10 bg-[#0f0f18] backdrop-blur-md px-5 py-4 text-left shadow-2xl shadow-black/70 ring-1 ring-white/5">
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest font-semibold">Approved today</p>
-                  <p className="text-3xl font-bold text-emerald-400 mt-1 tabular-nums">12</p>
-                  <p className="text-[10px] text-emerald-500 mt-1">↑ 4 from yesterday</p>
-                </div>
-              </div>
-
-              {/* Floating stat card — top right */}
-              <div className="hidden lg:block absolute right-0 top-8 z-20 w-48">
-                <div className="rounded-2xl border border-white/10 bg-[#0f0f18] backdrop-blur-md px-5 py-4 text-left shadow-2xl shadow-black/70 ring-1 ring-white/5">
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest font-semibold">Avg approval</p>
-                  <p className="text-3xl font-bold text-indigo-400 mt-1 tabular-nums">1.8h</p>
-                  <p className="text-[10px] text-indigo-400 mt-1">↓ 22 min faster</p>
-                </div>
-              </div>
-
-              {/* Floating stat card — bottom left */}
-              <div className="hidden lg:block absolute left-0 bottom-8 z-20 w-48">
-                <div className="rounded-2xl border border-white/10 bg-[#0f0f18] backdrop-blur-md px-5 py-4 text-left shadow-2xl shadow-black/70 ring-1 ring-white/5">
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest font-semibold">Budget used</p>
-                  <p className="text-3xl font-bold text-gray-100 mt-1 tabular-nums">67%</p>
-                  <div className="mt-2.5 h-1.5 w-full rounded-full bg-white/10">
-                    <div className="h-1.5 w-[67%] rounded-full bg-indigo-500" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom glow */}
-              <div aria-hidden className="absolute inset-x-16 -bottom-4 h-20 bg-indigo-600/20 blur-3xl rounded-full pointer-events-none" />
-
-              {/* Mac window mockup */}
-              <div className="hero-mockup-3d rounded-xl border border-white/[0.10] bg-[#0c0c10] shadow-[0_32px_80px_rgba(0,0,0,0.9)] overflow-hidden relative">
-
-                {/* Top edge highlight */}
-                <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent pointer-events-none" />
-
-                {/* macOS-style window chrome */}
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] bg-[#151518]">
-                  {/* Traffic lights */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="w-3 h-3 rounded-full bg-[#ff5f57] shadow-[0_0_0_0.5px_rgba(0,0,0,0.3)]" />
-                    <span className="w-3 h-3 rounded-full bg-[#febc2e] shadow-[0_0_0_0.5px_rgba(0,0,0,0.3)]" />
-                    <span className="w-3 h-3 rounded-full bg-[#28c840] shadow-[0_0_0_0.5px_rgba(0,0,0,0.3)]" />
-                  </div>
-                  {/* Address bar */}
-                  <div className="flex-1 flex justify-center">
-                    <div className="w-56 rounded-md bg-white/[0.05] border border-white/[0.07] px-3 py-1 text-[11px] text-gray-500 font-mono text-center">
-                      traveldesk.app/manager
-                    </div>
-                  </div>
-                  {/* Live badge */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] text-gray-600 font-medium">Live</span>
-                  </div>
-                </div>
-
-                {/* App layout */}
-                <div className="flex h-[310px]">
-
-                  {/* Sidebar */}
-                  <div className="w-44 shrink-0 border-r border-white/[0.05] bg-[#10101a] px-3 py-5 flex flex-col gap-0.5">
-                    <div className="px-2 pb-3 mb-2 border-b border-white/[0.05]">
-                      <span className="text-[12px] font-bold text-indigo-300 tracking-tight">TravelDesk</span>
-                    </div>
-                    {[
-                      ['Dashboard', false],
-                      ['Approvals', true],
-                      ['Team Spend', false],
-                      ['Teams Travel', false],
-                    ].map(([label, active]) => (
-                      <div
-                        key={String(label)}
-                        className={`rounded-lg px-3 py-2 text-[11px] font-medium ${
-                          active ? 'bg-indigo-600/30 text-indigo-300' : 'text-gray-600'
-                        }`}
-                      >
-                        {String(label)}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Main content */}
-                  <div className="flex-1 overflow-hidden">
-                    {/* Page header */}
-                    <div className="px-6 py-3.5 border-b border-white/[0.04] flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-200">Approvals</span>
-                      <span className="text-[10px] text-gray-600 bg-white/[0.04] border border-white/[0.06] rounded-full px-2.5 py-0.5">4 pending</span>
-                    </div>
-
-                    {/* Column headers */}
-                    <div className="grid grid-cols-[1.5fr_1.5fr_1fr_0.7fr_0.9fr] px-6 py-2.5 border-b border-white/[0.04] text-[9px] font-semibold tracking-widest text-gray-600 uppercase">
-                      <span>Employee</span>
-                      <span>Destination</span>
-                      <span>Event</span>
-                      <span>Cost</span>
-                      <span>Status</span>
-                    </div>
-
-                    {/* Rows */}
-                    {[
-                      { name: 'Alex Johnson',  route: 'New York → Chicago',    event: 'Q3 Kickoff',   cost: '$840',   status: 'PENDING',  color: 'text-amber-950 bg-amber-400' },
-                      { name: 'Sara Williams', route: 'Los Angeles → Miami',  event: 'Sales Summit', cost: '$1,240', status: 'APPROVED', color: 'text-emerald-950 bg-emerald-400' },
-                      { name: 'Kim Anderson',  route: 'Chicago → Dallas',     event: 'Q3 Kickoff',   cost: '$620',   status: 'BOOKED',   color: 'text-violet-950 bg-violet-400' },
-                      { name: 'John Davis',    route: 'New York → Seattle',   event: 'Tech Conf',    cost: '$990',   status: 'PENDING',  color: 'text-amber-950 bg-amber-400' },
-                    ].map((row) => (
-                      <div
-                        key={row.name}
-                        className="grid grid-cols-[1.5fr_1.5fr_1fr_0.7fr_0.9fr] px-6 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-colors items-center"
-                      >
-                        <span className="text-[12px] font-semibold text-gray-200 truncate pr-2">{row.name}</span>
-                        <span className="text-[11px] text-gray-500 truncate pr-2">{row.route}</span>
-                        <span className="text-[11px] text-gray-600 truncate pr-2">{row.event}</span>
-                        <span className="text-[11px] font-semibold text-gray-400">{row.cost}</span>
-                        <span className={`inline-block text-[9px] font-bold px-2.5 py-0.5 rounded-full ${row.color}`}>
-                          {row.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div aria-hidden className="h-28 bg-gradient-to-b from-transparent to-white" />
@@ -319,6 +176,100 @@ export default async function LandingPage() {
                 <p className="mt-1 text-sm text-gray-500">{stat.label}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ══ PRODUCT PREVIEW ══════════════════════════════════════════════════ */}
+        <section className="py-20 px-6 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-3">Product</p>
+              <h2 className="text-4xl font-bold text-gray-900">See it in action</h2>
+              <p className="mt-3 text-gray-500 max-w-xl mx-auto">A real-time overview of everything that's happening across your company's travel.</p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 shadow-2xl shadow-gray-200/80 overflow-hidden">
+              {/* Browser chrome */}
+              <div className="bg-gray-100 border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+                <div className="flex gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-gray-300" />
+                  <span className="w-3 h-3 rounded-full bg-gray-300" />
+                  <span className="w-3 h-3 rounded-full bg-gray-300" />
+                </div>
+                <div className="flex-1 flex justify-center">
+                  <div className="w-64 bg-white border border-gray-200 rounded-md px-3 py-1 text-[11px] text-gray-400 font-mono text-center">
+                    app.traveldesk.com/admin
+                  </div>
+                </div>
+              </div>
+
+              {/* App layout */}
+              <div className="bg-gray-50 flex h-[380px]">
+                {/* Sidebar */}
+                <div className="w-44 shrink-0 bg-white border-r border-gray-100 px-3 py-5 flex flex-col gap-1">
+                  <div className="px-2 pb-3 mb-2 border-b border-gray-100">
+                    <span className="text-xs font-bold text-indigo-600 tracking-tight">TravelDesk</span>
+                  </div>
+                  {[['Dashboard', true], ['Travel Requests', false], ['Events', false], ['Payout Reports', false], ['Users', false], ['Audit Log', false]].map(([label, active]) => (
+                    <div key={String(label)} className={`rounded-lg px-3 py-2 text-[11px] font-medium ${active ? 'bg-indigo-50 text-indigo-700' : 'text-gray-400'}`}>
+                      {String(label)}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Main */}
+                <div className="flex-1 overflow-hidden p-5">
+                  <p className="text-sm font-bold text-gray-900 mb-4">Admin Dashboard</p>
+
+                  {/* KPI cards */}
+                  <div className="grid grid-cols-4 gap-3 mb-5">
+                    {[
+                      { label: 'Total Users',    value: '24',    color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-100' },
+                      { label: 'Open Requests',  value: '7',     color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200' },
+                      { label: 'Events',         value: '5',     color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-100' },
+                      { label: 'Pending Payout', value: '$4 200',color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+                    ].map((k) => (
+                      <div key={k.label} className={`rounded-xl border ${k.border} ${k.bg} p-3`}>
+                        <p className={`text-lg font-bold ${k.color}`}>{k.value}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">{k.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Mini table */}
+                  <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-gray-700">Travel Requests</p>
+                    </div>
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {['Employee', 'Route', 'Event', 'Status'].map((h) => (
+                            <th key={h} className="px-4 py-2 text-left text-gray-400 font-medium">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {[
+                          { name: 'Anna Karlsson', route: 'Stockholm → London', event: 'Q3 Summit',  status: 'PENDING',  sc: 'bg-amber-100 text-amber-700' },
+                          { name: 'Marcus Löf',    route: 'Göteborg → Berlin',  event: 'Sales Conf', status: 'APPROVED', sc: 'bg-green-100 text-green-700' },
+                          { name: 'Sofia Berg',    route: 'Malmö → Paris',      event: 'Q3 Summit',  status: 'BOOKED',   sc: 'bg-violet-100 text-violet-700' },
+                        ].map((row) => (
+                          <tr key={row.name} className="hover:bg-gray-50/60">
+                            <td className="px-4 py-2.5 font-medium text-gray-800">{row.name}</td>
+                            <td className="px-4 py-2.5 text-gray-500">{row.route}</td>
+                            <td className="px-4 py-2.5 text-gray-400">{row.event}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${row.sc}`}>{row.status}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -456,6 +407,56 @@ export default async function LandingPage() {
           </div>
         </section>
 
+        {/* ══ TESTIMONIALS ══════════════════════════════════════════════════════ */}
+        <section className="py-28 px-6 bg-gray-50">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-3">What our customers say</p>
+              <h2 className="text-4xl font-bold text-gray-900">Trusted by travel managers</h2>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                {
+                  quote: 'Saved us 4 hours per week in approval back-and-forth. Our managers can approve from their phones in seconds.',
+                  name: 'Anna K.', role: 'HR Manager', company: 'Nordea Group',
+                  initials: 'AK', color: 'bg-indigo-600',
+                },
+                {
+                  quote: 'We used to track everything in spreadsheets. TravelDesk replaced that entirely — receipts, budgets, payout reports, all in one place.',
+                  name: 'Marcus L.', role: 'Finance Director', company: 'Kinnevik',
+                  initials: 'ML', color: 'bg-violet-600',
+                },
+                {
+                  quote: 'The audit log alone was worth it. Our compliance team loves having a full trail of every approval decision.',
+                  name: 'Sofia B.', role: 'Compliance Lead', company: 'SEB',
+                  initials: 'SB', color: 'bg-emerald-600',
+                },
+              ].map((t) => (
+                <div key={t.name} className="bg-white rounded-2xl border border-gray-100 p-7 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex gap-1 mb-5">
+                    {[0,1,2,3,4].map((i) => (
+                      <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <p className="text-gray-700 text-sm leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-full ${t.color} text-white text-xs font-bold flex items-center justify-center shrink-0`}>
+                      {t.initials}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{t.name}</p>
+                      <p className="text-xs text-gray-500">{t.role} · {t.company}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ══ SECURITY ══════════════════════════════════════════════════════════ */}
         <section id="security" className="py-28 px-6 bg-white">
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-20 items-start">
@@ -506,6 +507,53 @@ export default async function LandingPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══ FAQ ═══════════════════════════════════════════════════════════════ */}
+        <section className="py-28 px-6 bg-white">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-16">
+              <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-3">FAQ</p>
+              <h2 className="text-4xl font-bold text-gray-900">Common questions</h2>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                {
+                  q: 'Can multiple managers approve a travel request?',
+                  a: 'Yes. TravelDesk supports a hierarchical approval flow — a request can be routed through both a direct manager and a travel agent before being confirmed. Each step is logged in the audit trail.',
+                },
+                {
+                  q: 'How does TravelDesk handle GDPR?',
+                  a: 'All data is stored on EU-based servers and isolated per company. Employees can request data exports at any time. No personal data is shared between companies or used for training.',
+                },
+                {
+                  q: 'Can we try it for free?',
+                  a: 'Yes. Create a company account and invite your team — no credit card required. During the beta period, all features are available at no cost.',
+                },
+                {
+                  q: 'What happens if an expense is missing a receipt?',
+                  a: 'The system flags the expense in red on the admin dashboard. The expense cannot be included in a payout report until a receipt is uploaded.',
+                },
+                {
+                  q: 'Which roles are included in TravelDesk?',
+                  a: 'Five roles: Employee (submits requests and expenses), Manager (approves trips), Travel Agent (books and arranges travel), Finance Admin (handles payouts and reports), and System Admin (manages users and policy).',
+                },
+                {
+                  q: 'Does TravelDesk integrate with our existing tools?',
+                  a: 'TravelDesk supports webhook integrations so you can connect to Slack, HR systems or custom internal tools. Native integrations with major tools are on the roadmap.',
+                },
+              ].map((item) => (
+                <details key={item.q} className="group rounded-xl border border-gray-100 bg-white px-6 py-4 hover:border-indigo-200 transition-colors cursor-pointer">
+                  <summary className="flex items-center justify-between gap-4 text-sm font-semibold text-gray-900 list-none select-none">
+                    {item.q}
+                    <span className="shrink-0 w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 group-open:rotate-45 transition-transform duration-200 text-xs font-bold">+</span>
+                  </summary>
+                  <p className="mt-3 text-sm text-gray-500 leading-relaxed">{item.a}</p>
+                </details>
+              ))}
             </div>
           </div>
         </section>

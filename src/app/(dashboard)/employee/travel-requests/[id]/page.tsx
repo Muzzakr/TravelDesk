@@ -14,6 +14,7 @@ interface BookingOption {
   vendor: string
   description: string
   priceUsd: number
+  bookingLink?: string | null
   isSelected: boolean
 }
 
@@ -294,9 +295,17 @@ export default function EmployeeTravelRequestDetailPage() {
                       onChange={() => setPicks((prev) => ({ ...prev, [serviceType]: opt.id }))}
                       className="mt-1 accent-indigo-600"
                     />
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900">{opt.vendor}</p>
                       <p className="text-sm text-gray-500 mt-0.5">{opt.description}</p>
+                      {opt.bookingLink && (
+                        <a href={opt.bookingLink} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          View booking →
+                        </a>
+                      )}
                     </div>
                     <p className="text-sm font-bold text-indigo-700 shrink-0">${Number(opt.priceUsd).toFixed(2)}</p>
                   </label>

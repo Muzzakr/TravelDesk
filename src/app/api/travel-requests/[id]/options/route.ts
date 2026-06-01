@@ -14,6 +14,7 @@ const OptionsSchema = z.object({
         vendor: z.string().min(1),
         description: z.string().min(1),
         priceUsd: z.number().positive(),
+        bookingLink: z.string().url().nullish(),
       })
     )
     .min(1)
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       vendor: o.vendor,
       description: o.description,
       priceUsd: o.priceUsd,
+      bookingLink: o.bookingLink ?? null,
     })),
   })
 

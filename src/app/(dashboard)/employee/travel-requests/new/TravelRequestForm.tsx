@@ -19,12 +19,10 @@ type FlightData = {
   returnTime: string
   flexibleDates: boolean
   notes: string
-  preferredLink: string
-  agentNote: string
 }
-type HotelData = { city: string; checkIn: string; checkOut: string; rooms: string; area: string; notes: string; preferredLink: string; agentNote: string }
-type TaxiData  = { pickup: string; dropoff: string; date: string; time: string; notes: string; preferredLink: string; agentNote: string }
-type CarData   = { pickupCity: string; pickupDate: string; pickupTime: string; returnDate: string; returnTime: string; vehicleType: string; notes: string; preferredLink: string; agentNote: string }
+type HotelData = { city: string; checkIn: string; checkOut: string; rooms: string; area: string; notes: string }
+type TaxiData  = { pickup: string; dropoff: string; date: string; time: string; notes: string }
+type CarData   = { pickupCity: string; pickupDate: string; pickupTime: string; returnDate: string; returnTime: string; vehicleType: string; notes: string }
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -229,18 +227,18 @@ function EventCombobox({ value, onChange, events }: {
     onChange(null)
     const lower = q.toLowerCase()
     const filtered = q.length === 0
-      ? events.slice(0, 8)
+      ? events
       : events.filter(e =>
           e.eventName.toLowerCase().includes(lower) ||
           (e.eventCode ?? '').toLowerCase().includes(lower)
-        ).slice(0, 8)
+        )
     setResults(filtered)
     setOpen(filtered.length > 0)
   }
 
   function handleFocus() {
     if (query.length === 0) {
-      setResults(events.slice(0, 8))
+      setResults(events)
       setOpen(events.length > 0)
     } else if (results.length > 0) {
       setOpen(true)
@@ -403,12 +401,11 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
     tripType: 'round-trip',
     departureDate: '', departureTime: '',
     returnDate: '', returnTime: '',
-    flexibleDates: false, notes: '', preferredLink: '', agentNote: '',
+    flexibleDates: false, notes: '',
   })
-  const [hotel, setHotel] = useState<HotelData>({ city: '', checkIn: '', checkOut: '', rooms: '1', area: '', notes: '', preferredLink: '', agentNote: '' })
-  const [taxi, setTaxi]   = useState<TaxiData>({ pickup: '', dropoff: '', date: '', time: '', notes: '', preferredLink: '', agentNote: '' })
-  const [car, setCar]     = useState<CarData>({ pickupCity: '', pickupDate: '', pickupTime: '', returnDate: '', returnTime: '', vehicleType: '', notes: '', preferredLink: '', agentNote: '' })
-  const [agentForm, setAgentForm] = useState({ origin: '', destination: '', departureDate: '', returnDate: '' })
+  const [hotel, setHotel] = useState<HotelData>({ city: '', checkIn: '', checkOut: '', rooms: '1', area: '', notes: '' })
+  const [taxi, setTaxi]   = useState<TaxiData>({ pickup: '', dropoff: '', date: '', time: '', notes: '' })
+  const [car, setCar]     = useState<CarData>({ pickupCity: '', pickupDate: '', pickupTime: '', returnDate: '', returnTime: '', vehicleType: '', notes: '' })
   const [purpose, setPurpose]                   = useState('')
   const [estimatedCostUsd, setEstimatedCostUsd] = useState('')
   const [paymentResponsibility, setPaymentResponsibility] = useState('m4u')
@@ -527,16 +524,16 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
       const retStr = flight.tripType === 'round-trip'
         ? `, ret: ${flight.returnDate}${flight.returnTime ? ' at ' + flight.returnTime : ''}`
         : ' (one-way)'
-      parts.push(`FLIGHT: ${flight.originAirport.name} (${flight.originAirport.code}) → ${flight.destAirport.name} (${flight.destAirport.code}), dep: ${depStr}${retStr}${flight.flexibleDates ? ', flexible dates' : ''}${flight.notes ? ', notes: ' + flight.notes : ''}${flight.preferredLink ? ', preferred link: ' + flight.preferredLink : ''}${flight.agentNote ? ', agent note: ' + flight.agentNote : ''}`)
+      parts.push(`FLIGHT: ${flight.originAirport.name} (${flight.originAirport.code}) → ${flight.destAirport.name} (${flight.destAirport.code}), dep: ${depStr}${retStr}${flight.flexibleDates ? ', flexible dates' : ''}${flight.notes ? ', notes: ' + flight.notes : ''}`)
     }
     if (services.includes('HOTEL')) {
-      parts.push(`HOTEL: ${hotel.city}${hotel.area ? ', area: ' + hotel.area : ''}, check-in: ${hotel.checkIn}, check-out: ${hotel.checkOut}${hotel.rooms ? ', rooms: ' + hotel.rooms : ''}${hotel.notes ? ', notes: ' + hotel.notes : ''}${hotel.preferredLink ? ', preferred link: ' + hotel.preferredLink : ''}${hotel.agentNote ? ', agent note: ' + hotel.agentNote : ''}`)
+      parts.push(`HOTEL: ${hotel.city}${hotel.area ? ', area: ' + hotel.area : ''}, check-in: ${hotel.checkIn}, check-out: ${hotel.checkOut}${hotel.rooms ? ', rooms: ' + hotel.rooms : ''}${hotel.notes ? ', notes: ' + hotel.notes : ''}`)
     }
     if (services.includes('TAXI')) {
-      parts.push(`TAXI: ${taxi.pickup} → ${taxi.dropoff}, ${taxi.date}${taxi.time ? ' at ' + taxi.time : ''}${taxi.notes ? ', notes: ' + taxi.notes : ''}${taxi.preferredLink ? ', preferred link: ' + taxi.preferredLink : ''}${taxi.agentNote ? ', agent note: ' + taxi.agentNote : ''}`)
+      parts.push(`TAXI: ${taxi.pickup} → ${taxi.dropoff}, ${taxi.date}${taxi.time ? ' at ' + taxi.time : ''}${taxi.notes ? ', notes: ' + taxi.notes : ''}`)
     }
     if (services.includes('CAR_RENTAL')) {
-      parts.push(`CAR: pickup ${car.pickupCity} ${car.pickupDate}${car.pickupTime ? ' at ' + car.pickupTime : ''}, return ${car.returnDate}${car.returnTime ? ' at ' + car.returnTime : ''}${car.vehicleType ? ', vehicle: ' + car.vehicleType : ''}${car.notes ? ', notes: ' + car.notes : ''}${car.preferredLink ? ', preferred link: ' + car.preferredLink : ''}${car.agentNote ? ', agent note: ' + car.agentNote : ''}`)
+      parts.push(`CAR: pickup ${car.pickupCity} ${car.pickupDate}${car.pickupTime ? ' at ' + car.pickupTime : ''}, return ${car.returnDate}${car.returnTime ? ' at ' + car.returnTime : ''}${car.vehicleType ? ', vehicle: ' + car.vehicleType : ''}${car.notes ? ', notes: ' + car.notes : ''}`)
     }
     parts.push(`Payment: ${paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'}`)
 
@@ -763,14 +760,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                   <textarea value={flight.notes} onChange={e => setFlight(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="E.g. aisle seat preferred…" className={inputCls + ' resize-none'} />
                 </Field>
 
-                <div className="border-t border-gray-100 pt-4 space-y-4">
-                  <Field label="Link to preferred option">
-                    <input type="url" value={flight.preferredLink} onChange={e => setFlight(f => ({ ...f, preferredLink: e.target.value }))} placeholder="https://…" className={inputCls} />
-                  </Field>
-                  <Field label="Message to agent">
-                    <textarea value={flight.agentNote} onChange={e => setFlight(f => ({ ...f, agentNote: e.target.value }))} rows={2} placeholder="Any specific requests for the agent…" className={inputCls + ' resize-none'} />
-                  </Field>
-                </div>
               </section>
             )}
 
@@ -822,14 +811,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                   <textarea value={hotel.notes} onChange={e => setHotel(h => ({ ...h, notes: e.target.value }))} rows={2} placeholder="Any special requests…" className={inputCls + ' resize-none'} />
                 </Field>
 
-                <div className="border-t border-gray-100 pt-4 space-y-4">
-                  <Field label="Link to preferred option">
-                    <input type="url" value={hotel.preferredLink} onChange={e => setHotel(h => ({ ...h, preferredLink: e.target.value }))} placeholder="https://…" className={inputCls} />
-                  </Field>
-                  <Field label="Message to agent">
-                    <textarea value={hotel.agentNote} onChange={e => setHotel(h => ({ ...h, agentNote: e.target.value }))} rows={2} placeholder="Any specific requests for the agent…" className={inputCls + ' resize-none'} />
-                  </Field>
-                </div>
               </section>
             )}
 
@@ -853,14 +834,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                   <textarea value={taxi.notes} onChange={e => setTaxi(t => ({ ...t, notes: e.target.value }))} rows={2} placeholder="Any special requirements…" className={inputCls + ' resize-none'} />
                 </Field>
 
-                <div className="border-t border-gray-100 pt-4 space-y-4">
-                  <Field label="Link to preferred option">
-                    <input type="url" value={taxi.preferredLink} onChange={e => setTaxi(t => ({ ...t, preferredLink: e.target.value }))} placeholder="https://…" className={inputCls} />
-                  </Field>
-                  <Field label="Message to agent">
-                    <textarea value={taxi.agentNote} onChange={e => setTaxi(t => ({ ...t, agentNote: e.target.value }))} rows={2} placeholder="Any specific requests for the agent…" className={inputCls + ' resize-none'} />
-                  </Field>
-                </div>
               </section>
             )}
 
@@ -900,14 +873,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                   <textarea value={car.notes} onChange={e => setCar(c => ({ ...c, notes: e.target.value }))} rows={2} placeholder="Any special requirements…" className={inputCls + ' resize-none'} />
                 </Field>
 
-                <div className="border-t border-gray-100 pt-4 space-y-4">
-                  <Field label="Link to preferred option">
-                    <input type="url" value={car.preferredLink} onChange={e => setCar(c => ({ ...c, preferredLink: e.target.value }))} placeholder="https://…" className={inputCls} />
-                  </Field>
-                  <Field label="Message to agent">
-                    <textarea value={car.agentNote} onChange={e => setCar(c => ({ ...c, agentNote: e.target.value }))} rows={2} placeholder="Any specific requests for the agent…" className={inputCls + ' resize-none'} />
-                  </Field>
-                </div>
               </section>
             )}
 
@@ -970,8 +935,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                 )}
                 {flight.flexibleDates && <ReviewRow label="Flexible dates" value="Yes" />}
                 {flight.notes && <ReviewRow label="Notes" value={flight.notes} />}
-                {flight.preferredLink && <ReviewRow label="Preferred link" value={flight.preferredLink} />}
-                {flight.agentNote && <ReviewRow label="Message to agent" value={flight.agentNote} />}
               </ReviewBlock>
             )}
 
@@ -983,8 +946,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                 {hotel.rooms && <ReviewRow label="Rooms" value={hotel.rooms} />}
                 {hotel.area  && <ReviewRow label="Area"  value={hotel.area} />}
                 {hotel.notes && <ReviewRow label="Notes" value={hotel.notes} />}
-                {hotel.preferredLink && <ReviewRow label="Preferred link" value={hotel.preferredLink} />}
-                {hotel.agentNote && <ReviewRow label="Message to agent" value={hotel.agentNote} />}
               </ReviewBlock>
             )}
 
@@ -994,8 +955,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                 <ReviewRow label="Drop-off"    value={taxi.dropoff || '—'} />
                 <ReviewRow label="Date & time" value={taxi.date ? `${fmtDisplayDate(taxi.date)}${taxi.time ? ' at ' + taxi.time : ''}` : '—'} />
                 {taxi.notes && <ReviewRow label="Notes" value={taxi.notes} />}
-                {taxi.preferredLink && <ReviewRow label="Preferred link" value={taxi.preferredLink} />}
-                {taxi.agentNote && <ReviewRow label="Message to agent" value={taxi.agentNote} />}
               </ReviewBlock>
             )}
 
@@ -1006,8 +965,6 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                 <ReviewRow label="Pickup date" value={`${fmtDisplayDate(car.pickupDate)}${car.pickupTime ? ' at ' + car.pickupTime : ''}`} />
                 <ReviewRow label="Return date" value={`${fmtDisplayDate(car.returnDate)}${car.returnTime ? ' at ' + car.returnTime : ''}`} />
                 {car.notes && <ReviewRow label="Notes" value={car.notes} />}
-                {car.preferredLink && <ReviewRow label="Preferred link" value={car.preferredLink} />}
-                {car.agentNote && <ReviewRow label="Message to agent" value={car.agentNote} />}
               </ReviewBlock>
             )}
 

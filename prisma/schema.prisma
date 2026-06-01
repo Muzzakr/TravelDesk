@@ -246,6 +246,7 @@ model BookingOption {
   vendor          String
   description     String
   priceUsd        Decimal  @db.Decimal(12, 2)
+  bookingLink     String?
   isSelected      Boolean  @default(false)
   createdAt       DateTime @default(now())
 

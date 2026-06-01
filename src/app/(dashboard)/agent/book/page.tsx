@@ -333,6 +333,7 @@ export default function AgentBookPage() {
   const [createdRequestId, setCreatedRequestId]   = useState<string | null>(null)
   const [aiOptions, setAiOptions]                 = useState<AiResults | null>(null)
   const [selectedOptionKeys, setSelectedOptionKeys] = useState<Set<string>>(new Set())
+  const [optionLinks, setOptionLinks] = useState<Record<string, string>>({})
   const [aiLoading, setAiLoading]                 = useState(false)
   const [aiError, setAiError]                     = useState<string | null>(null)
   const [confirmingOptions, setConfirmingOptions] = useState(false)
@@ -538,11 +539,12 @@ export default function AgentBookPage() {
 
   async function confirmOptions() {
     setConfirmingOptions(true)
-    const chosen: { serviceType: string; vendor: string; description: string; priceUsd: number }[] = []
+    const chosen: { serviceType: string; vendor: string; description: string; priceUsd: number; bookingLink?: string }[] = []
     for (const { key, type } of SERVICE_MAPPING) {
       ;(aiOptions?.[key] ?? []).forEach((opt, i) => {
-        if (selectedOptionKeys.has(`${type}-${i}`)) {
-          chosen.push({ serviceType: type, vendor: opt.vendor, description: opt.description, priceUsd: opt.priceUsd })
+        const optKey = `${type}-${i}`
+        if (selectedOptionKeys.has(optKey)) {
+          chosen.push({ serviceType: type, vendor: opt.vendor, description: opt.description, priceUsd: opt.priceUsd, bookingLink: optionLinks[optKey] || undefined })
         }
       })
     }
@@ -913,29 +915,41 @@ export default function AgentBookPage() {
                     const optKey = `${type}-${i}`
                     const selected = selectedOptionKeys.has(optKey)
                     return (
-                      <button
-                        key={optKey} type="button" onClick={() => toggleOptionKey(optKey)}
-                        className={`w-full text-left rounded-xl border-2 px-4 py-3 flex items-start justify-between gap-3 transition-all ${
-                          selected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-300'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                            selected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
-                          }`}>
-                            {selected && (
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                      <div key={optKey} className="space-y-2">
+                        <button
+                          type="button" onClick={() => toggleOptionKey(optKey)}
+                          className={`w-full text-left rounded-xl border-2 px-4 py-3 flex items-start justify-between gap-3 transition-all ${
+                            selected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-300'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                              selected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
+                            }`}>
+                              {selected && (
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900">{opt.vendor}</p>
+                              <p className="text-xs text-gray-500 mt-0.5 break-words">{opt.description}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900">{opt.vendor}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 break-words">{opt.description}</p>
-                          </div>
-                        </div>
-                        <p className="text-sm font-bold text-indigo-700 shrink-0">${Number(opt.priceUsd).toLocaleString('en-US')}</p>
-                      </button>
+                          <p className="text-sm font-bold text-indigo-700 shrink-0">${Number(opt.priceUsd).toLocaleString('en-US')}</p>
+                        </button>
+                        {selected && (
+                          <input
+                            type="url"
+                            value={optionLinks[optKey] ?? ''}
+                            onChange={e => setOptionLinks(prev => ({ ...prev, [optKey]: e.target.value }))}
+                            onClick={e => e.stopPropagation()}
+                            placeholder="Booking link (optional) — https://…"
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                          />
+                        )}
+                      </div>
                     )
                   })}
                 </div>

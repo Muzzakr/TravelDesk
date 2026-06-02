@@ -168,8 +168,8 @@ export function SpendChart({ companyEvents }: SpendChartProps) {
               width={70}
             />
             <Tooltip
-              formatter={(value: number) => [
-                `$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+              formatter={(value) => [
+                `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                 'Spend',
               ]}
               contentStyle={{

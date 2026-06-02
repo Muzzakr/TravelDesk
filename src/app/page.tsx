@@ -185,7 +185,7 @@ export default function LandingPage() {
             <div className="text-center mb-12">
               <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-3">Product</p>
               <h2 className="text-4xl font-bold text-gray-900">See it in action</h2>
-              <p className="mt-3 text-gray-500 max-w-xl mx-auto">A real-time overview of everything that's happening across your company's travel.</p>
+              <p className="mt-3 text-gray-500 max-w-xl mx-auto">A real-time overview of everything that&apos;s happening across your company&apos;s travel.</p>
             </div>
 
             <div className="rounded-2xl border border-gray-200 shadow-2xl shadow-gray-200/80 overflow-hidden">

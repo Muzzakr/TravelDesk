@@ -448,7 +448,7 @@ export default function EmployeeTravelRequestDetailPage() {
                   <p className="font-medium text-gray-900">
                     {action.actor.name} <span className="text-gray-400 font-normal">({action.actionType})</span>
                   </p>
-                  {action.note && <p className="text-gray-500 text-xs mt-0.5">"{action.note}"</p>}
+                  {action.note && <p className="text-gray-500 text-xs mt-0.5">&quot;{action.note}&quot;</p>}
                   <p className="text-xs text-gray-400">{new Date(action.createdAt).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
                 </div>
               </div>

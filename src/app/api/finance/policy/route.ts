@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { PolicyRuleType } from '@prisma/client'
 import { z } from 'zod'
 
 const PolicySchema = z.object({
@@ -48,19 +49,19 @@ export async function PUT(req: NextRequest) {
 
   const { amountThreshold, receiptMinimum, budgetWarningPercent, budgetBlockPercent } = parsed.data
 
-  const upsert = async (ruleType: string, config: Record<string, unknown>) => {
+  const upsert = async (ruleType: PolicyRuleType, config: Record<string, unknown>) => {
     const existing = await prisma.policyRule.findFirst({ where: { companyId, ruleType } })
     if (existing) {
-      await prisma.policyRule.update({ where: { id: existing.id }, data: { config, isActive: true } })
+      await prisma.policyRule.update({ where: { id: existing.id }, data: { config: config as object, isActive: true } })
     } else {
-      await prisma.policyRule.create({ data: { companyId, ruleType, config, isActive: true } })
+      await prisma.policyRule.create({ data: { companyId, ruleType, config: config as object, isActive: true } })
     }
   }
 
   await Promise.all([
-    upsert('AMOUNT_THRESHOLD', { thresholdUsd: amountThreshold }),
-    upsert('MISSING_RECEIPT', { minimumAmountUsd: receiptMinimum }),
-    upsert('EVENT_BUDGET_CAP', { warningPercent: budgetWarningPercent, blockPercent: budgetBlockPercent }),
+    upsert(PolicyRuleType.AMOUNT_THRESHOLD, { thresholdUsd: amountThreshold }),
+    upsert(PolicyRuleType.MISSING_RECEIPT, { minimumAmountUsd: receiptMinimum }),
+    upsert(PolicyRuleType.EVENT_BUDGET_CAP, { warningPercent: budgetWarningPercent, blockPercent: budgetBlockPercent }),
   ])
 
   await writeAuditLog({

@@ -488,9 +488,9 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           eventId,
-          origin:      agentForm.origin,
-          destination: agentForm.destination,
-          travelDates: { departureDate: agentForm.departureDate, returnDate: agentForm.returnDate },
+          origin:      'TBD',
+          destination: 'TBD',
+          travelDates: { departureDate: '', returnDate: '' },
           servicesRequested: ['AGENT_CHOOSES'],
           purpose,
           estimatedCostUsd: estimatedCostUsd ? Number(estimatedCostUsd) : undefined,

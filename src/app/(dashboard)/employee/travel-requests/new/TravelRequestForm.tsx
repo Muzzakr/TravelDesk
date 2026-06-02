@@ -391,6 +391,14 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
   const [createdRequestId, setCreatedRequestId]     = useState<string | null>(null)
   const [aiOptions, setAiOptions]                   = useState<AiResults | null>(null)
   const [selectedOptionKeys, setSelectedOptionKeys] = useState<Set<string>>(new Set())
+  const [customOptions, setCustomOptions] = useState<Record<string, { link: string; message: string; selected: boolean }>>({})
+
+  function toggleCustomOption(type: string) {
+    setCustomOptions(prev => ({
+      ...prev,
+      [type]: { link: prev[type]?.link ?? '', message: prev[type]?.message ?? '', selected: !prev[type]?.selected },
+    }))
+  }
   const [aiLoading, setAiLoading]                   = useState(false)
   const [aiError, setAiError]                       = useState<string | null>(null)
   const [confirmingOptions, setConfirmingOptions]   = useState(false)
@@ -604,6 +612,15 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
         if (selectedOptionKeys.has(`${type}-${i}`))
           chosen.push({ serviceType: type, vendor: opt.vendor, description: opt.description, priceUsd: opt.priceUsd })
       })
+      const custom = customOptions[type]
+      if (custom?.selected && (custom.link || custom.message)) {
+        chosen.push({
+          serviceType: type,
+          vendor: 'Own choice',
+          description: [custom.message, custom.link].filter(Boolean).join(' — '),
+          priceUsd: 0,
+        })
+      }
     }
     if (chosen.length > 0) {
       await fetch(`/api/travel-requests/${createdRequestId}/options`, {
@@ -1047,6 +1064,49 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                         </button>
                       )
                     })}
+
+                    {/* Own choice */}
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleCustomOption(type)}
+                        className={`w-full text-left rounded-xl border-2 px-4 py-3 flex items-center justify-between gap-3 transition-all ${
+                          customOptions[type]?.selected ? 'border-indigo-500 bg-indigo-50' : 'border-dashed border-gray-300 bg-white hover:border-indigo-300'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-700 text-sm">Own choice</p>
+                          <p className="text-xs text-gray-400">Add a link or message to your preferred option</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          customOptions[type]?.selected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
+                        }`}>
+                          {customOptions[type]?.selected && (
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                      {customOptions[type]?.selected && (
+                        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
+                          <input
+                            type="url"
+                            placeholder="Link to your preferred option (https://…)"
+                            value={customOptions[type]?.link ?? ''}
+                            onChange={e => setCustomOptions(prev => ({ ...prev, [type]: { ...prev[type]!, link: e.target.value } }))}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                          />
+                          <textarea
+                            placeholder="Message to agent (optional)…"
+                            rows={2}
+                            value={customOptions[type]?.message ?? ''}
+                            onChange={e => setCustomOptions(prev => ({ ...prev, [type]: { ...prev[type]!, message: e.target.value } }))}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </section>
               ))

@@ -50,7 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
   if (!confirmation.fileData) return NextResponse.json({ error: 'No file' }, { status: 404 })
 
-  return new NextResponse(confirmation.fileData, {
+  return new NextResponse(new Uint8Array(confirmation.fileData as Buffer), {
     headers: {
       'Content-Type': confirmation.mimeType ?? 'application/octet-stream',
       'Content-Disposition': `inline; filename="${confirmation.fileName ?? 'document'}"`,

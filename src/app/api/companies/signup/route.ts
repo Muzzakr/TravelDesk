@@ -22,21 +22,31 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 12)
 
-  const { company, user } = await prisma.$transaction(async (tx) => {
-    const company = await tx.company.create({
-      data: { name: parsed.data.companyName, slug: parsed.data.companySlug },
-    })
-    const user = await tx.user.create({
-      data: {
-        companyId: company.id,
-        email: parsed.data.adminEmail,
-        name: parsed.data.adminName,
-        role: 'SYSTEM_ADMIN',
-        passwordHash,
-      },
-    })
-    return { company, user }
-  })
+  // Check if email already taken
+  const emailTaken = await prisma.user.findUnique({ where: { email: parsed.data.adminEmail } })
+  if (emailTaken) return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
+
+  let company, user
+  try {
+    ;({ company, user } = await prisma.$transaction(async (tx) => {
+      const company = await tx.company.create({
+        data: { name: parsed.data.companyName, slug: parsed.data.companySlug },
+      })
+      const user = await tx.user.create({
+        data: {
+          companyId: company.id,
+          email: parsed.data.adminEmail,
+          name: parsed.data.adminName,
+          role: 'SYSTEM_ADMIN',
+          passwordHash,
+        },
+      })
+      return { company, user }
+    }))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Database error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 
   await writeAuditLog({
     companyId: company.id,

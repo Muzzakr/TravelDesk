@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const transactions = await prisma.cardTransaction.findMany({
     where: {
       companyId: session.user.companyId,
-      ...(status ? { status } : {}),
+      ...(status ? { status: status as 'PENDING_TAG' | 'TAGGED' | 'SUBMITTED' | 'MATCHED' } : {}),
     },
     orderBy: { transactionDate: 'desc' },
     take: 100,

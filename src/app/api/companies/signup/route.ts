@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const passwordHash = await bcrypt.hash(parsed.data.password, 12)
 
   // Check if email already taken
-  const emailTaken = await prisma.user.findUnique({ where: { email: parsed.data.adminEmail } })
+  const emailTaken = await prisma.user.findFirst({ where: { email: parsed.data.adminEmail } })
   if (emailTaken) return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
 
   let company, user

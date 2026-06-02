@@ -40,7 +40,16 @@ export default function SignupPage() {
     })
     const data = await res.json()
     if (!res.ok) {
-      setError(data.error ?? 'Signup failed')
+      const err = data.error
+      let message = 'Signup failed'
+      if (typeof err === 'string') {
+        message = err
+      } else if (err?.fieldErrors) {
+        // zod flatten(): { formErrors: [], fieldErrors: { field: [msg] } }
+        const msgs = Object.values(err.fieldErrors as Record<string, string[]>).flat()
+        if (msgs.length) message = msgs.join(', ')
+      }
+      setError(message)
       setLoading(false)
       return
     }

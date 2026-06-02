@@ -435,10 +435,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
     if (step === 2 && services.length === 0) return 'Please select at least one service.'
     if (step === 3) {
       if (services.includes('AGENT_CHOOSES')) {
-        if (!agentForm.origin.trim())      return 'Please enter the departure city.'
-        if (!agentForm.destination.trim()) return 'Please enter the destination.'
-        if (!agentForm.departureDate)      return 'Please select a departure date.'
-        if (!purpose.trim())               return 'Please describe the purpose of your trip.'
+        if (!purpose.trim()) return 'Please describe the purpose of your trip.'
         return ''
       }
       if (services.includes('FLIGHT')) {

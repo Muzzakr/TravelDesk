@@ -31,7 +31,7 @@ export default function UnsubscribePage() {
       <main className="flex-1 flex items-center justify-center px-4 py-20">
         <div className="max-w-md w-full">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Unsubscribe</h1>
-          <p className="text-gray-600 mb-8">We're sorry to see you go. Enter your email to unsubscribe.</p>
+          <p className="text-gray-600 mb-8">We&apos;re sorry to see you go. Enter your email to unsubscribe.</p>
 
           {status === 'success' ? (
             <div className="bg-green-50 text-green-700 p-4 rounded-lg">

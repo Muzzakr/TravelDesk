@@ -391,7 +391,7 @@ export default function AgentInboxPage() {
                 {isViewingProfile && profileData !== null && (
                   <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
                     {!profileData.user ? (
-                      <p className="text-gray-500 text-xs">No matching employee profile found for "{parsed.employeeName || 'unknown'}".</p>
+                      <p className="text-gray-500 text-xs">No matching employee profile found for &quot;{parsed.employeeName || 'unknown'}&quot;.</p>
                     ) : (
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">

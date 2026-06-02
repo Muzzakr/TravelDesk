@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return new NextResponse('No file data', { status: 404 })
   }
 
-  return new NextResponse(receipt.fileData, {
+  return new NextResponse(new Uint8Array(receipt.fileData as Buffer), {
     headers: {
       'Content-Type': receipt.mimeType,
       'Content-Disposition': `inline; filename="${receipt.fileName}"`,

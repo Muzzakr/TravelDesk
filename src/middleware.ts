@@ -21,10 +21,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
+  // In production (HTTPS) Auth.js prefixes the session cookie with `__Secure-`.
+  // Match it, otherwise the token is never found and every request loops to /login.
+  const secureCookie = process.env.NODE_ENV === 'production'
   const token = await getToken({
     req,
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? '',
-    cookieName: 'authjs.session-token',
+    secureCookie,
+    cookieName: secureCookie ? '__Secure-authjs.session-token' : 'authjs.session-token',
   })
 
   if (!token) {

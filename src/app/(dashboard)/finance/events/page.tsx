@@ -25,7 +25,7 @@ type DocRow = {
 export default function FinanceEventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
-  const [query, setQuery] = useState('')
+  const [selectedId, setSelectedId] = useState('')
 
   // budget edit
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -51,12 +51,7 @@ export default function FinanceEventsPage() {
 
   useEffect(() => { load() }, [])
 
-  const filteredEvents = events.filter(
-    (ev) =>
-      !query ||
-      ev.eventName.toLowerCase().includes(query.toLowerCase()) ||
-      ev.eventCode.toLowerCase().includes(query.toLowerCase())
-  )
+  const selectedEvent = events.find((ev) => ev.id === selectedId) ?? null
 
   function startEdit(ev: Event) {
     setEditingId(ev.id)
@@ -151,168 +146,120 @@ export default function FinanceEventsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Events &amp; Budgets</h1>
 
-      {/* Search */}
-      <input
-        type="search"
-        placeholder="Search by event name or code…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-      />
-
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
 
+      {/* Dropdown */}
       {loading ? (
         <p className="text-sm text-gray-400">Loading…</p>
-      ) : filteredEvents.length === 0 ? (
-        <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">
-          {query ? 'No events match your search.' : 'No events found.'}
-        </div>
       ) : (
-        <>
-          {/* Mobile */}
-          <div className="sm:hidden space-y-3">
-            {filteredEvents.map((ev) => {
-              const budget = Number(ev.budgetUsd)
-              const spent = Number(ev.approvedSpendUsd)
-              const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0
-              const barColor = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-500' : 'bg-green-500'
-              const isEditing = editingId === ev.id
-              return (
-                <div key={ev.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">{ev.eventName}</p>
-                      <p className="text-xs font-mono text-gray-400">{ev.eventCode}</p>
-                    </div>
-                    <Badge variant={statusToBadgeVariant(ev.status)}>{ev.status}</Badge>
-                  </div>
-                  {ev.eventDate && (
-                    <p className="text-xs text-gray-400">{new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
-                  )}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Spent: <span className="font-medium text-gray-800">${spent.toFixed(0)}</span></span>
-                      <span>Budget: <span className="font-medium text-gray-800">${budget.toFixed(0)}</span> ({pct}%)</span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-gray-100">
-                      <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {isEditing ? (
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-xs text-gray-500">$</span>
-                        <input
-                          type="number" min="0" step="0.01"
-                          title="Budget amount"
-                          placeholder="0.00"
-                          value={budgetInput}
-                          onChange={(e) => setBudgetInput(e.target.value)}
-                          className="w-28 rounded border border-indigo-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                        <button type="button" onClick={() => saveBudget(ev.id)} disabled={saving}
-                          className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                          {saving ? 'Saving…' : 'Save'}
-                        </button>
-                        <button type="button" onClick={cancelEdit} className="text-xs text-gray-400 hover:underline">Cancel</button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => startEdit(ev)} className="text-xs font-medium text-indigo-600 hover:underline">
-                        Edit budget
-                      </button>
-                    )}
-                    <button type="button" onClick={() => openDocsModal(ev)} className="text-xs font-medium text-gray-500 hover:text-indigo-600 hover:underline">
-                      Documents{docCounts[ev.id] ? ` (${docCounts[ev.id]})` : ''}
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        <select
+          title="Select event"
+          value={selectedId}
+          onChange={(e) => { setSelectedId(e.target.value); setEditingId(null) }}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        >
+          <option value="">Select an event…</option>
+          {events.map((ev) => (
+            <option key={ev.id} value={ev.id}>{ev.eventCode} — {ev.eventName}</option>
+          ))}
+        </select>
+      )}
 
-          {/* Desktop */}
-          <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white">
-            <table className="min-w-[750px] w-full divide-y divide-gray-100 text-sm">
-              <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
-                <tr>
-                  <th className="px-4 py-3 text-left">Code</th>
-                  <th className="px-4 py-3 text-left">Event Name</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-right">Budget (USD)</th>
-                  <th className="px-4 py-3 text-right">Spent</th>
-                  <th className="px-4 py-3 text-left w-48">Usage</th>
-                  <th className="px-4 py-3 text-left">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredEvents.map((ev) => {
-                  const budget = Number(ev.budgetUsd)
-                  const spent = Number(ev.approvedSpendUsd)
-                  const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0
-                  const barColor = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-500' : 'bg-green-500'
-                  const isEditing = editingId === ev.id
-                  return (
-                    <tr key={ev.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{ev.eventCode}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{ev.eventName}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={statusToBadgeVariant(ev.status)}>{ev.status}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-gray-400">
-                        {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                        {isEditing ? (
-                          <input
-                            type="number" min="0" step="0.01"
-                            value={budgetInput}
-                            onChange={(e) => setBudgetInput(e.target.value)}
-                            className="w-28 rounded border border-indigo-300 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            autoFocus
-                          />
-                        ) : (
-                          `$${budget.toFixed(0)}`
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-700">${spent.toFixed(0)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 rounded-full bg-gray-100">
-                            <div className={`h-2 rounded-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                          </div>
-                          <span className="text-xs text-gray-500 w-10 text-right">{pct}%</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {isEditing ? (
-                            <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => saveBudget(ev.id)} disabled={saving}
-                                className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                                {saving ? 'Saving…' : 'Save'}
-                              </button>
-                              <button type="button" onClick={cancelEdit} className="text-xs text-gray-400 hover:underline">Cancel</button>
-                            </div>
-                          ) : (
-                            <button type="button" onClick={() => startEdit(ev)} className="text-xs font-medium text-indigo-600 hover:underline">
-                              Edit budget
-                            </button>
-                          )}
-                          <button type="button" onClick={() => openDocsModal(ev)}
-                            className="text-xs font-medium text-gray-500 hover:text-indigo-600 hover:underline">
-                            Documents{docCounts[ev.id] ? ` (${docCounts[ev.id]})` : ''}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+      {/* Detail card */}
+      {selectedEvent ? (() => {
+        const ev = selectedEvent
+        const budget = Number(ev.budgetUsd)
+        const spent = Number(ev.approvedSpendUsd)
+        const remaining = budget - spent
+        const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0
+        const barColor = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-500' : 'bg-green-500'
+        const isEditing = editingId === ev.id
+        return (
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-5">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-xs text-gray-400 mb-0.5">{ev.eventCode}</p>
+                <h2 className="text-lg font-semibold text-gray-900">{ev.eventName}</h2>
+                {ev.eventDate && (
+                  <p className="text-sm text-gray-400 mt-0.5">
+                    {new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                  </p>
+                )}
+              </div>
+              <Badge variant={statusToBadgeVariant(ev.status)}>{ev.status}</Badge>
+            </div>
+
+            {/* KPI boxes */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs text-gray-400 mb-1">Budget</p>
+                {isEditing ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-gray-500">$</span>
+                    <input
+                      type="number" min="0" step="0.01" autoFocus
+                      title="Budget amount"
+                      placeholder="0.00"
+                      value={budgetInput}
+                      onChange={(e) => setBudgetInput(e.target.value)}
+                      className="w-full rounded border border-indigo-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">${budget.toLocaleString('en-US')}</p>
+                )}
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs text-gray-400 mb-1">Used</p>
+                <p className="text-2xl font-bold text-gray-900">${spent.toLocaleString('en-US')}</p>
+              </div>
+              <div className={`rounded-xl border p-4 ${remaining < 0 ? 'border-red-200 bg-red-50' : 'border-green-100 bg-green-50'}`}>
+                <p className="text-xs text-gray-400 mb-1">Remaining</p>
+                <p className={`text-2xl font-bold ${remaining < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                  ${Math.abs(remaining).toLocaleString('en-US')}
+                </p>
+              </div>
+            </div>
+
+            {/* Usage bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Usage</span>
+                <span>{pct}%</span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-gray-100">
+                <div className={`h-2.5 rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-1">
+              {isEditing ? (
+                <>
+                  <button type="button" onClick={() => saveBudget(ev.id)} disabled={saving}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                    {saving ? 'Saving…' : 'Save budget'}
+                  </button>
+                  <button type="button" onClick={cancelEdit} className="text-sm text-gray-400 hover:underline">Cancel</button>
+                </>
+              ) : (
+                <button type="button" onClick={() => startEdit(ev)}
+                  className="rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50">
+                  Edit budget
+                </button>
+              )}
+              <button type="button" onClick={() => openDocsModal(ev)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                Documents{docCounts[ev.id] ? ` (${docCounts[ev.id]})` : ''}
+              </button>
+            </div>
           </div>
-        </>
+        )
+      })() : !loading && (
+        <div className="rounded-xl border border-dashed border-gray-200 p-10 text-center text-sm text-gray-400">
+          Select an event above to view its budget details.
+        </div>
       )}
 
       {/* Documents modal */}

@@ -56,6 +56,8 @@ function Field({ label, required, children }: { label: string; required?: boolea
   )
 }
 
+const EXPENSE_DRAFT_KEY = 'expense_draft'
+
 // ─── Main content ─────────────────────────────────────────────────────────────
 
 function ExpensesContent() {
@@ -93,6 +95,29 @@ function ExpensesContent() {
     fetch('/api/users/me').then(r => r.json()).then(data => setManager(data.manager ?? null))
   }, [])
 
+  // Restore expense draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(EXPENSE_DRAFT_KEY)
+      if (!raw) return
+      const d = JSON.parse(raw)
+      if (d.form)        setForm(d.form)
+      if (d.expenseType) setExpenseType(d.expenseType)
+      if (d.vehicleType) setVehicleType(d.vehicleType)
+      if (d.step)        setStep(d.step)
+      if (d.eventSearch) setEventSearch(d.eventSearch)
+      if (d.form?.eventId) setShowForm(true)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Save expense draft on every change
+  useEffect(() => {
+    if (!showForm) return
+    try {
+      localStorage.setItem(EXPENSE_DRAFT_KEY, JSON.stringify({ form, expenseType, vehicleType, step, eventSearch }))
+    } catch { /* ignore */ }
+  }, [form, expenseType, vehicleType, step, eventSearch, showForm])
+
   // Filtered events for the combobox
   const filteredEvents = events.filter(ev =>
     !eventSearch ||
@@ -107,6 +132,7 @@ function ExpensesContent() {
   }
 
   function closeForm() {
+    localStorage.removeItem(EXPENSE_DRAFT_KEY)
     setShowForm(false)
     setStep(1)
     setExpenseType('')
@@ -172,6 +198,7 @@ function ExpensesContent() {
 
     const refreshed = await fetch('/api/expenses').then(r => r.json())
     setExpenses(refreshed)
+    localStorage.removeItem(EXPENSE_DRAFT_KEY)
     setShowForm(false)
     setStep(1)
     setExpenseType('')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { uploadReceipt, buildReceiptKey } from '@/lib/storage'
 
 export const maxDuration = 60
 
@@ -34,11 +35,19 @@ export async function POST(req: NextRequest) {
   if (!expense) return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
 
   const buffer = Buffer.from(await file.arrayBuffer())
+  const s3Key = buildReceiptKey(session.user.companyId, expenseId, file.name)
+
+  try {
+    await uploadReceipt(s3Key, buffer, file.type)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Upload failed'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 
   const receipt = await prisma.receipt.create({
     data: {
       expenseId,
-      fileData: buffer,
+      s3Key,
       fileName: file.name,
       mimeType: file.type,
     },

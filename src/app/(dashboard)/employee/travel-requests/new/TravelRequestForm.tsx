@@ -376,6 +376,8 @@ const SERVICE_META: Record<string, { Icon: HeroIcon; label: string; sub?: string
 }
 
 
+const DRAFT_KEY = 'travel_request_draft'
+
 export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: boolean }) {
   const router = useRouter()
 
@@ -424,6 +426,38 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
       .then(r => r.json())
       .then(data => setEvents(data.filter((e: TravelEvent) => e.status !== 'CLOSED')))
   }, [])
+
+  // Restore draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const d = JSON.parse(raw)
+      if (d.step)                  setStep(d.step)
+      if (d.eventId)               setEventId(d.eventId)
+      if (d.selectedEvent)         setSelectedEvent(d.selectedEvent)
+      if (d.services)              setServices(d.services)
+      if (d.flight)                setFlight(d.flight)
+      if (d.hotel)                 setHotel(d.hotel)
+      if (d.taxi)                  setTaxi(d.taxi)
+      if (d.car)                   setCar(d.car)
+      if (d.purpose)               setPurpose(d.purpose)
+      if (d.estimatedCostUsd)      setEstimatedCostUsd(d.estimatedCostUsd)
+      if (d.paymentResponsibility) setPaymentResponsibility(d.paymentResponsibility)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Save draft on every change
+  useEffect(() => {
+    if (step >= 5) return // don't save after submission
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        step, eventId, selectedEvent, services,
+        flight, hotel, taxi, car,
+        purpose, estimatedCostUsd, paymentResponsibility,
+      }))
+    } catch { /* ignore */ }
+  }, [step, eventId, selectedEvent, services, flight, hotel, taxi, car, purpose, estimatedCostUsd, paymentResponsibility])
 
 
 
@@ -518,6 +552,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
       if (data.budgetWarning) setWarning('Note: this request is approaching the event budget cap.')
       setCreatedRequestId(data.id)
       setLoading(false)
+      localStorage.removeItem(DRAFT_KEY)
       setStep(5)
       fetchAiOptions(data.id)
       return

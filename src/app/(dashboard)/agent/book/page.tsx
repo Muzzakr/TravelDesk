@@ -184,17 +184,17 @@ function EventCombobox({ value, onChange, events }: {
     onChange(null)
     const lower = q.toLowerCase()
     const filtered = q.length === 0
-      ? events.slice(0, 8)
+      ? events
       : events.filter(e =>
           e.eventName.toLowerCase().includes(lower) ||
           (e.eventCode ?? '').toLowerCase().includes(lower)
-        ).slice(0, 8)
+        )
     setResults(filtered)
     setOpen(filtered.length > 0)
   }
 
   function handleFocus() {
-    const filtered = query.length === 0 ? events.slice(0, 8) : results
+    const filtered = query.length === 0 ? events : results
     setResults(filtered)
     setOpen(filtered.length > 0)
   }

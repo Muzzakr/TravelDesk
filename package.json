@@ -24,6 +24,8 @@
     "@sendgrid/mail": "^8.0.0",
     "@supabase/supabase-js": "^2.106.1",
     "bcryptjs": "^2.4.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "next": "^14.2.35",
     "next-auth": "^5.0.0-beta.31",
     "nodemailer": "^7.0.7",

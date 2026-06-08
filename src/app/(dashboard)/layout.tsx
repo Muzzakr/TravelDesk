@@ -19,6 +19,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Dashboard', href: '/manager' },
     { label: 'Travel Inbox', href: '/manager/inbox' },
     { label: 'Team Spend', href: '/manager/team-spend' },
+    { label: 'Statistics', href: '/admin/stats' },
     { label: 'Teams Travel', href: '/employee/travel-requests' },
   ],
   TRAVEL_AGENT: [
@@ -46,6 +47,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { heading: 'Finance' },
     { label: 'Payout Reports',    href: '/finance/payout-reports' },
     { label: 'Spend Analytics',   href: '/finance/spend-analytics' },
+    { label: 'Statistics',        href: '/admin/stats' },
     { label: 'Team Spend',        href: '/manager/team-spend' },
     { heading: 'Management' },
     { label: 'Users',             href: '/admin/users' },

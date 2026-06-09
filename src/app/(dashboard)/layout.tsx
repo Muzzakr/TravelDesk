@@ -31,7 +31,6 @@ const navByRole: Record<Role, NavItem[]> = {
   FINANCE_ADMIN: [
     { label: 'Dashboard', href: '/finance' },
     { label: 'Events & Budgets', href: '/finance/events' },
-    { label: 'Spend Analytics', href: '/finance/spend-analytics' },
     { label: 'Payout Reports', href: '/finance/payout-reports' },
     { label: 'Policy Limits', href: '/finance/policy' },
     { label: 'Card Transactions', href: '/finance/cards' },
@@ -45,7 +44,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Card Transactions', href: '/finance/cards' },
     { heading: 'Finance' },
     { label: 'Payout Reports',    href: '/finance/payout-reports' },
-    { label: 'Spend Analytics',   href: '/finance/spend-analytics' },
     { label: 'Statistics',        href: '/admin/stats' },
     { label: 'Team Spend',        href: '/manager/team-spend' },
     { heading: 'Management' },

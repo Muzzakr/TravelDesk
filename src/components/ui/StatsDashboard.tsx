@@ -141,10 +141,10 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
         </div>
         {period === 'custom' && (
           <div className="flex items-center gap-2">
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+            <input type="date" title="Start date" value={startDate} onChange={e => setStartDate(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             <span className="text-gray-400 text-sm">→</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+            <input type="date" title="End date" value={endDate} onChange={e => setEndDate(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             <button type="button" onClick={() => load(1)}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Apply</button>
@@ -194,7 +194,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={d => d.slice(5)} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                  <Tooltip formatter={(v: number) => [v, 'Requests']} />
+                  <Tooltip formatter={(v) => [Number(v), 'Requests']} />
                   <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -208,7 +208,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={d => d.slice(5)} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `$${fmt(v)}`} />
-                  <Tooltip formatter={(v: number) => [fmtUsd(v), 'Spend']} />
+                  <Tooltip formatter={(v) => [fmtUsd(Number(v)), 'Spend']} />
                   <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -242,7 +242,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `$${fmt(v)}`} />
                   <YAxis type="category" dataKey="category" tick={{ fontSize: 10 }} width={90} tickFormatter={v => v.replace(/_/g, ' ')} />
-                  <Tooltip formatter={(v: number) => [fmtUsd(v), 'Amount']} />
+                  <Tooltip formatter={(v) => [fmtUsd(Number(v)), 'Amount']} />
                   <Bar dataKey="amount" fill="#6366f1" radius={[0,4,4,0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -263,7 +263,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                       <th className="px-4 py-3 text-right">Amount</th>
                       <th className="px-4 py-3 text-left">Date</th>
                       <th className="px-4 py-3 text-left">Status</th>
-                      <th className="px-4 py-3"></th>
+                      <th className="px-4 py-3 text-left">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-amber-50 bg-white">
@@ -416,7 +416,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                         <XAxis dataKey="month" tick={{ fontSize: 9 }} />
                         <YAxis tick={{ fontSize: 9 }} tickFormatter={v => `$${fmt(v)}`} />
-                        <Tooltip formatter={(v: number) => [fmtUsd(v), 'Spend']} />
+                        <Tooltip formatter={(v) => [fmtUsd(Number(v)), 'Spend']} />
                         <Bar dataKey="amount" fill="#6366f1" radius={[4,4,0,0]} />
                       </BarChart>
                     </ResponsiveContainer>

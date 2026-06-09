@@ -248,7 +248,7 @@ function ExpensesContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-        {!isAdminView && !showForm && (
+        {!showForm && (
           <button
             type="button"
             onClick={() => { setShowForm(true); setStep(1); setExpenseType(''); setVehicleType(''); setError('') }}

@@ -21,7 +21,7 @@ const OptionsSchema = z.object({
     .max(9),
 })
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -51,6 +51,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const body = await req.json()
   const parsed = OptionsSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+
+  // Guard: if employee has already selected options, require explicit force flag
+  const selectedCount = await prisma.bookingOption.count({
+    where: { travelRequestId: params.id, isSelected: true },
+  })
+  if (selectedCount > 0 && !body.force) {
+    return NextResponse.json(
+      { error: 'Employee has already selected options. Pass force=true to overwrite and reset their selection.', selectionExists: true },
+      { status: 409 }
+    )
+  }
 
   await prisma.bookingOption.deleteMany({ where: { travelRequestId: params.id } })
   await prisma.bookingOption.createMany({

@@ -11,6 +11,10 @@ const UpdateSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED', 'CANCELLED', 'BOOKING_CONFIRMED']).optional(),
   rejectionNote: z.string().optional(),
   agentId: z.string().optional(),
+  // Edit fields (allowed before first approval)
+  purpose: z.string().optional(),
+  estimatedCostUsd: z.number().optional(),
+  specialInstructions: z.string().optional(),
 })
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -66,6 +70,32 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!approverRoles.includes(role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+  }
+
+  // Allow employee to edit purpose/notes/cost before first approval
+  const editableFields = parsed.data.purpose !== undefined || parsed.data.estimatedCostUsd !== undefined || parsed.data.specialInstructions !== undefined
+  if (editableFields && !parsed.data.status) {
+    const editableStatuses = ['SUBMITTED', 'PENDING_MANAGER', 'DRAFT']
+    if (!editableStatuses.includes(request.status)) {
+      return NextResponse.json({ error: 'Request can only be edited before manager approval' }, { status: 400 })
+    }
+    if (request.employeeId !== session.user.id && !['SYSTEM_ADMIN'].includes(role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const edited = await prisma.travelRequest.update({
+      where: { id: params.id },
+      data: {
+        ...(parsed.data.purpose !== undefined && { purpose: parsed.data.purpose }),
+        ...(parsed.data.estimatedCostUsd !== undefined && { estimatedCostUsd: parsed.data.estimatedCostUsd }),
+        ...(parsed.data.specialInstructions !== undefined && { specialInstructions: parsed.data.specialInstructions }),
+      },
+    })
+    await writeAuditLog({
+      companyId: session.user.companyId, actorId: session.user.id,
+      action: 'TRAVEL_REQUEST_EDITED', entityType: 'TravelRequest', entityId: params.id,
+      payload: { purpose: parsed.data.purpose, estimatedCostUsd: parsed.data.estimatedCostUsd },
+    })
+    return NextResponse.json(edited)
   }
 
   let nextStatus: string | undefined = parsed.data.status

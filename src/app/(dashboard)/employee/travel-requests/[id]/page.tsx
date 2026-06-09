@@ -114,6 +114,13 @@ export default function EmployeeTravelRequestDetailPage() {
   const [error, setError] = useState('')
   // one selected optionId per serviceType: { FLIGHT: 'id1', HOTEL: 'id2', CAR_RENTAL: 'id3' }
   const [picks, setPicks] = useState<Record<string, string>>({})
+  const [cancelNote, setCancelNote] = useState('')
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [editPurpose, setEditPurpose] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   async function load() {
     const res = await fetch(`/api/travel-requests/${id}`)
@@ -144,8 +151,40 @@ export default function EmployeeTravelRequestDetailPage() {
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
   if (!request) return <div className="p-8 text-red-500">Request not found.</div>
 
+  async function saveEdit() {
+    setSavingEdit(true)
+    setError('')
+    const res = await fetch(`/api/travel-requests/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ purpose: editPurpose, specialInstructions: editNotes }),
+    })
+    if (res.ok) { setEditingDetails(false); await load() }
+    else { const d = await res.json(); setError(d.error ?? 'Failed to save') }
+    setSavingEdit(false)
+  }
+
+  async function cancelBooking() {
+    setCancelling(true)
+    setError('')
+    const res = await fetch(`/api/travel-requests/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'CANCELLED', rejectionNote: cancelNote || 'Cancelled by employee' }),
+    })
+    if (res.ok) {
+      setShowCancelModal(false)
+      setCancelNote('')
+      await load()
+    } else {
+      const data = await res.json()
+      setError(data.error ?? 'Failed to cancel')
+    }
+    setCancelling(false)
+  }
+
   const dates = request.travelDates
-  const isTerminal = ['REJECTED', 'CANCELLED', 'BOOKING_CONFIRMED'].includes(request.status)
+  const isTerminal = ['REJECTED', 'CANCELLED'].includes(request.status)
   const currentStep = STATUS_STEPS.indexOf(request.status)
 
   // Group booking options by service type
@@ -164,9 +203,17 @@ export default function EmployeeTravelRequestDetailPage() {
           <h1 className="mt-1 text-2xl font-bold text-gray-900">{request.origin} → {request.destination}</h1>
           <p className="text-sm text-gray-500">{request.event.eventName} · {dates.departureDate}</p>
         </div>
-        <Badge variant={statusToBadgeVariant(request.status)}>
-          {STATUS_LABELS[request.status] ?? request.status.replace(/_/g, ' ')}
-        </Badge>
+        <div className="flex flex-col items-end gap-2">
+          <Badge variant={statusToBadgeVariant(request.status)}>
+            {STATUS_LABELS[request.status] ?? request.status.replace(/_/g, ' ')}
+          </Badge>
+          {request.status === 'BOOKING_CONFIRMED' && (
+            <button type="button" onClick={() => setShowCancelModal(true)}
+              className="text-xs text-red-500 hover:text-red-700 hover:underline">
+              Cancel booking
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -380,10 +427,36 @@ export default function EmployeeTravelRequestDetailPage() {
           </p>
         </div>
         <div className="col-span-2">
-          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Purpose</p>
-          <p className="text-gray-900">{request.purpose}</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-medium text-gray-400 uppercase">Purpose</p>
+            {['SUBMITTED', 'PENDING_MANAGER'].includes(request.status) && !editingDetails && (
+              <button type="button" onClick={() => { setEditPurpose(request.purpose); setEditNotes(request.specialInstructions ?? ''); setEditingDetails(true) }}
+                className="text-xs text-indigo-600 hover:underline">Edit</button>
+            )}
+          </div>
+          {editingDetails ? (
+            <div className="space-y-2">
+              <textarea rows={2} title="Purpose" placeholder="Purpose of trip…" value={editPurpose} onChange={e => setEditPurpose(e.target.value)}
+                className="w-full rounded-lg border border-indigo-300 px-3 py-2 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <textarea rows={3} value={editNotes} onChange={e => setEditNotes(e.target.value)}
+                placeholder="Notes / special instructions…"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <div className="flex gap-2">
+                <button type="button" onClick={saveEdit} disabled={savingEdit}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  {savingEdit ? 'Saving…' : 'Save changes'}
+                </button>
+                <button type="button" onClick={() => setEditingDetails(false)}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-900">{request.purpose}</p>
+          )}
         </div>
-        {request.specialInstructions && (
+        {!editingDetails && request.specialInstructions && (
           <div className="col-span-2">
             <p className="text-xs font-medium text-gray-400 uppercase mb-1">Notes</p>
             <p className="text-gray-700 whitespace-pre-wrap">{request.specialInstructions}</p>
@@ -455,6 +528,35 @@ export default function EmployeeTravelRequestDetailPage() {
             ))}
           </div>
         </div>
+      )}
+      {/* Cancel booking modal */}
+      {showCancelModal && (
+        <>
+          <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setShowCancelModal(false)} />
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+              <h2 className="text-base font-semibold text-gray-900">Cancel confirmed booking</h2>
+              <p className="text-sm text-gray-500">This will cancel your booking. Please provide a reason.</p>
+              <textarea
+                rows={3}
+                placeholder="Reason for cancellation (optional)…"
+                value={cancelNote}
+                onChange={e => setCancelNote(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
+              />
+              <div className="flex gap-3 justify-end">
+                <button type="button" onClick={() => setShowCancelModal(false)}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                  Keep booking
+                </button>
+                <button type="button" onClick={cancelBooking} disabled={cancelling}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+                  {cancelling ? 'Cancelling…' : 'Confirm cancel'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

@@ -39,6 +39,7 @@ const navByRole: Record<Role, NavItem[]> = {
   SYSTEM_ADMIN: [
     { heading: 'Operations' },
     { label: 'Admin Dashboard',   href: '/admin' },
+    { label: 'Travel Inbox',      href: '/manager/inbox' },
     { label: 'Travel Requests',   href: '/employee/travel-requests' },
     { label: 'New Travel Request', href: '/employee/travel-requests/new' },
     { label: 'Expenses',          href: '/employee/expenses?view=admin' },

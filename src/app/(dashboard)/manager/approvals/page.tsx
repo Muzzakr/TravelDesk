@@ -27,11 +27,17 @@ export default function ApprovalsPage() {
   async function load() {
     setLoading(true)
     const [trRes, expRes] = await Promise.all([
-      fetch('/api/travel-requests?status=PENDING_MANAGER'),
-      fetch('/api/expenses?status=SUBMITTED'),
+      fetch('/api/travel-requests'),
+      fetch('/api/expenses'),
     ])
-    if (trRes.ok) setTravelRequests(await trRes.json())
-    if (expRes.ok) setExpenses(await expRes.json())
+    if (trRes.ok) {
+      const all: TravelRequest[] = await trRes.json()
+      setTravelRequests(all.filter(r => r.status === 'PENDING_MANAGER'))
+    }
+    if (expRes.ok) {
+      const all: Expense[] = await expRes.json()
+      setExpenses(all.filter(e => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)))
+    }
     setLoading(false)
   }
 

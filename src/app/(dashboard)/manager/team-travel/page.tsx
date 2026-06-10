@@ -72,37 +72,38 @@ export default async function TeamTravelPage({
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <form method="get" className="flex flex-wrap gap-3">
-          <select
-            name="status"
-            defaultValue={statusFilter}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            onChange={(e) => (e.target.form as HTMLFormElement).submit()}
-          >
-            <option value="">All Statuses</option>
-            {statuses.map((s) => (
-              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
-          <select
-            name="employee"
-            defaultValue={employeeFilter}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            onChange={(e) => (e.target.form as HTMLFormElement).submit()}
-          >
-            <option value="">All Employees</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
-          {(statusFilter || employeeFilter) && (
-            <Link href="/manager/team-travel" className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white text-gray-500 hover:bg-gray-50">
-              Clear filters
-            </Link>
-          )}
-        </form>
-      </div>
+      <form method="get" className="flex flex-wrap gap-3">
+        <select
+          name="status"
+          defaultValue={statusFilter}
+          title="Filter by status"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">All Statuses</option>
+          {statuses.map((s) => (
+            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+        <select
+          name="employee"
+          defaultValue={employeeFilter}
+          title="Filter by employee"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">All Employees</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>{e.name}</option>
+          ))}
+        </select>
+        <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          Filter
+        </button>
+        {(statusFilter || employeeFilter) && (
+          <Link href="/manager/team-travel" className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white text-gray-500 hover:bg-gray-50">
+            Clear
+          </Link>
+        )}
+      </form>
 
       {/* Table */}
       {requests.length === 0 ? (

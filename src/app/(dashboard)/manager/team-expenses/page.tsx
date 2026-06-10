@@ -76,7 +76,6 @@ export default async function TeamExpensesPage({
           defaultValue={statusFilter}
           title="Filter by status"
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          onChange={(e) => (e.target.form as HTMLFormElement).submit()}
         >
           <option value="">All Statuses</option>
           {statuses.map((s) => (
@@ -88,16 +87,18 @@ export default async function TeamExpensesPage({
           defaultValue={employeeFilter}
           title="Filter by employee"
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          onChange={(e) => (e.target.form as HTMLFormElement).submit()}
         >
           <option value="">All Employees</option>
           {employees.map((e) => (
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </select>
+        <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          Filter
+        </button>
         {(statusFilter || employeeFilter) && (
           <Link href="/manager/team-expenses" className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white text-gray-500 hover:bg-gray-50">
-            Clear filters
+            Clear
           </Link>
         )}
       </form>

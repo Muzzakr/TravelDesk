@@ -140,15 +140,13 @@ export default async function TeamTravelPage({
           </div>
 
           {/* Desktop */}
-          <div className="hidden sm:block overflow-hidden rounded-xl border bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-100 text-sm">
+          <div className="hidden sm:block rounded-xl border bg-white shadow-sm overflow-x-auto">
+            <table className="w-full min-w-[700px] divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
                 <tr>
                   <th className="px-4 py-3 text-left">Employee</th>
                   <th className="px-4 py-3 text-left">Route</th>
-                  <th className="px-4 py-3 text-left">Event</th>
-                  <th className="px-4 py-3 text-left">Services</th>
-                  <th className="px-4 py-3 text-right">Est. Cost</th>
+                  <th className="px-4 py-3 text-left">Est. Cost</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Date</th>
                   <th className="px-4 py-3 text-left">Action</th>
@@ -158,13 +156,14 @@ export default async function TeamTravelPage({
                 {requests.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{r.employee.name}</p>
-                      <p className="text-xs text-gray-400">{r.employee.email}</p>
+                      <p className="font-medium text-gray-900">{r.employee?.name ?? '—'}</p>
+                      <p className="text-xs text-gray-400">{r.employee?.email ?? ''}</p>
                     </td>
-                    <td className="px-4 py-3 font-medium">{r.origin} → {r.destination}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.event.eventName}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.servicesRequested.join(', ')}</td>
-                    <td className="px-4 py-3 text-right font-medium">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{r.origin} → {r.destination}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[180px]">{r.event?.eventName ?? '—'}</p>
+                    </td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">
                       {r.estimatedCostUsd ? `$${Number(r.estimatedCostUsd).toFixed(0)}` : '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -172,12 +171,12 @@ export default async function TeamTravelPage({
                         {r.status.replace(/_/g, ' ')}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
+                    <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                       {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/manager/approvals/travel/${r.id}`} className="text-sm font-medium text-indigo-600 hover:underline">
-                        Review
+                      <Link href={`/manager/approvals/travel/${r.id}`} className="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap">
+                        Review →
                       </Link>
                     </td>
                   </tr>

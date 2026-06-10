@@ -5,7 +5,6 @@ import type { Role } from '@/types/user'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
-import { NotificationBell } from '@/components/ui/NotificationBell'
 
 type NavItem = { label: string; href: string } | { heading: string }
 
@@ -83,10 +82,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
-        <div className="flex h-16 items-center justify-between px-6">
-          <span className="text-xl font-bold">TravelDesk</span>
-          <NotificationBell />
-        </div>
+        <div className="flex h-16 items-center px-6 text-xl font-bold">TravelDesk</div>
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {nav.map((item, i) =>
             'heading' in item ? (

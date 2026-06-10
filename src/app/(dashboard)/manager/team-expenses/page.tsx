@@ -140,17 +140,14 @@ export default async function TeamExpensesPage({
           </div>
 
           {/* Desktop */}
-          <div className="hidden sm:block overflow-hidden rounded-xl border bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-100 text-sm">
+          <div className="hidden sm:block rounded-xl border bg-white shadow-sm overflow-x-auto">
+            <table className="w-full min-w-[700px] divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
                 <tr>
                   <th className="px-4 py-3 text-left">Employee</th>
                   <th className="px-4 py-3 text-left">Description</th>
-                  <th className="px-4 py-3 text-left">Category</th>
-                  <th className="px-4 py-3 text-left">Event</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-left">Amount</th>
                   <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-center">Receipt</th>
                   <th className="px-4 py-3 text-left">Date</th>
                   <th className="px-4 py-3 text-left">Action</th>
                 </tr>
@@ -163,16 +160,17 @@ export default async function TeamExpensesPage({
                         <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
                           {e.employee.name.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{e.employee.name}</p>
-                          <p className="text-xs text-gray-400">{e.employee.email}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{e.employee.name}</p>
+                          <p className="text-xs text-gray-400 truncate">{e.description}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-700 max-w-[160px] truncate">{e.description}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{(e.category ?? '').replace(/_/g, ' ')}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs max-w-[120px] truncate">{e.event.eventName}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                    <td className="px-4 py-3">
+                      <p className="text-gray-700 truncate max-w-[160px]">{e.event?.eventName ?? '—'}</p>
+                      <p className="text-xs text-gray-400">{(e.category ?? '').replace(/_/g, ' ')}</p>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
                       ${Number(e.amountUsd).toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
@@ -180,22 +178,15 @@ export default async function TeamExpensesPage({
                         {e.status.replace(/_/g, ' ')}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      {e.receipts.length > 0 ? (
-                        <span className="text-green-600 text-xs font-medium">✓ {e.receipts.length}</span>
-                      ) : (
-                        <span className="text-gray-300 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-400">
+                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                       {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/manager/approvals/expense/${e.id}`}
-                        className="text-sm font-medium text-indigo-600 hover:underline"
+                        className="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap"
                       >
-                        Review
+                        Review →
                       </Link>
                     </td>
                   </tr>

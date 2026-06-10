@@ -20,60 +20,49 @@ export default async function ManagerDashboard() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [
-    travelPending,
-    travelTotal,
-    travelRejected,
-    travelApprovedMonth,
-    recentTravel,
-    expensePending,
-    expenseTotal,
-    expenseApprovedMonth,
-    recentExpenses,
-    teamCount,
-    activeTeamCount,
-    totalSpend,
-  ] = await Promise.all([
-    prisma.travelRequest.count({ where: { companyId, status: 'PENDING_MANAGER' } }),
-    prisma.travelRequest.count({ where: { companyId } }),
-    prisma.travelRequest.count({ where: { companyId, status: 'REJECTED' } }),
-    prisma.travelRequest.count({
-      where: { companyId, status: { in: ['APPROVED', 'BOOKING_CONFIRMED'] }, updatedAt: { gte: startOfMonth } },
-    }),
-    prisma.travelRequest.findMany({
-      where: { companyId },
-      select: {
-        id: true, status: true, createdAt: true, origin: true, destination: true,
-        employee: { select: { name: true } },
-        event: { select: { eventName: true, eventCode: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    }),
-    prisma.expense.count({ where: { companyId, status: 'SUBMITTED' } }),
-    prisma.expense.count({ where: { companyId } }),
-    prisma.expense.count({
-      where: { companyId, status: 'APPROVED', updatedAt: { gte: startOfMonth } },
-    }),
-    prisma.expense.findMany({
-      where: { companyId },
-      select: {
-        id: true, amountUsd: true, category: true, description: true, status: true, createdAt: true,
-        employee: { select: { name: true } },
-        event: { select: { eventName: true, eventCode: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    }),
-    prisma.user.count({ where: { companyId, role: 'EMPLOYEE' } }),
-    prisma.user.count({ where: { companyId, role: 'EMPLOYEE', isActive: true } }),
-    prisma.expense.aggregate({
-      where: { companyId, status: 'APPROVED', createdAt: { gte: startOfMonth } },
-      _sum: { amountUsd: true },
-    }),
-  ])
+  let travelPending = 0, travelTotal = 0, travelRejected = 0, travelApprovedMonth = 0
+  let expensePending = 0, expenseTotal = 0, expenseApprovedMonth = 0, teamCount = 0, activeTeamCount = 0
+  let totalSpendAmount = 0
+  type TravelRow = { id: string; status: string; createdAt: Date; origin: string; destination: string; employee: { name: string }; event: { eventName: string; eventCode: string } }
+  type ExpenseRow = { id: string; amountUsd: unknown; category: string | null; description: string; status: string; createdAt: Date; employee: { name: string }; event: { eventName: string; eventCode: string } }
+  let recentTravel: TravelRow[] = []
+  let recentExpenses: ExpenseRow[] = []
+  let fetchError: string | null = null
 
-  const totalSpendAmount = Number(totalSpend._sum.amountUsd ?? 0)
+  try {
+    travelPending = await prisma.travelRequest.count({ where: { companyId, status: 'PENDING_MANAGER' } })
+    travelTotal = await prisma.travelRequest.count({ where: { companyId } })
+    travelRejected = await prisma.travelRequest.count({ where: { companyId, status: 'REJECTED' } })
+    travelApprovedMonth = await prisma.travelRequest.count({ where: { companyId, status: { in: ['APPROVED', 'BOOKING_CONFIRMED'] }, updatedAt: { gte: startOfMonth } } })
+    recentTravel = await prisma.travelRequest.findMany({
+      where: { companyId },
+      select: { id: true, status: true, createdAt: true, origin: true, destination: true, employee: { select: { name: true } }, event: { select: { eventName: true, eventCode: true } } },
+      orderBy: { createdAt: 'desc' }, take: 5,
+    })
+    expensePending = await prisma.expense.count({ where: { companyId, status: 'SUBMITTED' } })
+    expenseTotal = await prisma.expense.count({ where: { companyId } })
+    expenseApprovedMonth = await prisma.expense.count({ where: { companyId, status: 'APPROVED', updatedAt: { gte: startOfMonth } } })
+    recentExpenses = await prisma.expense.findMany({
+      where: { companyId },
+      select: { id: true, amountUsd: true, category: true, description: true, status: true, createdAt: true, employee: { select: { name: true } }, event: { select: { eventName: true, eventCode: true } } },
+      orderBy: { createdAt: 'desc' }, take: 5,
+    })
+    teamCount = await prisma.user.count({ where: { companyId, role: 'EMPLOYEE' } })
+    activeTeamCount = await prisma.user.count({ where: { companyId, role: 'EMPLOYEE', isActive: true } })
+    const spendAgg = await prisma.expense.aggregate({ where: { companyId, status: 'APPROVED', createdAt: { gte: startOfMonth } }, _sum: { amountUsd: true } })
+    totalSpendAmount = Number(spendAgg._sum.amountUsd ?? 0)
+  } catch (err) {
+    fetchError = err instanceof Error ? err.message : String(err)
+  }
+
+  if (fetchError) {
+    return (
+      <div className="rounded-xl bg-red-50 border border-red-200 p-6 max-w-2xl">
+        <p className="text-sm font-semibold text-red-700 mb-2">Dashboard data error</p>
+        <pre className="text-xs text-red-600 whitespace-pre-wrap break-all">{fetchError}</pre>
+      </div>
+    )
+  }
 
   const urgentItems = [
     travelPending > 0 && { count: travelPending, label: 'Travel requests pending', href: '/manager/approvals', color: 'amber' as const },

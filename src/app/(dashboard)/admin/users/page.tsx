@@ -475,7 +475,7 @@ export default function AdminUsersPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,.xlsx,.pdf"
+            accept=".csv,.xlsx"
             aria-label="Upload user file"
             className="hidden"
             onChange={handleFileChange}
@@ -516,7 +516,7 @@ export default function AdminUsersPage() {
 
       {!preview && !extracting && (
         <p className="text-xs text-gray-400">
-          Upload a <strong>CSV</strong>, <strong>Excel (.xlsx)</strong>, or <strong>PDF</strong> file — the system will extract user data and show a preview before creating accounts.
+          Upload a <strong>CSV</strong> or <strong>Excel (.xlsx)</strong> file — the system will extract user data and show a preview before creating accounts.
         </p>
       )}
 

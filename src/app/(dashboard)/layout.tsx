@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { Role } from '@/types/user'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
+import { DashboardHeader } from '@/components/ui/DashboardHeader'
 import { getProfileStatus } from '@/lib/profile-check'
 
 type NavItem = { label: string; href: string } | { heading: string }
@@ -102,7 +103,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </nav>
         <div className="border-t border-indigo-800 px-6 py-4">
           <p className="text-sm font-medium text-white">{session.user.name}</p>
-          <p className="text-xs text-indigo-300">{role.replace('_', ' ')}</p>
+          <p className="text-xs text-indigo-300 truncate">{session.user.email ?? ''}</p>
           <form action={async () => { 'use server'; await signOut({ redirectTo: '/' }) }}>
             <button type="submit" className="mt-3 w-full rounded-lg bg-indigo-800 px-3 py-2 text-left text-sm font-medium text-indigo-200 hover:bg-indigo-700 hover:text-white">
               Log out
@@ -111,8 +112,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </aside>
 
-      {/* Main — profile banner + page content */}
+      {/* Main — header + profile banner + page content */}
       <div className="flex-1 overflow-auto flex flex-col">
+        <DashboardHeader
+          name={session.user.name ?? ''}
+          email={session.user.email ?? ''}
+          role={role}
+          logoutAction={async () => { 'use server'; await signOut({ redirectTo: '/' }) }}
+        />
         {!profileStatus.complete && (
           <ProfileBanner
             missingFields={profileStatus.missingFields}
@@ -120,7 +127,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             blocking={profileStatus.blocking}
           />
         )}
-        <main className="flex-1 p-4 pt-18 md:pt-8 md:p-8">{children}</main>
+        <main className="flex-1 p-4 pt-18 md:pt-4 md:p-8">{children}</main>
       </div>
     </div>
   )

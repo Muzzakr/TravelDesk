@@ -22,7 +22,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Team Travel', href: '/manager/team-travel' },
     { label: 'Team Expenses', href: '/manager/team-expenses' },
     { heading: 'Administration' },
-    { label: 'Users & Roles', href: '/manager/users-roles' },
+    { label: 'Employee', href: '/manager/users-roles' },
     { label: 'Workflows', href: '/manager/workflows' },
     { label: 'Monthly Reports', href: '/manager/reports' },
   ],

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Badge } from '@/components/ui/Badge'
 
 type UserRow = {
@@ -13,119 +13,65 @@ type UserRow = {
   manager: { name: string } | null
 }
 
+// Manager kan bara se dessa roller — inte MANAGER eller SYSTEM_ADMIN
+const ALLOWED_ROLES = ['EMPLOYEE', 'TRAVEL_AGENT', 'FINANCE_ADMIN']
+
 const roleBadge: Record<string, 'blue' | 'green' | 'purple' | 'yellow' | 'gray'> = {
-  EMPLOYEE: 'blue',
-  MANAGER: 'green',
+  EMPLOYEE:     'blue',
   TRAVEL_AGENT: 'purple',
   FINANCE_ADMIN: 'yellow',
-  SYSTEM_ADMIN: 'gray',
 }
 
 const ROLE_OPTIONS = [
-  { value: 'EMPLOYEE', label: 'Employee' },
-  { value: 'MANAGER', label: 'Manager' },
+  { value: 'EMPLOYEE',     label: 'Employee' },
   { value: 'TRAVEL_AGENT', label: 'Travel Agent' },
   { value: 'FINANCE_ADMIN', label: 'Finance Admin' },
-  { value: 'SYSTEM_ADMIN', label: 'System Admin' },
 ]
 
-export default function UsersRolesPage() {
-  const [users, setUsers] = useState<UserRow[]>([])
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{label}</span>
+      <span className="text-sm text-gray-800">{value || '—'}</span>
+    </div>
+  )
+}
+
+export default function ManagerUsersPage() {
+  const [allUsers, setAllUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [selected, setSelected] = useState<UserRow | null>(null)
-  const [editForm, setEditForm] = useState({ name: '', role: '', isActive: true, managerId: '' })
-  const [saving, setSaving] = useState(false)
-  const [editError, setEditError] = useState('')
-  const [showInvite, setShowInvite] = useState(false)
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: 'EMPLOYEE' })
-  const [inviting, setInviting] = useState(false)
-  const [inviteError, setInviteError] = useState('')
-  const [inviteSuccess, setInviteSuccess] = useState('')
+  const drawerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { fetchUsers() }, [])
-
-  async function fetchUsers() {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/users')
-      if (!res.ok) throw new Error('Failed to load')
-      const data = await res.json()
-      setUsers(data.users ?? [])
-    } catch {
-      setError('Failed to load users.')
-    } finally {
-      setLoading(false)
+  async function loadUsers() {
+    const res = await fetch('/api/users')
+    if (res.ok) {
+      const data: UserRow[] = await res.json()
+      // Filter: only show allowed roles
+      setAllUsers(data.filter((u) => ALLOWED_ROLES.includes(u.role)))
+    } else {
+      setError('Failed to load users')
     }
+    setLoading(false)
   }
 
-  function openEdit(user: UserRow) {
-    setSelected(user)
-    setEditForm({ name: user.name, role: user.role, isActive: user.isActive, managerId: '' })
-    setEditError('')
-  }
+  useEffect(() => { loadUsers() }, [])
 
-  async function saveEdit() {
+  useEffect(() => {
     if (!selected) return
-    setSaving(true)
-    setEditError('')
-    try {
-      const res = await fetch(`/api/users/${selected.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      })
-      if (!res.ok) {
-        const d = await res.json()
-        throw new Error(d.error || 'Failed to save')
+    function onMouseDown(e: MouseEvent) {
+      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
+        setSelected(null)
       }
-      await fetchUsers()
-      setSelected(null)
-    } catch (e: unknown) {
-      setEditError(e instanceof Error ? e.message : 'Failed to save')
-    } finally {
-      setSaving(false)
     }
-  }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [selected])
 
-  async function toggleActive(user: UserRow) {
-    try {
-      await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !user.isActive }),
-      })
-      await fetchUsers()
-    } catch {
-      // ignore
-    }
-  }
-
-  async function sendInvite() {
-    setInviting(true)
-    setInviteError('')
-    setInviteSuccess('')
-    try {
-      const res = await fetch('/api/users/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inviteForm),
-      })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error || 'Failed to invite')
-      setInviteSuccess(`Invitation sent to ${inviteForm.email}`)
-      setInviteForm({ name: '', email: '', role: 'EMPLOYEE' })
-      await fetchUsers()
-    } catch (e: unknown) {
-      setInviteError(e instanceof Error ? e.message : 'Failed to invite')
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  const filtered = users.filter((u) => {
+  const users = allUsers.filter((u) => {
     if (roleFilter && u.role !== roleFilter) return false
     if (statusFilter === 'active' && !u.isActive) return false
     if (statusFilter === 'inactive' && u.isActive) return false
@@ -133,223 +79,202 @@ export default function UsersRolesPage() {
   })
 
   const counts = {
-    total: users.length,
-    active: users.filter((u) => u.isActive).length,
-    byRole: ROLE_OPTIONS.map((r) => ({ label: r.label, count: users.filter((u) => u.role === r.value).length })),
+    total:        allUsers.length,
+    active:       allUsers.filter((u) => u.isActive).length,
+    employee:     allUsers.filter((u) => u.role === 'EMPLOYEE').length,
+    travelAgent:  allUsers.filter((u) => u.role === 'TRAVEL_AGENT').length,
+    financeAdmin: allUsers.filter((u) => u.role === 'FINANCE_ADMIN').length,
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+
+      {/* Detail drawer */}
+      {selected && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/20 pointer-events-none" />
+          <div ref={drawerRef} className="fixed right-0 top-0 h-full w-full max-w-md z-[51] flex flex-col bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b px-6 py-5">
+              <div className="min-w-0 pr-4">
+                <p className="text-xs text-gray-400">{selected.email}</p>
+                <h2 className="mt-0.5 text-lg font-semibold text-gray-900 leading-tight">{selected.name}</h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setSelected(null)}
+                className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={roleBadge[selected.role] ?? 'gray'}>{selected.role.replace(/_/g, ' ')}</Badge>
+                  <Badge variant={selected.isActive ? 'green' : 'gray'}>{selected.isActive ? 'Active' : 'Inactive'}</Badge>
+                </div>
+
+                <div className="h-px bg-gray-100" />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <DetailRow label="Email" value={selected.email} />
+                  <DetailRow label="Reports to" value={selected.manager?.name ?? null} />
+                </div>
+
+                <DetailRow
+                  label="Joined"
+                  value={new Date(selected.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users & Roles</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your team members and their roles</p>
+          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Your team members and their roles</p>
         </div>
-        <button
-          onClick={() => setShowInvite(true)}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          + Invite User
-        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-4">
-          <p className="text-xs text-gray-500">Total</p>
-          <p className="text-2xl font-bold text-gray-900 mt-0.5">{counts.total}</p>
-          <p className="text-xs text-gray-400">{counts.active} active</p>
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-gray-100 bg-white px-5 py-4">
+          <p className="text-2xl font-bold text-gray-900">{counts.total}</p>
+          <p className="text-xs font-semibold text-gray-700 mt-0.5">Total</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{counts.active} active</p>
         </div>
-        {counts.byRole.map((r) => (
-          <div key={r.label} className="rounded-xl bg-white border border-gray-100 shadow-sm p-4">
-            <p className="text-xs text-gray-500">{r.label}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">{r.count}</p>
-          </div>
-        ))}
+        <div className="rounded-xl border border-gray-100 bg-white px-5 py-4">
+          <p className="text-2xl font-bold text-blue-600">{counts.employee}</p>
+          <p className="text-xs font-semibold text-gray-700 mt-0.5">Employees</p>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-white px-5 py-4">
+          <p className="text-2xl font-bold text-purple-600">{counts.travelAgent}</p>
+          <p className="text-xs font-semibold text-gray-700 mt-0.5">Travel Agents</p>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-white px-5 py-4">
+          <p className="text-2xl font-bold text-yellow-600">{counts.financeAdmin}</p>
+          <p className="text-xs font-semibold text-gray-700 mt-0.5">Finance Admins</p>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <select
+          title="Filter by role"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
         >
           <option value="">All Roles</option>
-          {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select
+          title="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
         >
           <option value="">All Statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
+        {(roleFilter || statusFilter) && (
+          <button
+            type="button"
+            onClick={() => { setRoleFilter(''); setStatusFilter('') }}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 hover:bg-gray-50"
+          >
+            Clear
+          </button>
+        )}
       </div>
+
+      {error && <p className="rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</p>}
 
       {/* User list */}
       {loading ? (
-        <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">Loading...</div>
-      ) : error ? (
-        <div className="rounded-xl border bg-white p-8 text-center text-sm text-red-500">{error}</div>
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : users.length === 0 ? (
+        <div className="rounded-xl border bg-white p-10 text-center text-sm text-gray-400">
+          No users found.
+        </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
-              <tr>
-                <th className="px-4 py-3 text-left">User</th>
-                <th className="px-4 py-3 text-left">Role</th>
-                <th className="px-4 py-3 text-left">Manager</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Joined</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.length === 0 ? (
+        <>
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {users.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => setSelected(u)}
+                className="w-full text-left rounded-xl border bg-white p-4 space-y-2 hover:bg-gray-50 active:bg-gray-100"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{u.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                  </div>
+                  <Badge variant={u.isActive ? 'green' : 'gray'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={roleBadge[u.role] ?? 'gray'}>{u.role.replace(/_/g, ' ')}</Badge>
+                  {u.manager && <span className="text-xs text-gray-400">Reports to: {u.manager.name}</span>}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Joined {new Date(u.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white">
+            <table className="min-w-[500px] w-full divide-y divide-gray-100 text-sm">
+              <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-gray-400">No users found.</td>
+                  <th className="px-4 py-3 text-left">User</th>
+                  <th className="px-4 py-3 text-left">Role</th>
+                  <th className="px-4 py-3 text-left hidden md:table-cell">Reports to</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left hidden lg:table-cell">Joined</th>
                 </tr>
-              ) : filtered.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 flex-shrink-0">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-400">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={roleBadge[user.role] ?? 'gray'}>
-                      {user.role.replace(/_/g, ' ')}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{user.manager?.name ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-400">
-                    {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(user)} className="text-xs font-medium text-indigo-600 hover:underline">Edit</button>
-                      <span className="text-gray-200">|</span>
-                      <button
-                        onClick={() => toggleActive(user)}
-                        className={`text-xs font-medium hover:underline ${user.isActive ? 'text-red-500' : 'text-green-600'}`}
-                      >
-                        {user.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl mx-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Edit User</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  value={editForm.name}
-                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  value={editForm.role}
-                  onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={editForm.isActive}
-                  onChange={(e) => setEditForm((f) => ({ ...f, isActive: e.target.checked }))}
-                  className="rounded"
-                />
-                <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
-              </div>
-              {editError && <p className="text-sm text-red-500">{editError}</p>}
-            </div>
-            <div className="mt-5 flex justify-end gap-3">
-              <button onClick={() => setSelected(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={saveEdit} disabled={saving} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {users.map((u) => (
+                  <tr
+                    key={u.id}
+                    onClick={() => setSelected(u)}
+                    className="hover:bg-indigo-50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900 truncate max-w-[160px]">{u.name}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[200px]">{u.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={roleBadge[u.role] ?? 'gray'}>{u.role.replace(/_/g, ' ')}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 hidden md:table-cell truncate max-w-[128px]">
+                      {u.manager?.name ?? '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={u.isActive ? 'green' : 'gray'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 hidden lg:table-cell whitespace-nowrap">
+                      {new Date(u.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
-
-      {/* Invite Modal */}
-      {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl mx-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Invite User</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
-                <input
-                  value={inviteForm.name}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Jane Smith"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={inviteForm.email}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="jane@company.com"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  value={inviteForm.role}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
-              </div>
-              {inviteError && <p className="text-sm text-red-500">{inviteError}</p>}
-              {inviteSuccess && <p className="text-sm text-green-600">{inviteSuccess}</p>}
-            </div>
-            <div className="mt-5 flex justify-end gap-3">
-              <button onClick={() => { setShowInvite(false); setInviteSuccess('') }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={sendInvite} disabled={inviting} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                {inviting ? 'Sending...' : 'Send Invite'}
-              </button>
-            </div>
-          </div>
-        </div>
+        </>
       )}
     </div>
   )

@@ -169,7 +169,7 @@ export default async function TeamExpensesPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-700 max-w-[160px] truncate">{e.description}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{e.category.replace(/_/g, ' ')}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{(e.category ?? '').replace(/_/g, ' ')}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs max-w-[120px] truncate">{e.event.eventName}</td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">
                       ${Number(e.amountUsd).toFixed(2)}

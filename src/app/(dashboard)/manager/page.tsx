@@ -50,10 +50,10 @@ export default async function ManagerDashboard() {
       orderBy: { createdAt: 'desc' },
       take: 5,
     }),
-    prisma.expense.count({ where: { companyId, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } }),
+    prisma.expense.count({ where: { companyId, status: 'SUBMITTED' } }),
     prisma.expense.count({ where: { companyId } }),
     prisma.expense.count({
-      where: { companyId, status: { in: ['APPROVED', 'PAID'] }, updatedAt: { gte: startOfMonth } },
+      where: { companyId, status: 'APPROVED', updatedAt: { gte: startOfMonth } },
     }),
     prisma.expense.findMany({
       where: { companyId },
@@ -68,7 +68,7 @@ export default async function ManagerDashboard() {
     prisma.user.count({ where: { companyId, role: 'EMPLOYEE' } }),
     prisma.user.count({ where: { companyId, role: 'EMPLOYEE', isActive: true } }),
     prisma.expense.aggregate({
-      where: { companyId, status: { in: ['APPROVED', 'PAID'] }, createdAt: { gte: startOfMonth } },
+      where: { companyId, status: 'APPROVED', createdAt: { gte: startOfMonth } },
       _sum: { amountUsd: true },
     }),
   ])
@@ -246,7 +246,7 @@ export default async function ManagerDashboard() {
                   className="px-5 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-gray-900 truncate">{e.employee.name}</p>
-                    <p className="text-[11px] text-gray-400 truncate">{e.category.replace(/_/g, ' ')} · {e.description}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{(e.category ?? '').replace(/_/g, ' ')} · {e.description}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-semibold text-gray-700">${Number(e.amountUsd).toFixed(0)}</span>

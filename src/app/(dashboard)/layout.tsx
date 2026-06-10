@@ -5,6 +5,7 @@ import type { Role } from '@/types/user'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
+import { NotificationBell } from '@/components/ui/NotificationBell'
 
 type NavItem = { label: string; href: string } | { heading: string }
 
@@ -17,10 +18,14 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   MANAGER: [
     { label: 'Dashboard', href: '/manager' },
+    { heading: 'My Work' },
     { label: 'Travel Inbox', href: '/manager/inbox' },
-    { label: 'Team Spend', href: '/manager/team-spend' },
-    { label: 'Statistics', href: '/admin/stats' },
-    { label: 'Teams Travel', href: '/employee/travel-requests' },
+    { label: 'Team Travel', href: '/manager/team-travel' },
+    { label: 'Team Expenses', href: '/manager/team-spend' },
+    { heading: 'Administration' },
+    { label: 'Users & Roles', href: '/manager/users-roles' },
+    { label: 'Workflows', href: '/manager/workflows' },
+    { label: 'Monthly Reports', href: '/manager/reports' },
   ],
   TRAVEL_AGENT: [
     { label: 'Dashboard', href: '/agent' },
@@ -75,7 +80,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
-        <div className="flex h-16 items-center px-6 text-xl font-bold">TravelDesk</div>
+        <div className="flex h-16 items-center justify-between px-6">
+          <span className="text-xl font-bold">TravelDesk</span>
+          <NotificationBell />
+        </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {nav.map((item, i) =>
             'heading' in item ? (

@@ -1,0 +1,209 @@
+export const dynamic = 'force-dynamic'
+
+import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+
+export default async function TeamExpensesPage({
+  searchParams,
+}: {
+  searchParams: { status?: string; employee?: string }
+}) {
+  const session = await auth()
+  if (!session?.user?.companyId) redirect('/login')
+  const companyId = session.user.companyId
+
+  const statusFilter = searchParams?.status || ''
+  const employeeFilter = searchParams?.employee || ''
+
+  const employees = await prisma.user.findMany({
+    where: { companyId, role: 'EMPLOYEE' },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  })
+
+  const expenses = await prisma.expense.findMany({
+    where: {
+      companyId,
+      ...(statusFilter ? { status: statusFilter as never } : {}),
+      ...(employeeFilter ? { employeeId: employeeFilter } : {}),
+    },
+    include: {
+      employee: { select: { name: true, email: true } },
+      event: { select: { eventName: true, eventCode: true } },
+      receipts: { select: { id: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const stats = {
+    total: expenses.length,
+    pending: expenses.filter((e) => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)).length,
+    approved: expenses.filter((e) => e.status === 'APPROVED').length,
+    totalAmount: expenses.reduce((s, e) => s + Number(e.amountUsd), 0),
+  }
+
+  const statuses = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PAID']
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Team Expenses</h1>
+        <p className="text-sm text-gray-500 mt-0.5">All expenses submitted by your team</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Expenses', value: stats.total, color: 'text-gray-900' },
+          { label: 'Pending Approval', value: stats.pending, color: 'text-yellow-600' },
+          { label: 'Approved', value: stats.approved, color: 'text-green-600' },
+          { label: 'Total Amount', value: `$${stats.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: 'text-blue-700' },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">
+            <p className="text-xs text-gray-500">{s.label}</p>
+            <p className={`mt-1 text-2xl font-bold ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <form method="get" className="flex flex-wrap gap-3">
+        <select
+          name="status"
+          defaultValue={statusFilter}
+          title="Filter by status"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          onChange={(e) => (e.target.form as HTMLFormElement).submit()}
+        >
+          <option value="">All Statuses</option>
+          {statuses.map((s) => (
+            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+        <select
+          name="employee"
+          defaultValue={employeeFilter}
+          title="Filter by employee"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          onChange={(e) => (e.target.form as HTMLFormElement).submit()}
+        >
+          <option value="">All Employees</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>{e.name}</option>
+          ))}
+        </select>
+        {(statusFilter || employeeFilter) && (
+          <Link href="/manager/team-expenses" className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white text-gray-500 hover:bg-gray-50">
+            Clear filters
+          </Link>
+        )}
+      </form>
+
+      {/* Table */}
+      {expenses.length === 0 ? (
+        <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">
+          No expenses found.
+        </div>
+      ) : (
+        <>
+          {/* Mobile */}
+          <div className="sm:hidden space-y-3">
+            {expenses.map((e) => (
+              <div key={e.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-gray-900">{e.employee.name}</p>
+                    <p className="text-sm text-gray-700">{e.description}</p>
+                    <p className="text-xs text-gray-400">{e.event.eventName}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <p className="font-semibold text-gray-900">${Number(e.amountUsd).toFixed(2)}</p>
+                    <Badge variant={statusToBadgeVariant(e.status)}>
+                      {e.status.replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-400">
+                    {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                  <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">
+                    Review →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop */}
+          <div className="hidden sm:block overflow-hidden rounded-xl border bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-100 text-sm">
+              <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">Employee</th>
+                  <th className="px-4 py-3 text-left">Description</th>
+                  <th className="px-4 py-3 text-left">Category</th>
+                  <th className="px-4 py-3 text-left">Event</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-center">Receipt</th>
+                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-left">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {expenses.map((e) => (
+                  <tr key={e.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                          {e.employee.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{e.employee.name}</p>
+                          <p className="text-xs text-gray-400">{e.employee.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 max-w-[160px] truncate">{e.description}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{e.category.replace(/_/g, ' ')}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs max-w-[120px] truncate">{e.event.eventName}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                      ${Number(e.amountUsd).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusToBadgeVariant(e.status)}>
+                        {e.status.replace(/_/g, ' ')}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {e.receipts.length > 0 ? (
+                        <span className="text-green-600 text-xs font-medium">✓ {e.receipts.length}</span>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400">
+                      {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/manager/approvals/expense/${e.id}`}
+                        className="text-sm font-medium text-indigo-600 hover:underline"
+                      >
+                        Review
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

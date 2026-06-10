@@ -5,7 +5,7 @@ import { writeAuditLog } from '@/lib/audit'
 import { checkEventBudget } from '@/lib/policy-engine'
 import { determineRoutingPath } from '@/lib/routing-engine'
 import { notifyTravelRequestCreated } from '@/lib/notify'
-import { emailRequestConfirmation, emailPendingManagerApproval, emailAgentActionRequired } from '@/lib/mail'
+import { emailRequestConfirmation, emailPendingManagerApproval } from '@/lib/mail'
 import { getProfileStatus } from '@/lib/profile-check'
 import { z } from 'zod'
 
@@ -41,6 +41,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  try {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -156,4 +157,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ...travelRequest, budgetWarning: budgetCheck.warningTriggered }, { status: 201 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

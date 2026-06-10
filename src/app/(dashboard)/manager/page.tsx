@@ -3,7 +3,12 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
-import { SpendCharts } from '@/components/manager/SpendCharts'
+import dynamic from 'next/dynamic'
+
+const SpendCharts = dynamic(
+  () => import('@/components/manager/SpendCharts').then((m) => m.SpendCharts),
+  { ssr: false }
+)
 
 export default async function ManagerDashboard() {
   const session = await auth()

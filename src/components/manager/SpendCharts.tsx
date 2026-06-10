@@ -27,7 +27,7 @@ export function SpendCharts({
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: number) => `$${v.toLocaleString('en-US')}`} />
+            <Tooltip formatter={(v) => `$${Number(v).toLocaleString('en-US')}`} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Line type="monotone" dataKey="travel" name="Travel Spend" stroke="#6366f1" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="expense" name="Expense Spend" stroke="#10b981" strokeWidth={2} dot={false} />

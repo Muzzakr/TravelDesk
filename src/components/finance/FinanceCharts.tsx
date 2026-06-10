@@ -72,7 +72,10 @@ export function FinanceCharts({
                     outerRadius={55}
                     dataKey="value"
                     strokeWidth={0}
-                    onClick={(entry) => onStatusClick(entry.status)}
+                    onClick={(entry: unknown) => {
+                      const e = entry as { status?: string }
+                      if (e.status) onStatusClick(e.status)
+                    }}
                     style={{ cursor: 'pointer' }}
                   >
                     {pieData.map((entry, i) => (
@@ -80,7 +83,7 @@ export function FinanceCharts({
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number, name: string) => [`${value} expenses`, name]}
+                    formatter={(value: unknown, name: unknown) => [`${Number(value)} expenses`, String(name)]}
                   />
                 </PieChart>
               </ResponsiveContainer>

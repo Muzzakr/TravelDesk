@@ -75,6 +75,7 @@ function ExpensesContent() {
   const [addingReceiptFor, setAddingReceiptFor]       = useState<string | null>(null)
   const [uploadingReceiptFor, setUploadingReceiptFor] = useState<string | null>(null)
   const [receiptUploadError, setReceiptUploadError]   = useState('')
+  const [notice, setNotice]                           = useState('')
 
   // Expense type card selection
   const [expenseType, setExpenseType] = useState('')
@@ -161,6 +162,7 @@ function ExpensesContent() {
     if (!pendingFile) { setError('A receipt is required — please attach a receipt before submitting.'); return }
     setLoading(true)
     setError('')
+    setNotice('')
 
     const mapped = EXPENSE_TYPE_MAP[expenseType] ?? { category: 'OTHER', service: 'Other' }
     const finalDescription = expenseType === 'CAR_RENTAL' && vehicleType
@@ -193,13 +195,13 @@ function ExpensesContent() {
       fd.append('expenseId', data.expense.id)
       const uploadRes = await fetch('/api/receipts/upload', { method: 'POST', body: fd })
       if (!uploadRes.ok) {
-        let msg = `Receipt upload failed (${uploadRes.status})`
-        try { const d = await uploadRes.json(); msg = d.error ?? msg } catch {}
-        receiptError = `Expense saved, but receipt upload failed: ${msg}. You can add it from the expense detail page.`
+        let msg = `HTTP ${uploadRes.status}`
+        try { const d = await uploadRes.json(); if (d?.error) msg = d.error } catch {}
+        receiptError = `Your expense was saved, but the receipt could not be uploaded (${msg}). Click "Add receipt" on the expense row below to attach it.`
       }
     }
 
-    const refreshed = await fetch('/api/expenses').then(r => r.json())
+    const refreshed = await fetch('/api/expenses', { cache: 'no-store' }).then(r => r.json())
     setExpenses(refreshed)
     localStorage.removeItem(EXPENSE_DRAFT_KEY)
     setShowForm(false)
@@ -210,7 +212,7 @@ function ExpensesContent() {
     setForm({ eventId: '', amountUsd: '', currency: 'USD', description: '', merchantName: '', transactionDate: '', reason: '', personName: '' })
     setPendingFile(null)
     setLoading(false)
-    if (receiptError) setError(receiptError)
+    if (receiptError) setNotice(receiptError)
   }
 
   const canAddReceipt = (status: string) => !['PAID', 'REJECTED', 'APPROVED'].includes(status)
@@ -261,6 +263,15 @@ function ExpensesContent() {
           </button>
         )}
       </div>
+
+      {notice && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span className="flex-1">{notice}</span>
+          <button type="button" onClick={() => setNotice('')} aria-label="Dismiss" title="Dismiss"
+            className="shrink-0 text-amber-500 hover:text-amber-700 font-medium">×</button>
+        </div>
+      )}
 
       {showForm && (() => {
         const currentTypeConfig = expenseType ? EXPENSE_TYPES.find(t => t.key === expenseType) : null

@@ -41,6 +41,8 @@ interface ExpenseDetail {
   status: string
   merchantName: string | null
   transactionDate: string | null
+  reason: string | null
+  personName: string | null
   rejectionNote: string | null
   createdAt: string
   event: { eventName: string; eventCode: string }
@@ -75,7 +77,7 @@ export default function ExpenseDetailPage() {
 
   // Edit mode
   const [editMode, setEditMode] = useState(false)
-  const [editForm, setEditForm] = useState({ amountUsd: '', description: '', merchantName: '', transactionDate: '' })
+  const [editForm, setEditForm] = useState({ amountUsd: '', description: '', merchantName: '', transactionDate: '', reason: '', personName: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -94,6 +96,8 @@ export default function ExpenseDetailPage() {
         transactionDate: data.transactionDate
           ? new Date(data.transactionDate).toISOString().slice(0, 10)
           : '',
+        reason: data.reason ?? '',
+        personName: data.personName ?? '',
       })
     }
     const session = await sessionRes.json()
@@ -170,6 +174,8 @@ export default function ExpenseDetailPage() {
         description: editForm.description,
         merchantName: editForm.merchantName || undefined,
         transactionDate: editForm.transactionDate || undefined,
+        reason: editForm.reason || undefined,
+        personName: editForm.personName || undefined,
       }),
     })
     if (!res.ok) {
@@ -275,6 +281,34 @@ export default function ExpenseDetailPage() {
             />
           ) : (
             <p className="text-gray-900">{expense.merchantName ?? '—'}</p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Reason</p>
+          {editMode ? (
+            <input
+              type="text"
+              value={editForm.reason}
+              onChange={e => setEditForm(p => ({ ...p, reason: e.target.value }))}
+              placeholder="Business purpose"
+              className={`w-full ${inputCls}`}
+            />
+          ) : (
+            <p className="text-gray-900">{expense.reason ?? '—'}</p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase mb-1">Expense for</p>
+          {editMode ? (
+            <input
+              type="text"
+              value={editForm.personName}
+              onChange={e => setEditForm(p => ({ ...p, personName: e.target.value }))}
+              placeholder="Person (optional)"
+              className={`w-full ${inputCls}`}
+            />
+          ) : (
+            <p className="text-gray-900">{expense.personName ?? '—'}</p>
           )}
         </div>
         <div>

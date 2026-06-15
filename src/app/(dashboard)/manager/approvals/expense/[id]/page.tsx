@@ -114,6 +114,12 @@ export default function ApproveExpensePage() {
           <div><span className="text-gray-500">Event</span><p className="font-medium text-gray-900">{ev.eventName}</p></div>
           <div><span className="text-gray-500">Description</span><p className="font-medium text-gray-900">{String(expense.description)}</p></div>
           <div><span className="text-gray-500">Category</span><p className="font-medium text-gray-900">{String(expense.category)}</p></div>
+          {expense.reason != null && expense.reason !== '' && (
+            <div><span className="text-gray-500">Reason</span><p className="font-medium text-gray-900">{String(expense.reason)}</p></div>
+          )}
+          {expense.personName != null && expense.personName !== '' && (
+            <div><span className="text-gray-500">Expense for</span><p className="font-medium text-gray-900">{String(expense.personName)}</p></div>
+          )}
           <div><span className="text-gray-500">Amount</span><p className="text-xl font-bold text-gray-900">${Number(expense.amountUsd).toFixed(2)}</p></div>
           <div><span className="text-gray-500">Status</span><p><Badge variant={statusToBadgeVariant(status)}>{status}</Badge></p></div>
         </div>

@@ -13,6 +13,8 @@ const UpdateSchema = z.object({
   description: z.string().min(1).optional(),
   merchantName: z.string().optional(),
   transactionDate: z.string().optional(),
+  reason: z.string().min(1).optional(),
+  personName: z.string().optional(),
 })
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -65,7 +67,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     parsed.data.amountUsd !== undefined ||
     parsed.data.description !== undefined ||
     parsed.data.merchantName !== undefined ||
-    parsed.data.transactionDate !== undefined
+    parsed.data.transactionDate !== undefined ||
+    parsed.data.reason !== undefined ||
+    parsed.data.personName !== undefined
   )
 
   if (isFieldEdit) {
@@ -84,6 +88,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         ...(parsed.data.transactionDate !== undefined && {
           transactionDate: parsed.data.transactionDate ? new Date(parsed.data.transactionDate) : null,
         }),
+        ...(parsed.data.reason !== undefined && { reason: parsed.data.reason }),
+        ...(parsed.data.personName !== undefined && { personName: parsed.data.personName || null }),
       },
     })
     await writeAuditLog({

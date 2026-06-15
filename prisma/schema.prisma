@@ -292,6 +292,8 @@ model Expense {
   merchantName    String?
   transactionDate DateTime?
   service         String?
+  reason          String?
+  personName      String?
   rejectionNote   String?
   payoutReportId  String?
   createdAt       DateTime        @default(now())

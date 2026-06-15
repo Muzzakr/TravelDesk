@@ -18,6 +18,8 @@ const CreateSchema = z.object({
   merchantName: z.string().optional(),
   transactionDate: z.string().optional(),
   service: z.string().optional(),
+  reason: z.string().min(1),
+  personName: z.string().optional(),
 })
 
 export async function GET() {
@@ -81,6 +83,8 @@ export async function POST(req: NextRequest) {
       merchantName: parsed.data.merchantName,
       transactionDate: parsed.data.transactionDate ? new Date(parsed.data.transactionDate) : null,
       service: parsed.data.service,
+      reason: parsed.data.reason,
+      personName: parsed.data.personName || null,
       status: 'SUBMITTED',
     },
   })

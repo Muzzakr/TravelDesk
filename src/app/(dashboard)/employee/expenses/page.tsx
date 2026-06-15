@@ -88,6 +88,7 @@ function ExpensesContent() {
   const [form, setForm] = useState({
     eventId: '', amountUsd: '', currency: 'USD',
     description: '', merchantName: '', transactionDate: '',
+    reason: '', personName: '',
   })
 
   useEffect(() => {
@@ -140,7 +141,7 @@ function ExpensesContent() {
     setVehicleType('')
     setError('')
     setEventSearch('')
-    setForm({ eventId: '', amountUsd: '', currency: 'USD', description: '', merchantName: '', transactionDate: '' })
+    setForm({ eventId: '', amountUsd: '', currency: 'USD', description: '', merchantName: '', transactionDate: '', reason: '', personName: '' })
     setPendingFile(null)
   }
 
@@ -150,6 +151,7 @@ function ExpensesContent() {
     if (step === 3) {
       if (!form.amountUsd || Number(form.amountUsd) <= 0) { setError('Please enter a valid amount.'); return }
       if (!form.description.trim())            { setError('Please enter a description.'); return }
+      if (!form.reason.trim())                 { setError('Please enter a reason for this expense.'); return }
     }
     setError('')
     setStep(s => s + 1)
@@ -205,7 +207,7 @@ function ExpensesContent() {
     setExpenseType('')
     setVehicleType('')
     setEventSearch('')
-    setForm({ eventId: '', amountUsd: '', currency: 'USD', description: '', merchantName: '', transactionDate: '' })
+    setForm({ eventId: '', amountUsd: '', currency: 'USD', description: '', merchantName: '', transactionDate: '', reason: '', personName: '' })
     setPendingFile(null)
     setLoading(false)
     if (receiptError) setError(receiptError)
@@ -399,6 +401,18 @@ function ExpensesContent() {
                       placeholder={cfg.descPlaceholder} className={inputCls} />
                   </Field>
 
+                  <Field label="Reason for expense" required>
+                    <input type="text" value={form.reason}
+                      onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
+                      placeholder="E.g. Client meeting, business travel" className={inputCls} />
+                  </Field>
+
+                  <Field label="Name of person (who it was for)">
+                    <input type="text" value={form.personName}
+                      onChange={e => setForm(p => ({ ...p, personName: e.target.value }))}
+                      placeholder="E.g. Jane Doe (leave blank if for yourself)" className={inputCls} />
+                  </Field>
+
                   <div className="flex flex-col gap-1">
                     <p className="text-sm font-medium text-gray-700">Receipt<span className="text-red-500 ml-0.5">*</span></p>
                     <FileUpload
@@ -442,6 +456,8 @@ function ExpensesContent() {
                       {form.merchantName && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Merchant</span><span className="text-gray-900 font-medium">{form.merchantName}</span></div>}
                       {vehicleType && expenseType === 'CAR_RENTAL' && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Vehicle type</span><span className="text-gray-900 font-medium">{vehicleType}</span></div>}
                       {form.description && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Description</span><span className="text-gray-900 font-medium">{form.description}</span></div>}
+                      {form.reason && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Reason</span><span className="text-gray-900 font-medium">{form.reason}</span></div>}
+                      {form.personName && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Expense for</span><span className="text-gray-900 font-medium">{form.personName}</span></div>}
                       <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Receipt</span><span className="text-gray-900 font-medium">{pendingFile ? pendingFile.name : <span className="text-amber-600">None — required</span>}</span></div>
                     </div>
                   </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { subscribe } from '@/lib/api'
+import { PartyPopper } from 'lucide-react'
 
 interface NewsletterFormProps {
   dark?: boolean
@@ -31,7 +32,7 @@ export function NewsletterForm({ dark = false }: NewsletterFormProps) {
   if (status === 'success') {
     return (
       <div className={`p-4 rounded-lg text-center ${dark ? 'bg-indigo-500 text-white' : 'bg-green-50 text-green-700'}`}>
-        <p className="font-semibold text-lg">🎉 {message}</p>
+        <p className="inline-flex items-center gap-2 font-semibold text-lg"><PartyPopper className="w-5 h-5" /> {message}</p>
         <p className="text-sm mt-1 opacity-80">Check your inbox to confirm your subscription.</p>
       </div>
     )

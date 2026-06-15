@@ -9,6 +9,7 @@ import { DateInput } from '@/components/ui/DateInput'
 import type { TravelEvent } from '@/types/event'
 import type { Expense } from '@/types/expense'
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, ShoppingBagIcon, MapPinIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
+import { Check, AlertTriangle } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 
@@ -275,7 +276,7 @@ function ExpensesContent() {
                   <div key={label} className="flex items-center flex-1 last:flex-none">
                     <div className="flex flex-col items-center">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${done ? 'bg-indigo-500 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                        {done ? '✓' : n}
+                        {done ? <Check className="w-4 h-4" /> : n}
                       </div>
                       <span className={`mt-1 text-xs font-medium hidden sm:block ${active ? 'text-indigo-600' : done ? 'text-indigo-400' : 'text-gray-400'}`}>{label}</span>
                     </div>
@@ -536,7 +537,7 @@ function ExpensesContent() {
                     onClick={() => setAddingReceiptFor(exp.id)}
                     className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700"
                   >
-                    ⚠ No receipt — Add receipt
+                    <AlertTriangle className="w-3.5 h-3.5" /> No receipt — Add receipt
                   </button>
                 )}
               </div>
@@ -574,14 +575,14 @@ function ExpensesContent() {
                     <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(exp.status)}>{exp.status}</Badge></td>
                     <td className="px-4 py-3">
                       {(exp.receipts?.length ?? 0) > 0 ? (
-                        <span className="text-xs text-green-600 font-medium">✓ {exp.receipts!.length}</span>
+                        <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> {exp.receipts!.length}</span>
                       ) : canAddReceipt(exp.status) ? (
                         <button
                           type="button"
                           onClick={() => { setAddingReceiptFor(addingReceiptFor === exp.id ? null : exp.id); setReceiptUploadError('') }}
-                          className="text-xs font-medium text-amber-600 hover:text-amber-700"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700"
                         >
-                          ⚠ Add receipt
+                          <AlertTriangle className="w-3.5 h-3.5" /> Add receipt
                         </button>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
+import { Zap } from 'lucide-react'
 
 interface TravelRequest {
   id: string
@@ -103,7 +104,7 @@ export default function TravelRequestsPage() {
                       href={`/employee/travel-requests/${r.id}`}
                       className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors ${needsAction ? 'bg-orange-500 hover:bg-orange-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                     >
-                      {needsAction ? '⚡ Choose option' : 'View →'}
+                      {needsAction ? <><Zap className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Choose option</> : 'View →'}
                     </Link>
                     {isDraft && role === 'EMPLOYEE' && (
                       <button
@@ -159,7 +160,7 @@ export default function TravelRequestsPage() {
                           href={`/employee/travel-requests/${r.id}`}
                           className={`text-xs font-medium hover:underline ${needsAction ? 'text-orange-600 font-semibold' : 'text-indigo-600'}`}
                         >
-                          {needsAction ? '⚡ Choose option' : 'View →'}
+                          {needsAction ? <><Zap className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Choose option</> : 'View →'}
                         </Link>
                         {isDraft && (
                           <button

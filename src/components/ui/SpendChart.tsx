@@ -11,6 +11,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts'
+import { BarChart3 } from 'lucide-react'
 
 type Granularity = 'monthly' | 'weekly' | 'daily'
 
@@ -146,7 +147,7 @@ export function SpendChart({ companyEvents }: SpendChartProps) {
       ) : data.length === 0 ? (
         <div className="h-64 flex items-center justify-center rounded-xl border border-dashed border-gray-200">
           <div className="text-center">
-            <p className="text-2xl mb-2">📊</p>
+            <BarChart3 className="w-7 h-7 mx-auto mb-2 text-gray-300" />
             <p className="text-sm text-gray-400">No approved spend for the selected filters</p>
           </div>
         </div>

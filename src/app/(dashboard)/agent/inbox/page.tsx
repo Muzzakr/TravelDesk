@@ -1,6 +1,7 @@
 'use client'
 
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, PlusCircleIcon, InboxIcon } from '@heroicons/react/24/outline'
+import { MapPin, Calendar, User, X, Inbox } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -243,7 +244,7 @@ export default function AgentInboxPage() {
         </div>
       ) : messages.length === 0 ? (
         <div className="rounded-2xl border bg-white p-16 text-center">
-          <p className="text-4xl mb-3">📭</p>
+          <Inbox className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-gray-500 text-sm">No messages match your filters.</p>
         </div>
       ) : (
@@ -298,17 +299,17 @@ export default function AgentInboxPage() {
                     )}
                     {(parsed.origin || parsed.destination) && (
                       <span className="inline-flex items-center gap-1 rounded-lg bg-gray-100 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700">
-                        📍 {[parsed.origin, parsed.destination].filter(Boolean).join(' → ')}
+                        <MapPin className="w-3.5 h-3.5" /> {[parsed.origin, parsed.destination].filter(Boolean).join(' → ')}
                       </span>
                     )}
                     {parsed.departureDate && (
                       <span className="inline-flex items-center gap-1 rounded-lg bg-gray-100 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700">
-                        📅 {fmtDate(parsed.departureDate)}{parsed.returnDate ? ` → ${fmtDate(parsed.returnDate)}` : ''}
+                        <Calendar className="w-3.5 h-3.5" /> {fmtDate(parsed.departureDate)}{parsed.returnDate ? ` → ${fmtDate(parsed.returnDate)}` : ''}
                       </span>
                     )}
                     {parsed.employeeName && (
                       <span className="inline-flex items-center gap-1 rounded-lg bg-gray-100 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700">
-                        👤 {parsed.employeeName}
+                        <User className="w-3.5 h-3.5" /> {parsed.employeeName}
                       </span>
                     )}
                   </div>
@@ -348,7 +349,7 @@ export default function AgentInboxPage() {
                       className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                       title="View employee profile"
                     >
-                      👤 Profile
+                      <User className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Profile
                     </button>
                     <button
                       onClick={() => handleIgnore(msg)}
@@ -396,7 +397,7 @@ export default function AgentInboxPage() {
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <p className="font-semibold text-gray-900">{profileData.user.name}</p>
-                          <button onClick={() => setProfileMsgId(null)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                          <button onClick={() => setProfileMsgId(null)} aria-label="Close" title="Close" className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
                         </div>
                         <p className="text-xs text-gray-500">{profileData.user.email}</p>
                         {profileData.profile && (

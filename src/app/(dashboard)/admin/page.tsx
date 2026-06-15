@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Plane, Calendar, CreditCard, BarChart3, Users, Search, AlertTriangle } from 'lucide-react'
 
 const ChevronRight = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -180,7 +181,7 @@ export default async function AdminDashboard() {
         <details className="group rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 text-sm font-bold">✈</div>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600"><Plane className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Travel Requests</p>
                 <p className="text-xs text-gray-400">{travelRequestTotal} total · {travelRequestPending} pending</p>
@@ -238,7 +239,7 @@ export default async function AdminDashboard() {
         <details className="group rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 text-sm font-bold">📅</div>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"><Calendar className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Events</p>
                 <p className="text-xs text-gray-400">{eventCount} total · {activeEventCount} active</p>
@@ -274,7 +275,7 @@ export default async function AdminDashboard() {
         <details className="group rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600 text-sm font-bold">💳</div>
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600"><CreditCard className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Expenses</p>
                 <p className="text-xs text-gray-400">{expenseTotal} total · ${totalPendingPayout.toLocaleString('en-US', { maximumFractionDigits: 0 })} pending</p>
@@ -315,7 +316,7 @@ export default async function AdminDashboard() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {e.receipts.length === 0 && (
-                      <span className="text-[10px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">⚠</span>
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
                     )}
                     <span className="text-xs font-semibold text-gray-700">${Number(e.amountUsd).toFixed(0)}</span>
                   </div>
@@ -334,7 +335,7 @@ export default async function AdminDashboard() {
         <details className="group rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600 text-sm font-bold">📊</div>
+              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600"><BarChart3 className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Payout Reports</p>
                 <p className="text-xs text-gray-400">{payoutReportCount} total reports</p>
@@ -386,7 +387,7 @@ export default async function AdminDashboard() {
         <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600 text-sm font-bold">👥</div>
+              <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600"><Users className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Team</p>
                 <p className="text-xs text-gray-400">{userCount} users · {activeUserCount} active</p>
@@ -415,7 +416,7 @@ export default async function AdminDashboard() {
         <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-bold">🔍</div>
+              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500"><Search className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Audit Log</p>
                 <p className="text-xs text-gray-400">Recent activity</p>

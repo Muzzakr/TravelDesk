@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Plane, CreditCard } from 'lucide-react'
 
 const ChevronRight = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -141,7 +142,7 @@ export default async function ManagerDashboard() {
         <details className="group rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 text-sm font-bold">✈</div>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600"><Plane className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Travel Requests</p>
                 <p className="text-xs text-gray-400">{travelTotal} total · {travelPending} pending review</p>
@@ -197,7 +198,7 @@ export default async function ManagerDashboard() {
         <details className="group rounded-2xl border border-gray-100 bg-white overflow-hidden">
           <summary className="flex items-center justify-between px-5 py-4 cursor-pointer select-none list-none hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600 text-sm font-bold">💳</div>
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600"><CreditCard className="w-4 h-4" /></div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Team Expenses</p>
                 <p className="text-xs text-gray-400">{expenseTotal} total · {expensePending} pending review</p>

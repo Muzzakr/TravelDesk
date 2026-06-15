@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
+import { Check } from 'lucide-react'
 
 const roleBadge: Record<string, 'blue' | 'green' | 'purple' | 'yellow' | 'gray'> = {
   EMPLOYEE: 'blue',
@@ -75,7 +76,7 @@ export default async function AdminUserProfilePage({ params }: { params: { id: s
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Passport scan</p>
-                <p className="mt-1">{profile.passportPhotoKey ? <span className="text-green-600 font-medium">✓ On file</span> : <span className="text-gray-400">—</span>}</p>
+                <p className="mt-1">{profile.passportPhotoKey ? <span className="inline-flex items-center gap-1 text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> On file</span> : <span className="text-gray-400">—</span>}</p>
               </div>
               <div></div>
               <div>
@@ -88,7 +89,7 @@ export default async function AdminUserProfilePage({ params }: { params: { id: s
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">License scan</p>
-                <p className="mt-1">{profile.driversLicensePhotoKey ? <span className="text-green-600 font-medium">✓ On file</span> : <span className="text-gray-400">—</span>}</p>
+                <p className="mt-1">{profile.driversLicensePhotoKey ? <span className="inline-flex items-center gap-1 text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> On file</span> : <span className="text-gray-400">—</span>}</p>
               </div>
             </div>
           </section>

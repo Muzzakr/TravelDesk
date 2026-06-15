@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { FileText, Image as ImageIcon } from 'lucide-react'
 
 function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
   const [loading, setLoading] = useState(false)
@@ -24,7 +25,7 @@ function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-lg">{isPdf ? '📄' : '🖼️'}</span>
+        {isPdf ? <FileText className="w-5 h-5 text-gray-500 shrink-0" /> : <ImageIcon className="w-5 h-5 text-gray-500 shrink-0" />}
         <span className="truncate text-gray-700">{fileName}</span>
       </div>
       {url ? (

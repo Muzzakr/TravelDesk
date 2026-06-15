@@ -1,6 +1,7 @@
 'use client'
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { Plane, Building, UtensilsCrossed, Car, Package, Circle, type LucideIcon } from 'lucide-react'
 
 type StatusSlice = { status: string; count: number; amount: number }
 type CategoryBar = { category: string; amount: number }
@@ -24,12 +25,12 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const CATEGORY_COLORS = ['#6366f1', '#8b5cf6', '#f59e0b', '#10b981', '#94a3b8']
-const CATEGORY_ICONS: Record<string, string> = {
-  FLIGHTS: '✈️', FLIGHT: '✈️',
-  HOTELS: '🏨', ACCOMMODATION: '🏨',
-  MEALS: '🍽️', MEALS_ENTERTAINMENT: '🍽️',
-  TRANSPORT: '🚗', TRANSPORTATION: '🚗',
-  OTHER: '•', SUPPLIES: '📦',
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  FLIGHTS: Plane, FLIGHT: Plane,
+  HOTELS: Building, ACCOMMODATION: Building,
+  MEALS: UtensilsCrossed, MEALS_ENTERTAINMENT: UtensilsCrossed,
+  TRANSPORT: Car, TRANSPORTATION: Car,
+  OTHER: Circle, SUPPLIES: Package,
 }
 
 export function FinanceCharts({
@@ -127,7 +128,7 @@ export function FinanceCharts({
               const pct = maxCategory > 0 ? Math.round((cat.amount / maxCategory) * 100) : 0
               return (
                 <div key={cat.category} className="flex items-center gap-3">
-                  <span className="text-sm w-5 flex-shrink-0">{CATEGORY_ICONS[cat.category.toUpperCase()] ?? '•'}</span>
+                  {(() => { const Icon = CATEGORY_ICONS[cat.category.toUpperCase()] ?? Circle; return <Icon className="w-4 h-4 flex-shrink-0 text-gray-500" /> })()}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-medium text-gray-700 truncate capitalize">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
+import { Check, XCircle } from 'lucide-react'
 
 interface TravelRequest {
   id: string; status: string; origin: string; destination: string; createdAt: string
@@ -126,11 +127,11 @@ export default function ApprovalsPage() {
               <>
                 <button type="button" onClick={bulkApproveTR} disabled={processing}
                   className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50">
-                  ✓ Approve {selectedTR.size} request{selectedTR.size > 1 ? 's' : ''}
+                  <Check className="w-4 h-4 inline-block mr-1 -mt-0.5" />Approve {selectedTR.size} request{selectedTR.size > 1 ? 's' : ''}
                 </button>
                 <button type="button" onClick={bulkRejectTR} disabled={processing}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
-                  ✗ Reject {selectedTR.size} request{selectedTR.size > 1 ? 's' : ''}
+                  <XCircle className="w-4 h-4 inline-block mr-1 -mt-0.5" />Reject {selectedTR.size} request{selectedTR.size > 1 ? 's' : ''}
                 </button>
               </>
             )}
@@ -138,11 +139,11 @@ export default function ApprovalsPage() {
               <>
                 <button type="button" onClick={bulkApproveExp} disabled={processing}
                   className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50">
-                  ✓ Approve {selectedExp.size} expense{selectedExp.size > 1 ? 's' : ''}
+                  <Check className="w-4 h-4 inline-block mr-1 -mt-0.5" />Approve {selectedExp.size} expense{selectedExp.size > 1 ? 's' : ''}
                 </button>
                 <button type="button" onClick={bulkRejectExp} disabled={processing}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
-                  ✗ Reject {selectedExp.size} expense{selectedExp.size > 1 ? 's' : ''}
+                  <XCircle className="w-4 h-4 inline-block mr-1 -mt-0.5" />Reject {selectedExp.size} expense{selectedExp.size > 1 ? 's' : ''}
                 </button>
               </>
             )}

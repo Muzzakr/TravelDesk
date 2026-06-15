@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import type { ExtractedUser } from '@/app/api/users/extract/route'
+import { Check, XCircle } from 'lucide-react'
 
 type UserRow = {
   id: string
@@ -419,7 +420,7 @@ export default function AdminUsersPage() {
                 <p className="text-sm font-medium text-gray-700 mb-2">Import results</p>
                 {createResults.map((r) => (
                   <div key={r.email} className="flex items-center gap-2 text-sm">
-                    <span className={r.ok ? 'text-green-600' : 'text-red-600'}>{r.ok ? '✓' : '✗'}</span>
+                    <span className={r.ok ? 'text-green-600' : 'text-red-600'}>{r.ok ? <Check className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}</span>
                     <span className="text-gray-700">{r.email}</span>
                     {r.error && <span className="text-xs text-red-500">— {r.error}</span>}
                   </div>

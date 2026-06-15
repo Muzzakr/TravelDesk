@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FinanceCharts } from '@/components/finance/FinanceCharts'
+import { CheckCircle, Wallet, Clock3, BarChart3, Zap, Send, XCircle, Check } from 'lucide-react'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -196,7 +197,7 @@ export default function FinanceDashboard() {
             value: kpis ? `$${kpis.awaitingPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—',
             sub: kpis ? `${kpis.awaitingPaymentCount} expense${kpis.awaitingPaymentCount !== 1 ? 's' : ''}` : '',
             color: 'text-green-600',
-            icon: '✅',
+            icon: CheckCircle,
             onClick: () => { setStatusFilter('APPROVED'); setPage(1) },
           },
           {
@@ -204,7 +205,7 @@ export default function FinanceDashboard() {
             value: kpis ? `$${kpis.paidThisMonthAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—',
             sub: kpis ? `${kpis.paidThisMonthCount} expense${kpis.paidThisMonthCount !== 1 ? 's' : ''}` : '',
             color: 'text-blue-700',
-            icon: '💰',
+            icon: Wallet,
             onClick: () => { setStatusFilter('PAID'); setPage(1) },
           },
           {
@@ -212,7 +213,7 @@ export default function FinanceDashboard() {
             value: kpis ? `$${kpis.pendingManagerReviewAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—',
             sub: kpis ? `${kpis.pendingManagerReviewCount} expense${kpis.pendingManagerReviewCount !== 1 ? 's' : ''}` : '',
             color: 'text-orange-600',
-            icon: '⏳',
+            icon: Clock3,
             onClick: () => { setStatusFilter('SUBMITTED'); setPage(1) },
           },
           {
@@ -220,7 +221,7 @@ export default function FinanceDashboard() {
             value: kpis ? `$${kpis.totalExpensesAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—',
             sub: kpis ? `${kpis.totalExpensesCount} expense${kpis.totalExpensesCount !== 1 ? 's' : ''}` : '',
             color: 'text-indigo-700',
-            icon: '📊',
+            icon: BarChart3,
             onClick: () => { setStatusFilter(''); setPage(1) },
           },
           {
@@ -228,7 +229,7 @@ export default function FinanceDashboard() {
             value: kpis ? `${kpis.avgProcessingDays} days` : '—',
             sub: 'This month',
             color: 'text-purple-700',
-            icon: '⚡',
+            icon: Zap,
             onClick: undefined,
           },
         ].map((card) => (
@@ -420,13 +421,13 @@ export default function FinanceDashboard() {
             <h3 className="text-sm font-semibold text-gray-800 mb-4">Payment summary</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: 'Awaiting payment', value: kpis ? `$${kpis.awaitingPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: kpis ? `${kpis.awaitingPaymentCount} expenses` : '', icon: '📤' },
-                { label: 'Paid this month', value: kpis ? `$${kpis.paidThisMonthAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: kpis ? `${kpis.paidThisMonthCount} expenses` : '', icon: '✅' },
-                { label: 'Total paid YTD', value: '—', sub: 'Year to date', icon: '📊' },
-                { label: 'Rejected this month', value: '—', sub: 'This month', icon: '❌' },
+                { label: 'Awaiting payment', value: kpis ? `$${kpis.awaitingPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: kpis ? `${kpis.awaitingPaymentCount} expenses` : '', icon: Send, color: 'text-amber-500' },
+                { label: 'Paid this month', value: kpis ? `$${kpis.paidThisMonthAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: kpis ? `${kpis.paidThisMonthCount} expenses` : '', icon: CheckCircle, color: 'text-green-600' },
+                { label: 'Total paid YTD', value: '—', sub: 'Year to date', icon: BarChart3, color: 'text-indigo-600' },
+                { label: 'Rejected this month', value: '—', sub: 'This month', icon: XCircle, color: 'text-red-500' },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
-                  <span className="text-2xl">{item.icon}</span>
+                  <item.icon className={`w-6 h-6 ${item.color}`} />
                   <div>
                     <p className="text-xs text-gray-500">{item.label}</p>
                     <p className="text-base font-bold text-gray-900 mt-0.5">{item.value}</p>
@@ -468,7 +469,7 @@ export default function FinanceDashboard() {
                     e.status === 'APPROVED' ? 'bg-blue-100 text-blue-600' :
                     'bg-yellow-100 text-yellow-600'
                   }`}>
-                    {e.status === 'PAID' ? '✓' : e.status === 'APPROVED' ? '⏳' : '…'}
+                    {e.status === 'PAID' ? <Check className="w-3.5 h-3.5" /> : e.status === 'APPROVED' ? <Clock3 className="w-3.5 h-3.5" /> : '…'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gray-900 truncate">

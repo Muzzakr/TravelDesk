@@ -1,6 +1,7 @@
 'use client'
 
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, UserGroupIcon, CreditCardIcon, PlusCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { Check, Paperclip } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 import { useEffect, useRef, useState } from 'react'
@@ -278,7 +279,7 @@ export default function AgentRequestDetailPage() {
                   <div className="flex flex-col items-center shrink-0">
                     <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold
                       ${done ? 'bg-green-500 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                      {done ? '✓' : i + 1}
+                      {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
                     </div>
                     {active && (
                       <p className="mt-1 text-[10px] text-gray-500 font-medium whitespace-nowrap text-center">
@@ -539,7 +540,7 @@ export default function AgentRequestDetailPage() {
                     {c.fileName && (
                       <a href={`/api/booking-confirmations/${c.id}/file`} target="_blank" rel="noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-1">
-                        📎 {c.fileName}
+                        <Paperclip className="w-3.5 h-3.5" /> {c.fileName}
                       </a>
                     )}
                   </div>

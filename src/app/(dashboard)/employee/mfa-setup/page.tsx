@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import Image from 'next/image'
+import { CheckCircle } from 'lucide-react'
 
 export default function MfaSetupPage() {
   const [step, setStep] = useState<'idle' | 'scan' | 'done'>('idle')
@@ -89,7 +90,7 @@ export default function MfaSetupPage() {
 
       {step === 'done' && (
         <div className="rounded-xl bg-green-50 p-6 shadow-sm text-center space-y-3">
-          <p className="text-3xl">✓</p>
+          <CheckCircle className="w-9 h-9 mx-auto text-green-600" />
           <p className="font-semibold text-green-800">MFA enabled successfully!</p>
           <p className="text-sm text-green-700">
             You will need your authenticator app to log in from now on.

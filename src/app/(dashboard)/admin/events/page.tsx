@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
 import type { ExtractedEvent } from '@/app/api/events/extract/route'
+import { Check, MapPin, Calendar, Headphones, Mic, User } from 'lucide-react'
 
 type EventRow = {
   id: string
@@ -523,7 +524,7 @@ export default function AdminEventsPage() {
 
           {createResult && (
             <div className={`mx-6 mt-4 rounded-lg p-3 text-sm ${createResult.created > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-              {createResult.created > 0 && <p className="font-medium">✓ {createResult.created} event{createResult.created !== 1 ? 's' : ''} created successfully.</p>}
+              {createResult.created > 0 && <p className="inline-flex items-center gap-1 font-medium"><Check className="w-4 h-4" /> {createResult.created} event{createResult.created !== 1 ? 's' : ''} created successfully.</p>}
               {createResult.errors.map((err, i) => <p key={i} className="mt-0.5 text-xs">{err}</p>)}
             </div>
           )}
@@ -711,12 +712,12 @@ export default function AdminEventsPage() {
                   </div>
                   <Badge variant={statusBadge[ev.status] ?? 'gray'}>{ev.status}</Badge>
                 </div>
-                {ev.venue && <p className="text-xs text-gray-600">📍 {ev.venue}{ev.address ? `, ${ev.address}` : ''}</p>}
-                {ev.eventDate && <p className="text-xs text-gray-500">📅 {new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}{ev.timing ? ` · ${ev.timing}` : ''}</p>}
+                {ev.venue && <p className="inline-flex items-center gap-1 text-xs text-gray-600"><MapPin className="w-3.5 h-3.5 shrink-0" /> {ev.venue}{ev.address ? `, ${ev.address}` : ''}</p>}
+                {ev.eventDate && <p className="inline-flex items-center gap-1 text-xs text-gray-500"><Calendar className="w-3.5 h-3.5 shrink-0" /> {new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}{ev.timing ? ` · ${ev.timing}` : ''}</p>}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                  {ev.assignedDj && <span>🎧 {ev.assignedDj}</span>}
-                  {ev.assignedMc && <span>🎤 {ev.assignedMc}</span>}
-                  {ev.salesPerson && <span>👤 {ev.salesPerson}</span>}
+                  {ev.assignedDj && <span className="inline-flex items-center gap-1"><Headphones className="w-3.5 h-3.5" /> {ev.assignedDj}</span>}
+                  {ev.assignedMc && <span className="inline-flex items-center gap-1"><Mic className="w-3.5 h-3.5" /> {ev.assignedMc}</span>}
+                  {ev.salesPerson && <span className="inline-flex items-center gap-1"><User className="w-3.5 h-3.5" /> {ev.salesPerson}</span>}
                 </div>
               </button>
             ))}

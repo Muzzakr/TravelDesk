@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Check, AlertTriangle } from 'lucide-react'
 
 export function WebhookCard() {
   const [masked, setMasked] = useState<string | null>(null)
@@ -64,14 +65,14 @@ export function WebhookCard() {
               onClick={() => copy(newKey ?? masked ?? '')}
               className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
             >
-              {copied ? '✓ Copied' : 'Copy'}
+              {copied ? <><Check className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Copied</> : 'Copy'}
             </button>
           )}
         </div>
 
         {newKey && (
-          <p className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 font-medium">
-            ⚠ Copy this key now — it will not be shown again in full.
+          <p className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 font-medium">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Copy this key now — it will not be shown again in full.
           </p>
         )}
 

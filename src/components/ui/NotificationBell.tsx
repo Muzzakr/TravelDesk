@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { Plane, CreditCard, Ticket, Wallet, RefreshCw, type LucideIcon } from 'lucide-react'
 
 type Notification = {
   id: string
@@ -13,12 +14,12 @@ type Notification = {
   read: boolean
 }
 
-const typeIcon: Record<Notification['type'], string> = {
-  travel_pending: '✈️',
-  expense_pending: '💳',
-  travel_booked: '🎫',
-  expense_paid: '💰',
-  workflow_update: '🔄',
+const typeIcon: Record<Notification['type'], LucideIcon> = {
+  travel_pending: Plane,
+  expense_pending: CreditCard,
+  travel_booked: Ticket,
+  expense_paid: Wallet,
+  workflow_update: RefreshCw,
 }
 
 export function NotificationBell() {
@@ -97,7 +98,7 @@ export function NotificationBell() {
                   onClick={() => setOpen(false)}
                   className={`flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
                 >
-                  <span className="text-lg leading-none mt-0.5">{typeIcon[n.type]}</span>
+                  {(() => { const Icon = typeIcon[n.type]; return <Icon className="w-4 h-4 mt-0.5 text-gray-500 shrink-0" /> })()}
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm truncate ${!n.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
                       {n.title}

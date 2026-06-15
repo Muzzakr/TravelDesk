@@ -1,6 +1,7 @@
 'use client'
 
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, UserGroupIcon, CreditCardIcon, PlusCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { Paperclip } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 import { useState, useEffect } from 'react'
@@ -283,7 +284,7 @@ export default function ApproveTravelPage() {
                       rel="noreferrer"
                       className="mt-1 inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline"
                     >
-                      📎 {c.fileName}
+                      <Paperclip className="w-3.5 h-3.5" /> {c.fileName}
                     </a>
                   )}
                 </div>

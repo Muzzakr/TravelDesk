@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { Inbox, Clock, Clock3, Plane, Check, Mail } from 'lucide-react'
 
 const VENDOR_URLS: Record<string, string> = {
   sas: 'https://www.flysas.com',
@@ -89,11 +90,11 @@ export default async function AgentDashboard() {
   ])
 
   const stats = [
-    { label: 'Inbox — New',       value: inboxNewCount,   color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-200',    icon: '📬', href: '/agent/inbox?status=NEW' },
-    { label: 'Pending Bookings',  value: pendingBookings, color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200',  icon: '🕐', href: '/agent/bookings?status=PENDING_AGENT' },
-    { label: 'Awaiting Approval', value: awaitingApproval, color: 'text-blue-600', bg: 'bg-blue-50',   border: 'border-blue-200',   icon: '⏳', href: '/agent/bookings?status=PENDING_MANAGER' },
-    { label: 'Upcoming Trips',    value: upcomingTrips,   color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-200',  icon: '✈', href: '/agent/bookings?status=BOOKING_CONFIRMED' },
-    { label: 'Completed Trips',   value: completedTrips,  color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200', icon: '✓', href: '/agent/bookings?status=BOOKING_CONFIRMED' },
+    { label: 'Inbox — New',       value: inboxNewCount,   color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-200',    icon: Inbox, href: '/agent/inbox?status=NEW' },
+    { label: 'Pending Bookings',  value: pendingBookings, color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200',  icon: Clock, href: '/agent/bookings?status=PENDING_AGENT' },
+    { label: 'Awaiting Approval', value: awaitingApproval, color: 'text-blue-600', bg: 'bg-blue-50',   border: 'border-blue-200',   icon: Clock3, href: '/agent/bookings?status=PENDING_MANAGER' },
+    { label: 'Upcoming Trips',    value: upcomingTrips,   color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-200',  icon: Plane, href: '/agent/bookings?status=BOOKING_CONFIRMED' },
+    { label: 'Completed Trips',   value: completedTrips,  color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200', icon: Check, href: '/agent/bookings?status=BOOKING_CONFIRMED' },
   ]
 
   return (
@@ -124,7 +125,7 @@ export default async function AgentDashboard() {
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className={`rounded-xl border ${s.border} ${s.bg} p-5 hover:shadow-md transition-shadow`}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xl">{s.icon}</span>
+              <s.icon className={`w-5 h-5 ${s.color}`} />
               {s.label === 'Pending Bookings' && urgentCount > 0 && (
                 <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{urgentCount} urgent</span>
               )}
@@ -188,7 +189,7 @@ export default async function AgentDashboard() {
                         className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                         title="Contact employee"
                       >
-                        ✉ Contact
+                        <Mail className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Contact
                       </a>
                       <Link
                         href={`/agent/requests/${r.id}`}

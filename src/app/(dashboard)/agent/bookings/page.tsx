@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { Mail } from 'lucide-react'
 import { DateInput } from '@/components/ui/DateInput'
 
 interface TravelRequest {
@@ -306,7 +307,7 @@ function BookingsContent() {
                       className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                       title={`Email ${r.employee.name}`}
                     >
-                      ✉ Contact
+                      <Mail className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Contact
                     </a>
 
                     {/* Export */}

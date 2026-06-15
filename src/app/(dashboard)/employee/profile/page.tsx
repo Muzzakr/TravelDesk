@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DateInput } from '@/components/ui/DateInput'
+import { Check, Sparkles } from 'lucide-react'
 
 type AirlineAccount = { airline: string; number: string }
 
@@ -456,7 +457,7 @@ export default function ProfilePage() {
               </div>
             )}
           </label>
-          {photoSaved && <p className="text-xs text-green-600 font-medium">✓ Photo saved</p>}
+          {photoSaved && <p className="inline-flex items-center gap-1 text-xs text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> Photo saved</p>}
           {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
         </div>
 
@@ -566,14 +567,14 @@ export default function ProfilePage() {
               <button type="button" onClick={() => { setPassportScanMsg(''); passportScanRef.current?.click() }}
                 disabled={scanningPassport}
                 className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
-                {scanningPassport ? (passportScanStep || 'Scanning…') : '✦ Scan & autofill'}
+                {scanningPassport ? (passportScanStep || 'Scanning…') : <><Sparkles className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Scan & autofill</>}
               </button>
               {passportPhotoUrl && (
                 <a href={passportPhotoUrl} target="_blank" rel="noopener noreferrer" className="shrink-0" title="View uploaded passport">
                   <img src={passportPhotoUrl} alt="Passport" className="w-16 h-10 rounded object-cover border border-gray-200 hover:opacity-80 transition-opacity" />
                 </a>
               )}
-              {profile.passportPhotoKey && !passportPhotoUrl && <span className="text-xs text-green-600 font-medium">✓ Document on file</span>}
+              {profile.passportPhotoKey && !passportPhotoUrl && <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> Document on file</span>}
               {passportScanMsg && !passportScanResult && (
                 <span className={`text-xs ${passportScanMsg.startsWith('error:') ? 'text-red-500' : 'text-gray-500'}`}>
                   {passportScanMsg.replace(/^error:/, '')}
@@ -653,14 +654,14 @@ export default function ProfilePage() {
               <button type="button" onClick={() => { setDlScanMsg(''); dlScanRef.current?.click() }}
                 disabled={scanningDl}
                 className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
-                {scanningDl ? (dlScanStep || 'Scanning…') : '✦ Scan & autofill'}
+                {scanningDl ? (dlScanStep || 'Scanning…') : <><Sparkles className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Scan & autofill</>}
               </button>
               {dlPhotoUrl && (
                 <a href={dlPhotoUrl} target="_blank" rel="noopener noreferrer" className="shrink-0" title="View uploaded license">
                   <img src={dlPhotoUrl} alt="Driver's license" className="w-16 h-10 rounded object-cover border border-gray-200 hover:opacity-80 transition-opacity" />
                 </a>
               )}
-              {profile.driversLicensePhotoKey && !dlPhotoUrl && <span className="text-xs text-green-600 font-medium">✓ Document on file</span>}
+              {profile.driversLicensePhotoKey && !dlPhotoUrl && <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> Document on file</span>}
               {dlScanMsg && !dlScanResult && (
                 <span className={`text-xs ${dlScanMsg.startsWith('error:') ? 'text-red-500' : 'text-gray-500'}`}>
                   {dlScanMsg.replace(/^error:/, '')}
@@ -737,7 +738,7 @@ export default function ProfilePage() {
         </section>
 
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-        {saved && <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700 font-medium">✓ Profile saved successfully.</p>}
+        {saved && <p className="inline-flex items-center gap-1 rounded-lg bg-green-50 p-3 text-sm text-green-700 font-medium"><Check className="w-4 h-4" /> Profile saved successfully.</p>}
 
         <Button type="submit" loading={saving}>Save profile</Button>
       </form>

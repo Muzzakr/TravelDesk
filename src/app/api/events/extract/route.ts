@@ -54,6 +54,28 @@ function normaliseDate(raw: string): string {
   return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
 }
 
+function normaliseStatus(raw: string): 'DRAFT' | 'ACTIVE' | 'CLOSED' {
+  const u = (raw ?? '').toUpperCase().trim()
+  if (u === 'CONFIRMED' || u === 'ACTIVE') return 'ACTIVE'
+  if (u === 'DRAFT') return 'DRAFT'
+  // Expired Proposal, Canceled Booking, Canceled Proposal → CLOSED
+  if (u.includes('CANCEL') || u.includes('EXPIRED')) return 'CLOSED'
+  if (['DRAFT', 'ACTIVE', 'CLOSED'].includes(u)) return u as 'DRAFT' | 'ACTIVE' | 'CLOSED'
+  return 'DRAFT'
+}
+
+// Extract DJ and MC names from combined "Assigned Staff" field
+function splitStaff(staff: string): { dj: string; mc: string } {
+  if (!staff) return { dj: '', mc: '' }
+  const parts = staff.split(',').map((s) => s.trim())
+  const djs = parts.filter((p) => p.toLowerCase().includes('dj') || p.toLowerCase().includes('rokit') || p.toLowerCase().includes('vinyl') || p.toLowerCase().includes('vynl'))
+  const mcs = parts.filter((p) => p.toLowerCase().includes('mc') || p.toLowerCase().includes('mc '))
+  return {
+    dj: djs.join(', '),
+    mc: mcs.join(', '),
+  }
+}
+
 function validate(raw: Partial<ExtractedEvent>): ExtractedEvent {
   const errors: string[] = []
   if (!raw.eventCode?.trim()) errors.push('Event Code is required')
@@ -148,20 +170,22 @@ export async function POST(req: NextRequest) {
     if (rows.length === 0)
       return NextResponse.json({ error: 'CSV file is empty or has no data rows' }, { status: 400 })
 
-    events = rows.map((row) =>
-      validate({
-        eventCode: row['Event Code'] ?? row['eventCode'],
-        eventName: row['Event Name'] ?? row['eventName'],
-        venue: row['Venue'] ?? row['venue'],
-        address: row['Address'] ?? row['address'],
-        eventDate: normaliseDate(row['Date'] ?? row['eventDate'] ?? ''),
-        timing: row['Timing'] ?? row['timing'],
-        assignedDj: row['Assigned DJ'] ?? row['Assigned_DJ'] ?? row['assignedDj'],
-        assignedMc: row['Assigned MC'] ?? row['Assigned_MC'] ?? row['assignedMc'],
-        salesPerson: row['Sales Person'] ?? row['Sales_Person'] ?? row['salesPerson'],
-        status: (row['Status'] ?? row['status'] ?? 'DRAFT') as 'DRAFT',
+    events = rows.map((row) => {
+      // Support both standard column names AND the report.csv format (ID, Name, Event Date, Venue Name, etc.)
+      const staff = splitStaff(row['Assigned Staff'] ?? row['assigned_staff'] ?? '')
+      return validate({
+        eventCode: row['Event Code'] ?? row['eventCode'] ?? row['ID'] ?? row['id'] ?? '',
+        eventName: row['Event Name'] ?? row['eventName'] ?? row['Name'] ?? row['name'] ?? '',
+        venue: row['Venue'] ?? row['venue'] ?? row['Venue Name'] ?? row['venue_name'] ?? '',
+        address: row['Address'] ?? row['address'] ?? row['Venue Full Address'] ?? row['venue_full_address'] ?? '',
+        eventDate: normaliseDate(row['Date'] ?? row['eventDate'] ?? row['Event Date'] ?? row['event_date'] ?? ''),
+        timing: row['Timing'] ?? row['timing'] ?? row['Start Time'] ?? row['start_time'] ?? '',
+        assignedDj: row['Assigned DJ'] ?? row['Assigned_DJ'] ?? row['assignedDj'] ?? staff.dj,
+        assignedMc: row['Assigned MC'] ?? row['Assigned_MC'] ?? row['assignedMc'] ?? staff.mc,
+        salesPerson: row['Sales Person'] ?? row['Sales_Person'] ?? row['salesPerson'] ?? row['Created by'] ?? row['created_by'] ?? '',
+        status: normaliseStatus(row['Status'] ?? row['status'] ?? 'DRAFT'),
       })
-    )
+    })
   } else {
     // PDF — send to Claude
     const apiKey = process.env.ANTHROPIC_API_KEY

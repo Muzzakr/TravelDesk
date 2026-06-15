@@ -65,7 +65,7 @@ export default async function ManagerDashboard() {
   }
 
   const urgentItems = [
-    travelPending > 0 && { count: travelPending, label: 'Travel requests pending', href: '/manager/approvals', color: 'amber' as const },
+    travelPending > 0 && { count: travelPending, label: 'Travel requests pending', href: '/manager/team-travel', color: 'amber' as const },
     expensePending > 0 && { count: expensePending, label: 'Expenses pending', href: '/manager/team-expenses', color: 'orange' as const },
   ].filter(Boolean) as { count: number; label: string; href: string; color: 'amber' | 'orange' }[]
 

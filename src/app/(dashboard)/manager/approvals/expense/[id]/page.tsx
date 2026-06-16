@@ -10,12 +10,20 @@ function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
   const [loading, setLoading] = useState(false)
   const [url, setUrl] = useState<string | null>(null)
 
-  async function loadUrl() {
+  async function openReceipt() {
+    if (url) { window.open(url, '_blank', 'noopener,noreferrer'); return }
+    // Open the tab synchronously within the click so it isn't popup-blocked,
+    // then redirect it once the signed URL resolves.
+    const win = window.open('', '_blank')
     setLoading(true)
     const res = await fetch(`/api/receipts/${id}/url`)
     if (res.ok) {
       const data = await res.json()
       setUrl(data.url)
+      if (win) win.location.href = data.url
+      else window.open(data.url, '_blank', 'noopener,noreferrer')
+    } else if (win) {
+      win.close()
     }
     setLoading(false)
   }
@@ -28,25 +36,14 @@ function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
         {isPdf ? <FileText className="w-5 h-5 text-gray-500 shrink-0" /> : <ImageIcon className="w-5 h-5 text-gray-500 shrink-0" />}
         <span className="truncate text-gray-700">{fileName}</span>
       </div>
-      {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-3 shrink-0 text-indigo-600 font-medium hover:underline"
-        >
-          Open receipt →
-        </a>
-      ) : (
-        <button
-          type="button"
-          onClick={loadUrl}
-          disabled={loading}
-          className="ml-3 shrink-0 text-indigo-600 font-medium hover:underline disabled:opacity-50"
-        >
-          {loading ? 'Loading…' : 'View receipt →'}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={openReceipt}
+        disabled={loading}
+        className="ml-3 shrink-0 text-indigo-600 font-medium hover:underline disabled:opacity-50"
+      >
+        {loading ? 'Opening…' : 'Open receipt →'}
+      </button>
     </div>
   )
 }

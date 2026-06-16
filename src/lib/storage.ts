@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = process.env.SUPABASE_URL!
+// Accept both the plain and the NEXT_PUBLIC_ prefixed name — the Vercel
+// Supabase integration provisions the URL as NEXT_PUBLIC_SUPABASE_URL.
+const SUPABASE_URL = (
+  process.env.SUPABASE_URL ??
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  ''
+)
 const SERVICE_KEY  = (
-  process.env.SUPABASE_SERVICE_KEY ??
   process.env.SUPABASE_SERVICE_ROLE_KEY ??
+  process.env.SUPABASE_SERVICE_KEY ??
   process.env.SUPABASE_SECRET_KEY ??
   ''
 )
@@ -11,6 +17,12 @@ const BUCKET = 'receipts'
 const PROFILES_BUCKET = 'profiles'
 
 function getClient() {
+  if (!SUPABASE_URL) {
+    throw new Error('Storage not configured: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) is missing.')
+  }
+  if (!SERVICE_KEY) {
+    throw new Error('Storage not configured: SUPABASE_SERVICE_ROLE_KEY is missing.')
+  }
   try {
     const payload = JSON.parse(atob(SERVICE_KEY.split('.')[1] ?? ''))
     if (payload.role !== 'service_role') {

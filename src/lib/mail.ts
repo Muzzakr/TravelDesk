@@ -305,3 +305,69 @@ export async function emailExpenseRejected(
     `),
   })
 }
+
+// ─── Finance emails ───────────────────────────────────────────────────────────
+
+export async function emailExpenseToFinance(
+  to: string,
+  financeName: string,
+  p: { employeeName: string; amountUsd: number; category: string; description: string; reason?: string | null; eventCode: string; approverName: string; expenseId: string }
+) {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `Expense ready for payout — ${p.employeeName}, $${Number(p.amountUsd).toFixed(2)}`,
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Expense ready for payout</h2>
+      <p style="color:#374151;margin:0">Hi ${financeName}, an expense was approved by <strong>${p.approverName}</strong> and is ready for finance review &amp; payout.</p>
+      ${table(
+        row('Employee', p.employeeName) +
+        row('Amount', `$${Number(p.amountUsd).toFixed(2)}`) +
+        row('Category', p.category.replace(/_/g, ' ')) +
+        (p.reason ? row('Reason', p.reason) : '') +
+        row('Description', p.description) +
+        row('Event', p.eventCode || '—') +
+        row('Approved by', p.approverName)
+      )}
+      ${btn(`${APP}/finance/expenses`, 'Review & pay')}
+    `),
+  })
+}
+
+export async function emailFinanceDigest(
+  to: string,
+  financeName: string,
+  p: { items: { employeeName: string; amountUsd: number; category: string; eventCode: string }[]; totalUsd: number; count: number }
+) {
+  const itemRows = p.items.map((it) =>
+    `<tr>
+      <td style="padding:6px 0;color:#111827;font-size:13px">${it.employeeName}</td>
+      <td style="padding:6px 8px;color:#6b7280;font-size:13px">${it.category.replace(/_/g, ' ')}</td>
+      <td style="padding:6px 8px;color:#6b7280;font-size:13px">${it.eventCode || '—'}</td>
+      <td style="padding:6px 0;color:#111827;font-size:13px;font-weight:600;text-align:right">$${Number(it.amountUsd).toFixed(2)}</td>
+    </tr>`
+  ).join('')
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `${p.count} expense${p.count !== 1 ? 's' : ''} ready for payout — $${Number(p.totalUsd).toFixed(2)}`,
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Expenses ready for payout</h2>
+      <p style="color:#374151;margin:0">Hi ${financeName}, <strong>${p.count}</strong> expense${p.count !== 1 ? 's were' : ' was'} approved in the last 24 hours and ${p.count !== 1 ? 'are' : 'is'} ready for finance review &amp; payout.</p>
+      <table style="width:100%;border-collapse:collapse;margin-top:20px">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:6px 0;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.04em">Employee</td>
+          <td style="padding:6px 8px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.04em">Category</td>
+          <td style="padding:6px 8px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.04em">Event</td>
+          <td style="padding:6px 0;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;text-align:right">Amount</td>
+        </tr>
+        ${itemRows}
+        <tr style="border-top:2px solid #e5e7eb">
+          <td colspan="3" style="padding:10px 0;color:#111827;font-size:13px;font-weight:700">Total</td>
+          <td style="padding:10px 0;color:#111827;font-size:13px;font-weight:700;text-align:right">$${Number(p.totalUsd).toFixed(2)}</td>
+        </tr>
+      </table>
+      ${btn(`${APP}/finance/expenses`, 'Review & pay')}
+    `),
+  })
+}

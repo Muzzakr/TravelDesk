@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyExpenseStatusChanged } from '@/lib/notify'
-import { emailExpenseApproved, emailExpenseRejected } from '@/lib/mail'
+import { emailExpenseApproved, emailExpenseRejected, emailExpenseToFinance } from '@/lib/mail'
 import { z } from 'zod'
 
 const UpdateSchema = z.object({
@@ -50,7 +50,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const expense = await prisma.expense.findFirst({
     where: { id: params.id, companyId: session.user.companyId },
-    include: { employee: { select: { name: true, email: true } } },
+    include: {
+      employee: { select: { name: true, email: true } },
+      event: { select: { eventCode: true, eventName: true } },
+    },
   })
   if (!expense) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -207,6 +210,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       actorName: session.user.name ?? 'Your manager',
       expenseId: params.id,
     }).catch(() => {})
+
+    // Notify finance that the expense is approved and ready for payout
+    const financeAdmins = await prisma.user.findMany({
+      where: { companyId: session.user.companyId, role: 'FINANCE_ADMIN', isActive: true },
+      select: { id: true, name: true, email: true },
+    })
+    const eventCode = (expense as { event?: { eventCode: string } | null }).event?.eventCode ?? ''
+    for (const fa of financeAdmins) {
+      if (fa.id === session.user.id || !fa.email) continue
+      emailExpenseToFinance(fa.email, fa.name ?? 'there', {
+        employeeName: expense.employee.name ?? 'Employee',
+        amountUsd: Number(expense.amountUsd),
+        category: expense.category,
+        description: expense.description,
+        reason: expense.reason,
+        eventCode,
+        approverName: session.user.name ?? 'Manager',
+        expenseId: params.id,
+      }).catch(() => {})
+    }
   } else if (parsed.data.status === 'REJECTED' && employeeEmail) {
     emailExpenseRejected(employeeEmail, expense.employee.name ?? 'there', {
       amountUsd: Number(expense.amountUsd),

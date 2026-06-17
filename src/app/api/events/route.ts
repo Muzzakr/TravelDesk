@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { toDate } from '@/lib/normalise-date'
 import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
 
@@ -30,7 +31,15 @@ export async function GET() {
     where: { companyId: session.user.companyId },
     orderBy: [{ eventDate: 'asc' }, { eventCode: 'asc' }],
   })
-  return NextResponse.json(events)
+  // Imports populate `eventDate` (single date) but not the dateStart/dateEnd
+  // range that the booking/travel UI reads. Fall back so dates show correctly
+  // instead of rendering a null date as 1970-01-01.
+  const withDates = events.map((e) => ({
+    ...e,
+    dateStart: e.dateStart ?? e.eventDate,
+    dateEnd: e.dateEnd ?? e.eventDate,
+  }))
+  return NextResponse.json(withDates)
 }
 
 export async function POST(req: NextRequest) {
@@ -52,9 +61,9 @@ export async function POST(req: NextRequest) {
     status: d.status ?? 'DRAFT',
     venue: d.venue,
     address: d.address,
-    eventDate: d.eventDate ? new Date(d.eventDate) : undefined,
-    dateStart: d.dateStart ? new Date(d.dateStart) : undefined,
-    dateEnd: d.dateEnd ? new Date(d.dateEnd) : undefined,
+    eventDate: toDate(d.eventDate),
+    dateStart: toDate(d.dateStart),
+    dateEnd: toDate(d.dateEnd),
     timing: d.timing,
     assignedDj: d.assignedDj,
     assignedMc: d.assignedMc,

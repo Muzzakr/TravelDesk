@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { toDate } from '@/lib/normalise-date'
 import { z } from 'zod'
 
 const EventSchema = z.object({
@@ -70,9 +71,9 @@ export async function POST(req: NextRequest) {
           status: d.status ?? 'DRAFT',
           venue: d.venue,
           address: d.address,
-          eventDate: d.eventDate ? new Date(d.eventDate) : undefined,
-          dateStart: d.dateStart ? new Date(d.dateStart) : undefined,
-          dateEnd: d.dateEnd ? new Date(d.dateEnd) : undefined,
+          eventDate: toDate(d.eventDate),
+          dateStart: toDate(d.dateStart),
+          dateEnd: toDate(d.dateEnd),
           timing: d.timing,
           assignedDj: d.assignedDj,
           assignedMc: d.assignedMc,
@@ -85,9 +86,9 @@ export async function POST(req: NextRequest) {
           status: d.status,
           venue: d.venue,
           address: d.address,
-          eventDate: d.eventDate ? new Date(d.eventDate) : undefined,
-          dateStart: d.dateStart ? new Date(d.dateStart) : undefined,
-          dateEnd: d.dateEnd ? new Date(d.dateEnd) : undefined,
+          eventDate: toDate(d.eventDate),
+          dateStart: toDate(d.dateStart),
+          dateEnd: toDate(d.dateEnd),
           timing: d.timing,
           assignedDj: d.assignedDj,
           assignedMc: d.assignedMc,

@@ -294,7 +294,7 @@ function EventCombobox({ value, onChange, events }: {
                 <p className="font-medium text-gray-900 truncate">{ev.eventName}</p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {ev.eventCode && <span className="font-mono">{ev.eventCode}</span>}
-                  {` · ${fmtDisplayDate(new Date(ev.dateStart).toISOString().split('T')[0])}`}
+                  {ev.dateStart ? ` · ${fmtDisplayDate(new Date(ev.dateStart).toISOString().split('T')[0])}` : ''}
                 </p>
               </div>
               {ev.id === value?.id && (
@@ -309,7 +309,7 @@ function EventCombobox({ value, onChange, events }: {
       {value && (
         <p className="text-xs text-gray-500 mt-0.5">
           {value.eventCode && <span className="font-mono font-medium text-indigo-600">{value.eventCode}</span>}
-          {` · ${fmtDisplayDate(new Date(value.dateStart).toISOString().split('T')[0])}`}
+          {value.dateStart ? ` · ${fmtDisplayDate(new Date(value.dateStart).toISOString().split('T')[0])}` : ''}
         </p>
       )}
     </div>
@@ -970,7 +970,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                 <p className="font-semibold text-gray-900">{selectedEvent.eventName}</p>
                 <p className="text-sm text-gray-500">
                   {selectedEvent.eventCode}
-                  {` · ${fmtDisplayDate(new Date(selectedEvent.dateStart).toISOString().split('T')[0])}`}
+                  {selectedEvent.dateStart ? ` · ${fmtDisplayDate(new Date(selectedEvent.dateStart).toISOString().split('T')[0])}` : ''}
                 </p>
               </div>
             )}

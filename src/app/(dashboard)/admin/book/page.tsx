@@ -416,7 +416,7 @@ export default function AdminBookPage() {
                             <p className="font-semibold text-gray-900">{ev.eventName}</p>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {ev.eventCode}
-                              {` · ${fmtDisplayDate(new Date(ev.dateStart).toISOString().split('T')[0])}`}
+                              {ev.dateStart ? ` · ${fmtDisplayDate(new Date(ev.dateStart).toISOString().split('T')[0])}` : ''}
                             </p>
                           </div>
                           {sel && (
@@ -643,7 +643,7 @@ export default function AdminBookPage() {
                 <p className="font-semibold text-gray-900">{selectedEvent.eventName}</p>
                 <p className="text-sm text-gray-500">
                   {selectedEvent.eventCode}
-                  {` · ${fmtDisplayDate(new Date(selectedEvent.dateStart).toISOString().split('T')[0])}`}
+                  {selectedEvent.dateStart ? ` · ${fmtDisplayDate(new Date(selectedEvent.dateStart).toISOString().split('T')[0])}` : ''}
                 </p>
               </div>
             )}

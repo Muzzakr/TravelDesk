@@ -69,7 +69,6 @@ export default function ExpenseDetailPage() {
   const [commentText, setCommentText] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
   const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({})
-  const [loadingUrls, setLoadingUrls] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
@@ -99,6 +98,16 @@ export default function ExpenseDetailPage() {
         reason: data.reason ?? '',
         personName: data.personName ?? '',
       })
+      // Prefetch signed URLs for receipts so "Open receipt" works in one click
+      // (same pattern as passport/driver's licence in the profile page).
+      for (const r of (data.receipts ?? []) as { id: string }[]) {
+        fetch(`/api/receipts/${r.id}/url`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((d: { url?: string } | null) => {
+            if (d?.url) setReceiptUrls((prev) => ({ ...prev, [r.id]: d.url! }))
+          })
+          .catch(() => {})
+      }
     }
     const session = await sessionRes.json()
     setCurrentUserId(session?.user?.id ?? null)
@@ -106,26 +115,6 @@ export default function ExpenseDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
-
-  async function openReceipt(receiptId: string) {
-    // Reuse a cached signed URL if we already have one
-    const cached = receiptUrls[receiptId]
-    if (cached) { window.open(cached, '_blank', 'noopener,noreferrer'); return }
-    // Open a tab synchronously within the click so the popup blocker allows it,
-    // then point it at the signed URL once it resolves.
-    const win = window.open('', '_blank')
-    setLoadingUrls((prev) => ({ ...prev, [receiptId]: true }))
-    const res = await fetch(`/api/receipts/${receiptId}/url`)
-    if (res.ok) {
-      const { url } = await res.json()
-      setReceiptUrls((prev) => ({ ...prev, [receiptId]: url }))
-      if (win) win.location.href = url
-      else window.open(url, '_blank', 'noopener,noreferrer')
-    } else if (win) {
-      win.close()
-    }
-    setLoadingUrls((prev) => ({ ...prev, [receiptId]: false }))
-  }
 
   async function postComment(e: React.FormEvent) {
     e.preventDefault()
@@ -398,14 +387,18 @@ export default function ExpenseDetailPage() {
                     <p className="text-sm font-medium text-gray-900">{r.fileName}</p>
                     <p className="text-xs text-gray-400 mt-0.5">Uploaded {new Date(r.uploadedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => openReceipt(r.id)}
-                    disabled={loadingUrls[r.id]}
-                    className="text-xs font-medium text-indigo-600 hover:underline disabled:opacity-50"
-                  >
-                    {loadingUrls[r.id] ? 'Opening…' : 'Open receipt →'}
-                  </button>
+                  {receiptUrls[r.id] ? (
+                    <a
+                      href={receiptUrls[r.id]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-indigo-600 hover:underline"
+                    >
+                      Open receipt →
+                    </a>
+                  ) : (
+                    <span className="text-xs text-gray-400">Loading…</span>
+                  )}
                 </div>
                 {(r.ocrMerchant || r.ocrAmount || r.ocrDate) && (
                   <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs">

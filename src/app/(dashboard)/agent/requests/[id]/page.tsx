@@ -47,6 +47,7 @@ interface BookingOption {
   description: string
   priceUsd: number
   isSelected: boolean
+  bookingLink: string | null
 }
 
 type ServiceEntry = {
@@ -257,6 +258,13 @@ export default function AgentRequestDetailPage() {
 
   const confirmSections = isAgentChooses ? agentPickedServices : request.servicesRequested
 
+  // The employee's final selection. If any options are explicitly marked selected
+  // (agent-provided → employee-picked flow), show those; otherwise the saved
+  // options are the employee's own picks (employee-initiated AI-options flow).
+  const allOptions = request.bookingOptions ?? []
+  const explicitlySelected = allOptions.filter((o) => o.isSelected)
+  const employeeSelection = explicitlySelected.length > 0 ? explicitlySelected : allOptions
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
@@ -348,6 +356,51 @@ export default function AgentRequestDetailPage() {
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
                       <p className="text-sm text-gray-900 mt-0.5">{detail}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Employee's selected option(s) */}
+        {employeeSelection.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-2">Selected option</p>
+            <div className="space-y-2">
+              {employeeSelection.map((opt) => {
+                const OptIcon = SERVICE_ICON[opt.serviceType] ?? PlusCircleIcon
+                const isCustom = opt.vendor === 'Own choice' || !!opt.bookingLink
+                // The custom link may be stored in bookingLink or embedded in the description
+                let messageText = opt.description
+                let link = opt.bookingLink ?? null
+                if (!link) {
+                  const m = opt.description.match(/https?:\/\/\S+/)
+                  if (m) { link = m[0]; messageText = opt.description.replace(m[0], '').replace(/\s*[—-]\s*$/, '').trim() }
+                }
+                return (
+                  <div key={opt.id} className="flex gap-3 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2.5">
+                    <OptIcon className="w-5 h-5 shrink-0 text-indigo-500 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{SERVICE_LABEL[opt.serviceType] ?? opt.serviceType}</p>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isCustom ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                          {isCustom ? 'Custom link' : 'Provided option'}
+                        </span>
+                      </div>
+                      {!isCustom && (
+                        <p className="text-sm font-medium text-gray-900 mt-0.5">
+                          {opt.vendor}{opt.priceUsd > 0 ? ` · $${Number(opt.priceUsd).toFixed(0)}` : ''}
+                        </p>
+                      )}
+                      {messageText && <p className="text-sm text-gray-700 mt-0.5 break-words">{messageText}</p>}
+                      {link && (
+                        <a href={link} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline mt-1 break-all">
+                          Open booking link →
+                        </a>
+                      )}
                     </div>
                   </div>
                 )

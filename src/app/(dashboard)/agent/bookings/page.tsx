@@ -4,8 +4,26 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { Mail } from 'lucide-react'
+import { Mail, X } from 'lucide-react'
 import { DateInput } from '@/components/ui/DateInput'
+
+interface TravelerProfile {
+  dateOfBirth: string | null
+  passportNumber: string | null
+  passportIssueDate: string | null
+  passportExpiry: string | null
+  driversLicenseNumber: string | null
+  driversLicenseIssueDate: string | null
+  driversLicenseExpiry: string | null
+  ktnNumber: string | null
+  globalEntryNumber: string | null
+  firstName: string | null
+  lastName: string | null
+  phoneNumber: string | null
+  contactEmail: string | null
+  homeAddress: string | null
+  airlineAccounts: { airline: string; number: string }[] | null
+}
 
 interface TravelRequest {
   id: string
@@ -17,7 +35,7 @@ interface TravelRequest {
   estimatedCostUsd: number | null
   agentId: string | null
   createdAt: string
-  employee: { name: string; email: string }
+  employee: { name: string; email: string; travelerProfile: TravelerProfile | null }
   event: { eventCode: string; eventName: string }
 }
 
@@ -44,6 +62,12 @@ function urgencyLabel(status: string, departureDate: string): { label: string; p
   if (status === 'REJECTED') return { label: 'Rejected', pill: 'bg-red-100 text-red-600 border-red-200', border: '' }
   if (status === 'CANCELLED') return { label: 'Cancelled', pill: 'bg-gray-100 text-gray-500 border-gray-200', border: '' }
   return { label: status.replace(/_/g, ' '), pill: 'bg-gray-100 text-gray-600 border-gray-200', border: '' }
+}
+
+function fmtDate(s: string | null | undefined): string {
+  if (!s) return ''
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function exportCsv(r: TravelRequest) {
@@ -84,6 +108,7 @@ const STATUS_OPTIONS = [
 function BookingsContent() {
   const searchParams = useSearchParams()
   const [requests, setRequests] = useState<TravelRequest[]>([])
+  const [contactFor, setContactFor] = useState<TravelRequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
@@ -301,14 +326,15 @@ function BookingsContent() {
 
                   {/* Right — actions */}
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-                    {/* Contact employee */}
-                    <a
-                      href={`mailto:${r.employee.email}?subject=Your travel request: ${r.origin} → ${r.destination}`}
+                    {/* Contact employee — show full traveler profile */}
+                    <button
+                      type="button"
+                      onClick={() => setContactFor(r)}
                       className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                      title={`Email ${r.employee.name}`}
+                      title={`View ${r.employee.name}'s contact & profile`}
                     >
                       <Mail className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Contact
-                    </a>
+                    </button>
 
                     {/* Export */}
                     <button
@@ -347,6 +373,70 @@ function BookingsContent() {
           })}
         </div>
       )}
+
+      {/* Contact / traveler profile modal */}
+      {contactFor && (() => {
+        const tp = contactFor.employee.travelerProfile
+        const rows: [string, string | null | undefined][] = [
+          ['Full name', [tp?.firstName, tp?.lastName].filter(Boolean).join(' ') || contactFor.employee.name],
+          ['Phone', tp?.phoneNumber],
+          ['Account email', contactFor.employee.email],
+          ['Contact email', tp?.contactEmail],
+          ['Home address', tp?.homeAddress],
+          ['Date of birth', fmtDate(tp?.dateOfBirth)],
+          ['Passport number', tp?.passportNumber],
+          ['Passport issued', fmtDate(tp?.passportIssueDate)],
+          ['Passport expiry', fmtDate(tp?.passportExpiry)],
+          ["Driver's licence", tp?.driversLicenseNumber],
+          ['Licence issued', fmtDate(tp?.driversLicenseIssueDate)],
+          ['Licence expiry', fmtDate(tp?.driversLicenseExpiry)],
+          ['Known Traveler (KTN)', tp?.ktnNumber],
+          ['Global Entry', tp?.globalEntryNumber],
+        ]
+        const airlineAccounts = Array.isArray(tp?.airlineAccounts) ? tp!.airlineAccounts : []
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setContactFor(null)}>
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-4 p-6 pb-4 border-b border-gray-100 sticky top-0 bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">{contactFor.employee.name}</h3>
+                  <p className="text-sm text-gray-500">Traveler profile</p>
+                </div>
+                <button type="button" onClick={() => setContactFor(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600 shrink-0">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 pt-4">
+                {!tp && <p className="text-sm text-amber-600 mb-4">This employee has not completed their traveler profile yet.</p>}
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                  {rows.map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="text-xs font-medium text-gray-400 uppercase">{label}</dt>
+                      <dd className="text-sm text-gray-900 mt-0.5 break-words">{value || '—'}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {airlineAccounts.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-gray-400 uppercase mb-1">Airline accounts</p>
+                    <ul className="space-y-1">
+                      {airlineAccounts.map((a, i) => (
+                        <li key={i} className="text-sm text-gray-900">{a.airline}: <span className="font-mono">{a.number}</span></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <a
+                  href={`mailto:${contactFor.employee.email}?subject=Your travel request: ${contactFor.origin} → ${contactFor.destination}`}
+                  className="mt-6 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  <Mail className="w-4 h-4" /> Send email
+                </a>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -34,7 +34,12 @@ export async function GET() {
 
   const requests = await prisma.travelRequest.findMany({
     where,
-    include: { employee: { select: { name: true, email: true } }, event: true },
+    include: {
+      employee: {
+        select: { name: true, email: true, travelerProfile: true },
+      },
+      event: true,
+    },
     orderBy: { createdAt: 'desc' },
   })
   return NextResponse.json(requests)

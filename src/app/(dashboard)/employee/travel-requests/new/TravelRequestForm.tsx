@@ -401,6 +401,14 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
       ...prev,
       [type]: { link: prev[type]?.link ?? '', message: prev[type]?.message ?? '', selected: !prev[type]?.selected },
     }))
+    // Single-select per service type: choosing "Own choice" clears AI options of this type
+    setSelectedOptionKeys(prev => {
+      const next = new Set(prev)
+      for (const k of next) {
+        if (k.slice(0, k.lastIndexOf('-')) === type) next.delete(k)
+      }
+      return next
+    })
   }
   const [aiLoading, setAiLoading]                   = useState(false)
   const [aiError, setAiError]                       = useState<string | null>(null)
@@ -521,6 +529,8 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
   }
 
   async function submit() {
+    // Already created (e.g. user went Back from the options step) — don't create a duplicate
+    if (createdRequestId) { setStep(5); return }
     setLoading(true)
     setError('')
     setWarning('')
@@ -633,11 +643,19 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
   }
 
   function toggleOptionKey(key: string) {
+    const type = key.slice(0, key.lastIndexOf('-'))
     setSelectedOptionKeys(prev => {
       const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
+      const wasSelected = next.has(key)
+      // Single-select per service type: clear any other option of this type first
+      for (const k of next) {
+        if (k.slice(0, k.lastIndexOf('-')) === type) next.delete(k)
+      }
+      if (!wasSelected) next.add(key)
       return next
     })
+    // Picking an AI option clears the "Own choice" for this service type
+    setCustomOptions(prev => (prev[type]?.selected ? { ...prev, [type]: { ...prev[type]!, selected: false } } : prev))
   }
 
   async function confirmOptions() {
@@ -1157,13 +1175,13 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
 
         {/* Navigation */}
         {step === 5 ? (
-          <div className="flex gap-3 pt-2 justify-end">
+          <div className="flex gap-3 pt-2 justify-between">
             <button
               type="button"
-              onClick={() => router.push('/employee/travel-requests')}
+              onClick={back}
               className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Skip
+              ← Back
             </button>
             <button
               type="button"

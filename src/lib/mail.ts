@@ -371,3 +371,29 @@ export async function emailFinanceDigest(
     `),
   })
 }
+
+// ─── Marketing / sales emails ─────────────────────────────────────────────────
+
+export async function sendDemoRequest(
+  p: { name: string; workEmail: string; company: string; message?: string | null }
+) {
+  const to = process.env.GMAIL_USER
+  if (!to) return
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    replyTo: p.workEmail,
+    subject: `Demo request — ${p.company} (${p.name})`,
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">New demo request</h2>
+      <p style="color:#374151;margin:0">A visitor has requested a demo via the website.</p>
+      ${table(
+        row('Name', p.name) +
+        row('Work email', p.workEmail) +
+        row('Company', p.company)
+      )}
+      ${p.message ? `<div style="margin-top:16px;background:#f3f4f6;border-radius:8px;padding:12px 16px"><p style="margin:0;font-size:13px;color:#374151;white-space:pre-wrap">${p.message}</p></div>` : ''}
+      <p style="color:#9ca3af;font-size:12px;margin-top:20px">Reply directly to this email to reach ${p.name}.</p>
+    `),
+  })
+}

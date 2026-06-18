@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { DemoForm } from '@/components/landing/DemoForm'
 
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
 function IconPlane({ className = 'w-5 h-5' }: { className?: string }) {
@@ -89,11 +90,16 @@ export default function LandingPage() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-7">
+            <a href="#how" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">How it works</a>
             <a href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">Features</a>
             <a href="#security" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">Security</a>
+            <a href="#faq" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">FAQ</a>
           </nav>
 
           <div className="flex items-center gap-2">
+            <a href="#contact" className="hidden sm:inline-flex text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+              Book a demo
+            </a>
             <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
               Log in
             </Link>
@@ -274,7 +280,7 @@ export default function LandingPage() {
         </section>
 
         {/* ══ ABOUT ═════════════════════════════════════════════════════════════ */}
-        <section className="py-28 px-6 bg-white">
+        <section id="how" className="py-28 px-6 bg-white">
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-20 items-center">
             <div>
               <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-4">What is TravelDesk?</p>
@@ -512,7 +518,7 @@ export default function LandingPage() {
         </section>
 
         {/* ══ FAQ ═══════════════════════════════════════════════════════════════ */}
-        <section className="py-28 px-6 bg-white">
+        <section id="faq" className="py-28 px-6 bg-white">
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-16">
               <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-3">FAQ</p>
@@ -583,6 +589,20 @@ export default function LandingPage() {
                 Create account for free
               </Link>
             </div>
+          </div>
+        </section>
+
+        {/* ══ CONTACT / BOOK A DEMO ═════════════════════════════════════════════ */}
+        <section id="contact" className="py-28 px-6 bg-white">
+          <div className="max-w-xl mx-auto">
+            <div className="text-center mb-10">
+              <p className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-3">Book a demo</p>
+              <h2 className="text-4xl font-bold text-gray-900">See it in action</h2>
+              <p className="mt-4 text-gray-500 text-lg leading-relaxed">
+                Tell us a little about your team and we&apos;ll set up a walkthrough tailored to you.
+              </p>
+            </div>
+            <DemoForm />
           </div>
         </section>
       </main>

@@ -18,6 +18,28 @@ export async function subscribe(email: string): Promise<SubscribeResult> {
   }
 }
 
+export interface DemoRequest {
+  name: string
+  workEmail: string
+  company: string
+  message?: string
+}
+
+export async function bookDemo(payload: DemoRequest): Promise<SubscribeResult> {
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    if (!res.ok) return { success: false, error: data.message ?? 'Could not send your request' }
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Network error. Please try again.' }
+  }
+}
+
 export async function unsubscribe(email: string): Promise<SubscribeResult> {
   try {
     const res = await fetch('/api/unsubscribe', {

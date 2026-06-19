@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { NotificationBell } from '@/components/ui/NotificationBell'
 
 type NavItem = { label: string; href: string } | { heading: string }
 
@@ -18,11 +19,14 @@ export function MobileNav({ nav, userName, role, logoutAction }: {
       {/* Top bar */}
       <div className="md:hidden fixed top-0 inset-x-0 z-40 flex h-14 items-center justify-between bg-indigo-900 px-4 text-white">
         <span className="text-base font-bold">TravelDesk</span>
-        <button onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-indigo-800" aria-label="Open menu">
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+          <button type="button" onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-indigo-800" aria-label="Open menu">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
+        </div>
       </div>
 
       {/* Overlay */}

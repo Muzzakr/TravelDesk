@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { emailBookingConfirmed } from '@/lib/mail'
+import { createNotification } from '@/lib/notifications'
 import { z } from 'zod'
 
 const ServiceConfirmSchema = z.object({
@@ -127,6 +128,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       requestId: params.id,
     }).catch(() => {})
   }
+
+  await createNotification({
+    companyId: session.user.companyId,
+    userId: travelRequest.employeeId,
+    type: 'travel_booked',
+    title: 'Your trip is booked',
+    description: `${travelRequest.origin} → ${travelRequest.destination}`,
+    href: `/employee/travel-requests/${params.id}`,
+  })
 
   // Return created confirmation IDs so client can upload files
   const confirmationIds: Record<string, string> = {}

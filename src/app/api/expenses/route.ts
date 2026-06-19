@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { checkExpensePolicy } from '@/lib/policy-engine'
 import { notifyExpenseSubmitted } from '@/lib/notify'
+import { createNotification } from '@/lib/notifications'
 import { emailExpenseToManager } from '@/lib/mail'
 import { z } from 'zod'
 
@@ -120,6 +121,14 @@ export async function POST(req: NextRequest) {
         expenseId: expense.id,
       }).catch(() => {})
     }
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: emp.managerId,
+      type: 'expense_pending',
+      title: 'Expense awaiting your approval',
+      description: `${session.user.name ?? 'Employee'} · ${parsed.data.description} · $${parsed.data.amountUsd.toFixed(2)}`,
+      href: `/manager/approvals/expense/${expense.id}`,
+    })
   }
 
   return NextResponse.json({ expense, warnings: policyFlags.filter((f) => f.severity === 'WARNING') }, { status: 201 })

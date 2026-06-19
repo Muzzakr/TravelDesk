@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyTravelRequestStatusChanged } from '@/lib/notify'
+import { createNotification } from '@/lib/notifications'
 import { emailRequestApproved, emailRequestRejected, emailAgentActionRequired } from '@/lib/mail'
 import { z } from 'zod'
 import type { TravelRequestStatus } from '@prisma/client'
@@ -165,6 +166,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         actorName: session.user.name ?? 'Your manager',
       }).catch(() => {})
     }
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: request.employeeId,
+      type: 'travel_booked',
+      title: 'Your travel request was approved',
+      description: `${request.origin} → ${request.destination}`,
+      href: `/employee/travel-requests/${params.id}`,
+    })
     if (request.agentId) {
       const agent = await prisma.user.findUnique({ where: { id: request.agentId }, select: { name: true, email: true } })
       if (agent?.email) {
@@ -175,11 +184,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           requestId: params.id,
         }).catch(() => {})
       }
+      await createNotification({
+        companyId: session.user.companyId,
+        userId: request.agentId,
+        type: 'workflow_update',
+        title: 'Travel request ready to book',
+        description: `${request.employee.name ?? 'Employee'} · ${request.origin} → ${request.destination}`,
+        href: `/agent/requests/${params.id}`,
+      })
     }
   } else if (nextStatus === 'PENDING_AGENT') {
     const agents = await prisma.user.findMany({
       where: { companyId: session.user.companyId, role: 'TRAVEL_AGENT', isActive: true },
-      select: { name: true, email: true },
+      select: { id: true, name: true, email: true },
     })
     for (const agent of agents) {
       emailAgentActionRequired(agent.email, agent.name ?? 'Agent', {
@@ -188,6 +205,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         destination: request.destination,
         requestId: params.id,
       }).catch(() => {})
+      await createNotification({
+        companyId: session.user.companyId,
+        userId: agent.id,
+        type: 'workflow_update',
+        title: 'Travel request ready to book',
+        description: `${request.employee.name ?? 'Employee'} · ${request.origin} → ${request.destination}`,
+        href: `/agent/requests/${params.id}`,
+      })
     }
   } else if (nextStatus === 'REJECTED') {
     if (employeeEmail) {
@@ -198,6 +223,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         actorName: session.user.name ?? 'Your manager',
       }).catch(() => {})
     }
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: request.employeeId,
+      type: 'workflow_update',
+      title: 'Your travel request was not approved',
+      description: `${request.origin} → ${request.destination}`,
+      href: `/employee/travel-requests/${params.id}`,
+    })
   }
 
   return NextResponse.json(updated)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { createNotification } from '@/lib/notifications'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -32,6 +33,15 @@ export async function POST(req: NextRequest) {
     entityType: 'Expense',
     entityId: expenseId,
     payload: { amount: Number(expense.amountUsd) },
+  })
+
+  await createNotification({
+    companyId: session.user.companyId,
+    userId: expense.employeeId,
+    type: 'expense_paid',
+    title: 'Your expense was paid',
+    description: `${expense.description} · $${Number(expense.amountUsd).toFixed(2)}`,
+    href: `/employee/expenses/${expenseId}`,
   })
 
   return NextResponse.json(updated)

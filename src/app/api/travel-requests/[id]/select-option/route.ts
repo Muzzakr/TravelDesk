@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { emailPendingManagerApproval } from '@/lib/mail'
+import { createNotification } from '@/lib/notifications'
 import { z } from 'zod'
 
 const SelectSchema = z.object({
@@ -94,6 +95,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         requestId: params.id,
       }).catch(() => {})
     }
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: emp.managerId,
+      type: 'travel_pending',
+      title: 'Travel request awaiting your approval',
+      description: `${emp.name ?? 'Employee'} · ${travelRequest.origin} → ${travelRequest.destination}`,
+      href: `/manager/approvals/travel/${params.id}`,
+    })
   }
 
   return NextResponse.json({ success: true })

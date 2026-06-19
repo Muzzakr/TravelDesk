@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyExpenseStatusChanged } from '@/lib/notify'
+import { createNotification } from '@/lib/notifications'
 import { emailExpenseApproved, emailExpenseRejected, emailExpenseToFinance } from '@/lib/mail'
 import { z } from 'zod'
 
@@ -211,6 +212,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       expenseId: params.id,
     }).catch(() => {})
 
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: expense.employeeId,
+      type: 'workflow_update',
+      title: 'Your expense was approved',
+      description: `${expense.description} · $${Number(expense.amountUsd).toFixed(2)}`,
+      href: `/employee/expenses/${params.id}`,
+    })
+
     // Notify finance that the expense is approved and ready for payout
     const financeAdmins = await prisma.user.findMany({
       where: { companyId: session.user.companyId, role: 'FINANCE_ADMIN', isActive: true },
@@ -229,6 +239,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         approverName: session.user.name ?? 'Manager',
         expenseId: params.id,
       }).catch(() => {})
+      await createNotification({
+        companyId: session.user.companyId,
+        userId: fa.id,
+        type: 'expense_pending',
+        title: 'Expense ready for payout',
+        description: `${expense.employee.name ?? 'Employee'} · ${expense.description} · $${Number(expense.amountUsd).toFixed(2)}`,
+        href: `/finance/expenses`,
+      })
     }
   } else if (parsed.data.status === 'REJECTED' && employeeEmail) {
     emailExpenseRejected(employeeEmail, expense.employee.name ?? 'there', {
@@ -238,6 +256,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       actorName: session.user.name ?? 'Your manager',
       expenseId: params.id,
     }).catch(() => {})
+
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: expense.employeeId,
+      type: 'workflow_update',
+      title: 'Your expense was not approved',
+      description: `${expense.description} · $${Number(expense.amountUsd).toFixed(2)}`,
+      href: `/employee/expenses/${params.id}`,
+    })
   }
 
   return NextResponse.json(updated)

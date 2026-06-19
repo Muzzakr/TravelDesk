@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Plane, CreditCard, Ticket, Wallet, RefreshCw, type LucideIcon } from 'lucide-react'
+import { Plane, CreditCard, Ticket, Wallet, RefreshCw, Bell, type LucideIcon } from 'lucide-react'
 
 type Notification = {
   id: string
-  type: 'travel_pending' | 'expense_pending' | 'travel_booked' | 'expense_paid' | 'workflow_update'
+  type: string
   title: string
   description: string
   href: string
@@ -14,7 +14,7 @@ type Notification = {
   read: boolean
 }
 
-const typeIcon: Record<Notification['type'], LucideIcon> = {
+const typeIcon: Record<string, LucideIcon> = {
   travel_pending: Plane,
   expense_pending: CreditCard,
   travel_booked: Ticket,
@@ -57,10 +57,23 @@ export function NotificationBell() {
 
   const unread = notifications.filter((n) => !n.read).length
 
+  async function markAllRead() {
+    try { await fetch('/api/notifications', { method: 'PATCH' }) } catch { /* ignore */ }
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }
+
+  function toggleOpen() {
+    setOpen((o) => {
+      const next = !o
+      if (next && unread > 0) markAllRead()
+      return next
+    })
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         className="relative flex h-8 w-8 items-center justify-center rounded-lg hover:bg-indigo-800 transition-colors"
         aria-label="Notifications"
       >
@@ -98,7 +111,7 @@ export function NotificationBell() {
                   onClick={() => setOpen(false)}
                   className={`flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
                 >
-                  {(() => { const Icon = typeIcon[n.type]; return <Icon className="w-4 h-4 mt-0.5 text-gray-500 shrink-0" /> })()}
+                  {(() => { const Icon = typeIcon[n.type] ?? Bell; return <Icon className="w-4 h-4 mt-0.5 text-gray-500 shrink-0" /> })()}
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm truncate ${!n.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
                       {n.title}

@@ -5,6 +5,7 @@ import { writeAuditLog } from '@/lib/audit'
 import { checkEventBudget } from '@/lib/policy-engine'
 import { determineRoutingPath } from '@/lib/routing-engine'
 import { notifyTravelRequestCreated } from '@/lib/notify'
+import { createNotification } from '@/lib/notifications'
 import { emailRequestConfirmation, emailPendingManagerApproval } from '@/lib/mail'
 import { getProfileStatus } from '@/lib/profile-check'
 import { z } from 'zod'
@@ -159,6 +160,14 @@ export async function POST(req: NextRequest) {
         requestId: travelRequest.id,
       }).catch(() => {})
     }
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: emp.managerId,
+      type: 'travel_pending',
+      title: 'New travel request awaiting review',
+      description: `${session.user.name ?? 'Employee'} · ${parsed.data.origin} → ${parsed.data.destination}`,
+      href: `/manager/approvals/travel/${travelRequest.id}`,
+    })
   }
 
   return NextResponse.json({ ...travelRequest, budgetWarning: budgetCheck.warningTriggered }, { status: 201 })

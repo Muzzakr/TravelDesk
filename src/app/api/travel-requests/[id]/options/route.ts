@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyOptionsProvided } from '@/lib/notify'
+import { createNotification } from '@/lib/notifications'
 import { emailOptionsProvided } from '@/lib/mail'
 import { z } from 'zod'
 
@@ -103,6 +104,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       optionCount: parsed.data.options.length,
       requestId: params.id,
     }).catch(() => {})
+
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: travelRequest.employeeId,
+      type: 'workflow_update',
+      title: 'Booking options are ready',
+      description: `${parsed.data.options.length} option${parsed.data.options.length > 1 ? 's' : ''} for ${travelRequest.destination}`,
+      href: `/employee/travel-requests/${params.id}`,
+    })
   }
 
   return NextResponse.json({ success: true })

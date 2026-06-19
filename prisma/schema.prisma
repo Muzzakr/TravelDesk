@@ -74,8 +74,25 @@ model User {
   verificationTokens   VerificationToken[]
   eventDocuments       EventDocument[]
   assignedInboxMessages TravelInboxMessage[] @relation("InboxAssignee")
+  notifications        Notification[]
 
   @@unique([companyId, email])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String
+  type        String
+  title       String
+  description String
+  href        String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }
 
 model VerificationToken {

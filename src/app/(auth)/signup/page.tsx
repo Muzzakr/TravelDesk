@@ -16,6 +16,7 @@ export default function SignupPage() {
     adminName: '',
     adminEmail: '',
     password: '',
+    confirmPassword: '',
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -31,13 +32,23 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/companies/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          companyName: form.companyName,
+          companySlug: form.companySlug,
+          adminName: form.adminName,
+          adminEmail: form.adminEmail,
+          password: form.password,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -112,6 +123,15 @@ export default function SignupPage() {
               onChange={handleChange}
               required
               placeholder="Min 8 characters"
+            />
+            <Input
+              label="Confirm password"
+              name="confirmPassword"
+              type="password"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              required
+              placeholder="Re-enter password"
             />
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
             <Button type="submit" loading={loading} className="mt-2">

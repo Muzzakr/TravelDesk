@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { ExpenseApproveActions } from '@/components/manager/ExpenseApproveActions'
 
 export default async function TeamExpensesPage({
   searchParams,
@@ -127,13 +128,17 @@ export default async function TeamExpensesPage({
                     </Badge>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-gray-400">
                     {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
-                  <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">
-                    Review →
-                  </Link>
+                  {['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) ? (
+                    <ExpenseApproveActions expenseId={e.id} />
+                  ) : (
+                    <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">
+                      Review →
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -182,12 +187,21 @@ export default async function TeamExpensesPage({
                       {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/manager/approvals/expense/${e.id}`}
-                        className="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap"
-                      >
-                        Review →
-                      </Link>
+                      {['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) ? (
+                        <div className="flex items-center gap-3">
+                          <ExpenseApproveActions expenseId={e.id} />
+                          <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs text-gray-400 hover:text-indigo-600 hover:underline whitespace-nowrap">
+                            Details
+                          </Link>
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/manager/approvals/expense/${e.id}`}
+                          className="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap"
+                        >
+                          Review →
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

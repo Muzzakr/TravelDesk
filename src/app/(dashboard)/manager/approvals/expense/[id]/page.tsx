@@ -1,212 +1,283 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { Button } from '@/components/ui/Button'
+import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
-import { FileText, Image as ImageIcon } from 'lucide-react'
+import { ReceiptRow } from '@/components/manager/ReceiptRow'
+import { ExpenseReviewPanel } from '@/components/manager/ExpenseReviewPanel'
+import { BudgetBar } from '@/components/manager/BudgetBar'
 
-function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
-  const [url, setUrl] = useState<string | null>(null)
-
-  // Prefetch the signed URL on mount so "Open receipt" is a one-click link
-  // (same pattern as passport/driver's licence in the profile page).
-  useEffect(() => {
-    let active = true
-    fetch(`/api/receipts/${id}/url`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((d: { url?: string } | null) => { if (active && d?.url) setUrl(d.url) })
-      .catch(() => {})
-    return () => { active = false }
-  }, [id])
-
-  const isPdf = fileName.toLowerCase().endsWith('.pdf')
-
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
-      <div className="flex items-center gap-2 min-w-0">
-        {isPdf ? <FileText className="w-5 h-5 text-gray-500 shrink-0" /> : <ImageIcon className="w-5 h-5 text-gray-500 shrink-0" />}
-        <span className="truncate text-gray-700">{fileName}</span>
-      </div>
-      {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-3 shrink-0 text-indigo-600 font-medium hover:underline"
-        >
-          Open receipt →
-        </a>
-      ) : (
-        <span className="ml-3 shrink-0 text-gray-400">Loading…</span>
-      )}
-    </div>
-  )
+const CATEGORY_LABELS: Record<string, string> = {
+  MEALS: 'Meals',
+  TRANSPORT: 'Transport',
+  ACCOMMODATION: 'Accommodation',
+  SUPPLIES: 'Supplies',
+  OTHER: 'Other',
 }
 
-export default function ApproveExpensePage() {
-  const router = useRouter()
-  const { id } = useParams<{ id: string }>()
-  const [expense, setExpense] = useState<Record<string, unknown> | null>(null)
-  const [note, setNote] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+export default async function ApproveExpensePage({ params }: { params: { id: string } }) {
+  const session = await auth()
+  if (!session?.user?.companyId) redirect('/login')
+  const companyId = session.user.companyId
+  const role = session.user.role ?? ''
 
-  useEffect(() => {
-    async function load() {
-      const r = await fetch(`/api/expenses/${id}`)
-      if (r.ok) setExpense(await r.json())
-    }
-    load()
-  }, [id])
+  if (!['MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(role)) redirect('/manager')
 
-  async function handle(status: 'APPROVED' | 'REJECTED') {
-    if (status === 'REJECTED' && !note.trim()) {
-      setError('A note is required when rejecting.')
-      return
-    }
-    setLoading(true)
-    const res = await fetch(`/api/expenses/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, rejectionNote: status === 'REJECTED' ? note : undefined }),
-    })
-    if (res.ok) {
-      router.push('/manager')
-    } else {
-      const d = await res.json()
-      setError(d.error ?? 'Failed')
-      setLoading(false)
-    }
-  }
+  const expense = await prisma.expense.findFirst({
+    where: { id: params.id, companyId },
+    include: {
+      employee: { select: { name: true, email: true } },
+      event: {
+        select: {
+          eventName: true,
+          eventCode: true,
+          budgetUsd: true,
+          approvedSpendUsd: true,
+        },
+      },
+      receipts: { select: { id: true, fileName: true } },
+      approvalActions: {
+        include: { actor: { select: { name: true } } },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  })
 
-  if (!expense) return <div className="p-8 text-gray-400">Loading…</div>
+  if (!expense) notFound()
 
-  const emp = expense.employee as { name: string; email: string }
-  const ev = expense.event as { eventName: string; budgetUsd: number; approvedSpendUsd: number }
-  const receipts = (expense.receipts as { id: string; fileName: string }[]) ?? []
-  const eventBudget    = Number(ev.budgetUsd)
-  const eventSpent     = Number(ev.approvedSpendUsd)
-  const expenseAmt     = Number(expense.amountUsd ?? 0)
-  const isAlreadyApproved = String(expense.status) === 'APPROVED'
+  // All expenses from same employee + event for the review panel
+  const relatedRaw = await prisma.expense.findMany({
+    where: { companyId, employeeId: expense.employeeId, eventId: expense.eventId },
+    select: {
+      id: true,
+      category: true,
+      description: true,
+      amountUsd: true,
+      status: true,
+      rejectionNote: true,
+      reason: true,
+      personName: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  // Serialise Decimal → number for client component
+  const relatedExpenses = relatedRaw.map((e) => ({
+    ...e,
+    category: e.category as string,
+    status: e.status as string,
+    amountUsd: Number(e.amountUsd),
+  }))
+
+  const ev = expense.event
+  const eventBudget = Number(ev.budgetUsd)
+  const eventSpent = Number(ev.approvedSpendUsd)
+  const expenseAmt = Number(expense.amountUsd)
+  const status = expense.status as string
+  const isAlreadyApproved = status === 'APPROVED'
   const projectedSpent = isAlreadyApproved ? eventSpent : eventSpent + expenseAmt
-  const budgetPct      = eventBudget > 0 ? Math.min(Math.round((eventSpent / eventBudget) * 100), 100) : 0
-  const projectedPct   = eventBudget > 0 ? Math.min(Math.round((projectedSpent / eventBudget) * 100), 100) : 0
-  const budgetBarColor = projectedPct >= 100 ? 'bg-red-500' : projectedPct >= 80 ? 'bg-yellow-400' : 'bg-green-500'
-  const actions = (expense.approvalActions as { actionType: string; note?: string; createdAt: string; actor: { name: string } }[]) ?? []
-  const status = String(expense.status)
-  const isDecided = ['APPROVED', 'REJECTED', 'PAID'].includes(status)
+  const budgetPct = eventBudget > 0 ? Math.min(Math.round((eventSpent / eventBudget) * 100), 100) : 0
+  const projectedPct = eventBudget > 0 ? Math.min(Math.round((projectedSpent / eventBudget) * 100), 100) : 0
+  const budgetBarColor =
+    projectedPct >= 100 ? 'bg-red-500' : projectedPct >= 80 ? 'bg-yellow-400' : 'bg-green-500'
+
+  const submittedAt = new Date(expense.createdAt)
+  const submittedLabel = `${submittedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${submittedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Review expense</h1>
+    <div className="space-y-5">
+      {/* Back */}
+      <Link
+        href="/manager/team-expenses"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Team Expenses
+      </Link>
 
-      <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div><span className="text-gray-500">Employee</span><p className="font-medium text-gray-900">{emp.name}</p></div>
-          <div><span className="text-gray-500">Event</span><p className="font-medium text-gray-900">{ev.eventName}</p></div>
-          <div><span className="text-gray-500">Description</span><p className="font-medium text-gray-900">{String(expense.description)}</p></div>
-          <div><span className="text-gray-500">Category</span><p className="font-medium text-gray-900">{String(expense.category)}</p></div>
-          {expense.reason != null && expense.reason !== '' && (
-            <div><span className="text-gray-500">Reason</span><p className="font-medium text-gray-900">{String(expense.reason)}</p></div>
-          )}
-          {expense.personName != null && expense.personName !== '' && (
-            <div><span className="text-gray-500">Expense for</span><p className="font-medium text-gray-900">{String(expense.personName)}</p></div>
-          )}
-          <div><span className="text-gray-500">Amount</span><p className="text-xl font-bold text-gray-900">${Number(expense.amountUsd).toFixed(2)}</p></div>
-          <div><span className="text-gray-500">Status</span><p><Badge variant={statusToBadgeVariant(status)}>{status}</Badge></p></div>
-        </div>
+      <div className="lg:grid lg:grid-cols-3 lg:gap-8 space-y-5 lg:space-y-0 items-start">
 
-        {/* Event budget */}
-        {eventBudget > 0 && (
-          <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 space-y-2">
-            <div className="flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              <span>Event budget — {ev.eventName}</span>
-              <span className={projectedPct >= 100 ? 'text-red-600' : projectedPct >= 80 ? 'text-yellow-600' : 'text-gray-500'}>
-                {projectedPct}% {isAlreadyApproved ? 'used' : 'after approval'}
-              </span>
+        {/* ── Left column: expense details ── */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Employee header */}
+          <div className="rounded-xl border bg-white p-5 flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+              {expense.employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
             </div>
-            <div className="relative h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-              {/* eslint-disable-next-line react/forbid-component-props */}
-              <div className="absolute inset-y-0 left-0 bg-gray-300 rounded-full" style={{ width: `${budgetPct}%` }} />
-              {/* eslint-disable-next-line react/forbid-component-props */}
-              <div className={`absolute inset-y-0 left-0 rounded-full ${budgetBarColor}`} style={{ width: `${projectedPct}%` }} />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold text-gray-900">{expense.employee.name}</h1>
+              <p className="text-sm text-gray-500">{expense.employee.email}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400">
+                <span className="font-medium text-gray-600">{ev.eventName}</span>
+                {ev.eventCode && <span className="font-mono">{ev.eventCode}</span>}
+                <span>Submitted {submittedLabel}</span>
+              </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Spent: <span className="font-medium text-gray-800">${eventSpent.toLocaleString('en-US')}</span></span>
-              {!isAlreadyApproved && expenseAmt > 0 && (
-                <span>+ This expense: <span className="font-medium text-indigo-700">${expenseAmt.toLocaleString('en-US')}</span></span>
-              )}
-              <span>Budget: <span className="font-medium text-gray-800">${eventBudget.toLocaleString('en-US')}</span></span>
-            </div>
+            <Badge variant={statusToBadgeVariant(status)}>{status.replace(/_/g, ' ')}</Badge>
           </div>
-        )}
 
-        {/* Receipts */}
-        <div className="border-t pt-4">
-          <p className="text-sm font-medium text-gray-700 mb-2">Receipts</p>
-          {receipts.length === 0 ? (
-            <p className="text-sm text-gray-400">No receipt attached.</p>
-          ) : (
-            <div className="space-y-2">
-              {receipts.map((r) => (
-                <ReceiptRow key={r.id} id={r.id} fileName={r.fileName} />
-              ))}
+          {/* Expense details */}
+          <div className="rounded-xl border bg-white p-5 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  {CATEGORY_LABELS[String(expense.category)] ?? String(expense.category)}
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-gray-900 leading-snug">
+                  {expense.description}
+                </h2>
+                {expense.merchantName && (
+                  <p className="mt-0.5 text-sm text-gray-500">{expense.merchantName}</p>
+                )}
+              </div>
+              <p className="text-3xl font-bold text-gray-900 shrink-0 tabular-nums">
+                ${expenseAmt.toFixed(2)}
+              </p>
             </div>
-          )}
-        </div>
 
-        {/* Approval history */}
-        {actions.length > 0 && (
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium text-gray-700 mb-3">History</p>
-            <div className="space-y-2">
-              {actions.map((a, i) => (
-                <div key={i} className="flex items-start gap-3 text-sm">
-                  <span className={`mt-0.5 shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    a.actionType === 'APPROVE' ? 'bg-green-100 text-green-700' :
-                    a.actionType === 'REJECT' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>{a.actionType}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-gray-900">{a.actor.name}</span>
-                    {a.note && <p className="text-gray-500 mt-0.5 text-xs">{a.note}</p>}
-                  </div>
-                  <span className="text-xs text-gray-400 shrink-0">{new Date(a.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
+            {/* Detail grid */}
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm border-t border-gray-100 pt-4">
+              {expense.transactionDate && (
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Transaction date
+                  </dt>
+                  <dd className="mt-0.5 font-medium text-gray-900">
+                    {new Date(expense.transactionDate).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })}
+                  </dd>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              )}
+              {expense.expenseType && (
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Expense type
+                  </dt>
+                  <dd className="mt-0.5 font-medium text-gray-900">
+                    {String(expense.expenseType).replace(/_/g, ' ')}
+                  </dd>
+                </div>
+              )}
+              {expense.reason && (
+                <div className="col-span-2 sm:col-span-1">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Reason
+                  </dt>
+                  <dd className="mt-0.5 font-medium text-gray-900">{expense.reason}</dd>
+                </div>
+              )}
+              {expense.personName && (
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Expense for
+                  </dt>
+                  <dd className="mt-0.5 font-medium text-gray-900">{expense.personName}</dd>
+                </div>
+              )}
+            </dl>
 
-        {!isDecided && (
-          <>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Note (required for rejection)</label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                placeholder="Add a note…"
+            {expense.rejectionNote && (
+              <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">
+                  Rejection note
+                </p>
+                <p className="mt-1 text-sm text-red-700">{expense.rejectionNote}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Budget impact */}
+          {eventBudget > 0 && (
+            <div className="rounded-xl border bg-white p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-800">Event budget — {ev.eventName}</h3>
+                <span
+                  className={`text-sm font-bold ${
+                    projectedPct >= 100
+                      ? 'text-red-600'
+                      : projectedPct >= 80
+                      ? 'text-yellow-600'
+                      : 'text-green-600'
+                  }`}
+                >
+                  {projectedPct}% {isAlreadyApproved ? 'used' : 'after approval'}
+                </span>
+              </div>
+              <BudgetBar
+                budgetPct={budgetPct}
+                projectedPct={projectedPct}
+                budgetBarColor={budgetBarColor}
               />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Spent: <b className="text-gray-800">${eventSpent.toLocaleString('en-US')}</b></span>
+                {!isAlreadyApproved && expenseAmt > 0 && (
+                  <span>+ This: <b className="text-indigo-700">${expenseAmt.toLocaleString('en-US')}</b></span>
+                )}
+                <span>Budget: <b className="text-gray-800">${eventBudget.toLocaleString('en-US')}</b></span>
+              </div>
             </div>
+          )}
 
-            {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-
-            <div className="flex gap-3">
-              <Button onClick={() => handle('APPROVED')} loading={loading}>Approve</Button>
-              <Button variant="danger" onClick={() => handle('REJECTED')} loading={loading}>Reject</Button>
-              <Button variant="secondary" onClick={() => router.back()}>Back</Button>
-            </div>
-          </>
-        )}
-
-        {isDecided && (
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" onClick={() => router.back()}>Back</Button>
+          {/* Receipts */}
+          <div className="rounded-xl border bg-white p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-800">Receipts</h3>
+            {expense.receipts.length === 0 ? (
+              <p className="text-sm text-gray-400">No receipts attached.</p>
+            ) : (
+              <div className="space-y-2">
+                {expense.receipts.map((r) => (
+                  <ReceiptRow key={r.id} id={r.id} fileName={r.fileName} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Approval history */}
+          {expense.approvalActions.length > 0 && (
+            <div className="rounded-xl border bg-white p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-800">Approval history</h3>
+              <div className="space-y-3">
+                {expense.approvalActions.map((a, i) => (
+                  <div key={i} className="flex items-start gap-3 text-sm">
+                    <span
+                      className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        a.actionType === 'APPROVE'
+                          ? 'bg-green-100 text-green-700'
+                          : a.actionType === 'REJECT'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {a.actionType}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900">{a.actor.name}</p>
+                      {a.note && <p className="mt-0.5 text-xs text-gray-500">{a.note}</p>}
+                    </div>
+                    <span className="shrink-0 text-xs text-gray-400">
+                      {new Date(a.createdAt).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Right column: decision panel ── */}
+        <div className="lg:col-span-1">
+          <div className="lg:sticky lg:top-24">
+            <ExpenseReviewPanel
+              expenses={relatedExpenses}
+              currentExpenseId={params.id}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )

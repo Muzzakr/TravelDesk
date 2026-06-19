@@ -187,7 +187,7 @@ export default function TravelRequestsPage() {
         <Link
           href="/employee/travel-requests/new"
           aria-label="New travel request"
-          className="sm:hidden fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700"
+          className="md:hidden fixed right-5 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700"
         >
           <Plus className="w-6 h-6" />
         </Link>

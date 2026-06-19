@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Role } from '@/types/user'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { BottomTabBar } from '@/components/ui/BottomTabBar'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
@@ -73,13 +74,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Mobile top bar + slide-in nav */}
-      <MobileNav
-        nav={nav}
-        userName={session.user.name ?? ''}
-        role={role}
-        logoutAction={async () => { 'use server'; await signOut({ redirectTo: '/' }) }}
-      />
+      {/* Mobile top bar (primary nav is the bottom tab bar) */}
+      <MobileNav />
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
@@ -122,8 +118,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
             blocking={profileStatus.blocking}
           />
         )}
-        <main className="flex-1 p-4 pt-18 md:pt-4 md:p-8">{children}</main>
+        <main className="flex-1 px-4 pt-[calc(env(safe-area-inset-top)+4rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)] md:px-8 md:py-8">{children}</main>
       </div>
+
+      {/* Mobile bottom tab bar */}
+      <BottomTabBar
+        nav={nav}
+        userName={session.user.name ?? ''}
+        role={role}
+        logoutAction={async () => { 'use server'; await signOut({ redirectTo: '/' }) }}
+      />
     </div>
   )
 }

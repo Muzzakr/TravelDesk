@@ -1,237 +1,289 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { ExpenseApproveActions } from '@/components/manager/ExpenseApproveActions'
 
-export default async function TeamExpensesPage({
-  searchParams,
-}: {
-  searchParams: { status?: string; employee?: string }
-}) {
-  const session = await auth()
-  if (!session?.user?.companyId) redirect('/login')
-  const companyId = session.user.companyId
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-  const statusFilter = searchParams?.status || ''
-  const employeeFilter = searchParams?.employee || ''
+type Expense = {
+  id: string; description: string; merchantName: string | null; amountUsd: number
+  status: string; category: string; createdAt: string
+  employee: { id: string; name: string }
+  event: { eventCode: string; eventName: string }
+  receipts: { id: string; fileName: string }[]
+}
 
-  const employees = await prisma.user.findMany({
-    where: { companyId, role: 'EMPLOYEE' },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  })
+type PageData = {
+  expenses: Expense[]
+  pagination: { page: number; pageSize: number; total: number; totalPages: number }
+  kpis: {
+    totalAmount: number; totalCount: number
+    pendingAmount: number; pendingCount: number
+    approvedAmount: number; approvedCount: number
+    rejectedCount: number
+  }
+  employees: { id: string; name: string }[]
+}
 
-  const expenses = await prisma.expense.findMany({
-    where: {
-      companyId,
-      ...(statusFilter ? { status: statusFilter as never } : {}),
-      ...(employeeFilter ? { employeeId: employeeFilter } : {}),
-    },
-    include: {
-      employee: { select: { name: true, email: true } },
-      event: { select: { eventName: true, eventCode: true } },
-      receipts: { select: { id: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+const STATUS_LABELS: Record<string, string> = {
+  SUBMITTED: 'Pending Review', UNDER_REVIEW: 'Under Review',
+  APPROVED: 'Approved', PAID: 'Paid', REJECTED: 'Rejected', DRAFT: 'Draft',
+}
 
-  const stats = {
-    total: expenses.length,
-    pending: expenses.filter((e) => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)).length,
-    approved: expenses.filter((e) => e.status === 'APPROVED').length,
-    totalAmount: expenses.reduce((s, e) => s + Number(e.amountUsd), 0),
+export default function TeamExpensesPage() {
+  const now = new Date()
+  const [month, setMonth] = useState(now.getMonth())
+  const [year, setYear] = useState(now.getFullYear())
+  const [data, setData] = useState<PageData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [employeeFilter, setEmployeeFilter] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    const p = new URLSearchParams({
+      month: String(month + 1), year: String(year), page: String(page),
+      ...(statusFilter && { status: statusFilter }),
+      ...(employeeFilter && { employeeId: employeeFilter }),
+      ...(search && { search }),
+    })
+    const res = await fetch(`/api/manager/expenses?${p}`)
+    if (res.ok) setData(await res.json())
+    setLoading(false)
+  }, [month, year, page, statusFilter, employeeFilter, search])
+
+  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { setPage(1) }, [month, year, statusFilter, employeeFilter, search])
+
+  function exportCSV() {
+    if (!data?.expenses.length) return
+    const rows = data.expenses.map((e) => [
+      new Date(e.createdAt).toISOString().slice(0, 10), e.employee.name, e.description,
+      e.merchantName ?? '', e.category, e.event.eventName,
+      Number(e.amountUsd).toFixed(2), STATUS_LABELS[e.status] ?? e.status,
+    ])
+    const header = ['Date','Employee','Description','Merchant','Category','Event','Amount (USD)','Status']
+    const csv = [header.join(','), ...rows.map((r) => r.map((v) => JSON.stringify(v)).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `team-expenses-${MONTHS[month]}-${year}.csv`; a.click()
+    URL.revokeObjectURL(url)
   }
 
-  const statuses = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PAID']
+  const years = [now.getFullYear() - 1, now.getFullYear()]
+  const kpis = data?.kpis
+  const isPending = (status: string) => ['SUBMITTED', 'UNDER_REVIEW'].includes(status)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Team Expenses</h1>
-        <p className="text-sm text-gray-500 mt-0.5">All expenses submitted by your team</p>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Team Expenses</h1>
+          <p className="text-sm text-gray-500 mt-0.5">All expenses submitted by your team</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <select title="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))} className="bg-transparent text-sm focus:outline-none">
+              {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
+            <select title="Year" value={year} onChange={(e) => setYear(Number(e.target.value))} className="bg-transparent text-sm focus:outline-none">
+              {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <button type="button" onClick={exportCSV} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export CSV
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Expenses', value: stats.total, color: 'text-gray-900' },
-          { label: 'Pending Approval', value: stats.pending, color: 'text-yellow-600' },
-          { label: 'Approved', value: stats.approved, color: 'text-green-600' },
-          { label: 'Total Amount', value: `$${stats.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: 'text-blue-700' },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">
-            <p className="text-xs text-gray-500">{s.label}</p>
-            <p className={`mt-1 text-2xl font-bold ${s.color}`}>{s.value}</p>
+          { label: 'Total this month', value: kpis ? `$${kpis.totalAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.totalCount} expenses` : '', color: 'text-gray-900' },
+          { label: 'Pending your review', value: kpis ? `$${kpis.pendingAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.pendingCount} expenses` : '', color: 'text-yellow-600' },
+          { label: 'Approved this month', value: kpis ? `$${kpis.approvedAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.approvedCount} approved` : '', color: 'text-green-700' },
+          { label: 'Rejected', value: kpis ? String(kpis.rejectedCount) : '—', sub: 'expenses rejected', color: 'text-red-600' },
+        ].map((card) => (
+          <div key={card.label} className="rounded-xl bg-white border border-gray-100 shadow-sm p-4">
+            <p className="text-xs text-gray-500">{card.label}</p>
+            <p className={`mt-1 text-xl font-bold ${card.color}`}>{card.value}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{card.sub}</p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <form method="get" className="flex flex-wrap gap-3">
-        <select
-          name="status"
-          defaultValue={statusFilter}
-          title="Filter by status"
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">All Statuses</option>
-          {statuses.map((s) => (
-            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-          ))}
+      <div className="flex flex-wrap gap-2">
+        <select title="Filter by status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">All statuses</option>
+          <option value="SUBMITTED">Pending Review</option>
+          <option value="UNDER_REVIEW">Under Review</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="PAID">Paid</option>
         </select>
-        <select
-          name="employee"
-          defaultValue={employeeFilter}
-          title="Filter by employee"
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">All Employees</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>{e.name}</option>
-          ))}
+        <select title="Filter by employee" value={employeeFilter} onChange={(e) => { setEmployeeFilter(e.target.value); setPage(1) }}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">All employees</option>
+          {data?.employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
-        <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-          Filter
-        </button>
-        {(statusFilter || employeeFilter) && (
-          <Link href="/manager/team-expenses" className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white text-gray-500 hover:bg-gray-50">
-            Clear
-          </Link>
-        )}
-      </form>
-
-      {/* List */}
-      {expenses.length === 0 ? (
-        <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">
-          No expenses found.
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 flex-1 min-w-[200px]">
+          <svg className="h-4 w-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setSearch(searchInput); setPage(1) } }}
+            placeholder="Search expense, employee, event..." className="text-sm flex-1 focus:outline-none bg-transparent" />
         </div>
-      ) : (
-        <>
-          {/* Mobile cards */}
-          <div className="sm:hidden space-y-3">
-            {expenses.map((e) => {
-              const isPending = ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)
-              return (
-                <div key={e.id} className="rounded-xl border bg-white overflow-hidden">
-                  {/* Clickable info area */}
-                  <Link
-                    href={`/manager/approvals/expense/${e.id}`}
-                    className="block px-4 pt-3 pb-2 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900">{e.employee.name}</p>
-                        <p className="text-sm text-gray-600 truncate">{e.description}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{e.event.eventName}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <p className="font-bold text-gray-900">${Number(e.amountUsd).toFixed(2)}</p>
-                        <Badge variant={statusToBadgeVariant(e.status)}>
-                          {e.status.replace(/_/g, ' ')}
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1.5">
-                      {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </Link>
-                  {/* Action row (separate from the link) */}
-                  <div className="border-t border-gray-100 px-4 py-2 flex items-center justify-end gap-2">
-                    {isPending ? (
-                      <ExpenseApproveActions expenseId={e.id} />
-                    ) : (
-                      <Link
-                        href={`/manager/approvals/expense/${e.id}`}
-                        className="text-sm font-medium text-indigo-600 hover:underline"
-                      >
-                        View details →
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        {(statusFilter || employeeFilter || search) && (
+          <button type="button" onClick={() => { setStatusFilter(''); setEmployeeFilter(''); setSearch(''); setSearchInput(''); setPage(1) }}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">Clear</button>
+        )}
+      </div>
 
-          {/* Desktop table */}
-          <div className="hidden sm:block rounded-xl border bg-white shadow-sm overflow-x-auto">
-            <table className="w-full min-w-[700px] divide-y divide-gray-100 text-sm">
-              <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
-                <tr>
-                  <th className="px-4 py-3 text-left">Employee</th>
-                  <th className="px-4 py-3 text-left">Event / Category</th>
-                  <th className="px-4 py-3 text-left">Amount</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Action</th>
+      {/* Table */}
+      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+        {/* Mobile cards */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="p-4"><div className="h-4 bg-gray-100 rounded animate-pulse" /></div>
+            ))
+          ) : !data?.expenses.length ? (
+            <p className="p-8 text-center text-sm text-gray-400">No expenses found for this period.</p>
+          ) : data.expenses.map((e) => (
+            <div key={e.id} className="p-4 space-y-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{e.employee.name}</p>
+                  <p className="text-sm text-gray-600 truncate" title={e.description}>{e.description}</p>
+                  <p className="text-xs text-gray-400 truncate">{e.event.eventName}</p>
+                </div>
+                <span className="font-semibold text-gray-900 whitespace-nowrap shrink-0">${Number(e.amountUsd).toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  e.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                  e.status === 'PAID' ? 'bg-indigo-100 text-indigo-700' :
+                  e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>{STATUS_LABELS[e.status] ?? e.status}</span>
+                {isPending(e.status) ? (
+                  <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
+                ) : (
+                  <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View →</Link>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100 text-sm">
+            <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+              <tr>
+                <th className="px-3 py-3 text-left">Employee</th>
+                <th className="px-3 py-3 text-left">Expense</th>
+                <th className="px-3 py-3 text-left">Event</th>
+                <th className="px-3 py-3 text-right">Amount</th>
+                <th className="px-3 py-3 text-left">Submitted</th>
+                <th className="px-3 py-3 text-left">Status</th>
+                <th className="px-3 py-3 text-center">Receipt</th>
+                <th className="px-3 py-3 text-left">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>{Array.from({ length: 8 }).map((_, j) => (
+                    <td key={j} className="px-3 py-3"><div className="h-3 bg-gray-100 rounded animate-pulse" /></td>
+                  ))}</tr>
+                ))
+              ) : !data?.expenses.length ? (
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found for this period.</td></tr>
+              ) : data.expenses.map((e) => (
+                <tr key={e.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                        {e.employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-gray-900">{e.employee.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3">
+                    <p className="font-medium text-gray-900 max-w-[180px] truncate" title={e.description}>{e.description}</p>
+                    {e.merchantName && <p className="text-xs text-gray-400 max-w-[180px] truncate" title={e.merchantName}>{e.merchantName}</p>}
+                  </td>
+                  <td className="px-3 py-3 text-gray-500 text-xs">
+                    <span className="block max-w-[140px] truncate" title={e.event.eventName}>{e.event.eventName}</span>
+                  </td>
+                  <td className="px-3 py-3 text-right font-semibold text-gray-900">${Number(e.amountUsd).toFixed(2)}</td>
+                  <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
+                    {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </td>
+                  <td className="px-3 py-3">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      e.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                      e.status === 'PAID' ? 'bg-indigo-100 text-indigo-700' :
+                      e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {STATUS_LABELS[e.status] ?? e.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    {e.receipts.length > 0 ? (
+                      <Link href={`/manager/approvals/expense/${e.id}`} title="View receipt">
+                        <svg className="h-5 w-5 text-red-400 hover:text-red-600 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+                        </svg>
+                      </Link>
+                    ) : <span className="text-gray-300 text-xs">—</span>}
+                  </td>
+                  <td className="px-3 py-3">
+                    {isPending(e.status) ? (
+                      <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
+                    ) : (
+                      <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View</Link>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {expenses.map((e) => {
-                  const isPending = ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)
-                  const detailHref = `/manager/approvals/expense/${e.id}`
-                  return (
-                    /* relative on tr so the overlay link covers the full row */
-                    <tr key={e.id} className="relative hover:bg-gray-50 cursor-pointer">
-                      {/* Invisible overlay link — covers the row; buttons sit above it via z-20 */}
-                      <td className="px-4 py-3">
-                        <Link
-                          href={detailHref}
-                          className="absolute inset-0 z-10"
-                          aria-label={`Review ${e.employee.name}'s expense`}
-                        />
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
-                            {e.employee.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{e.employee.name}</p>
-                            <p className="text-xs text-gray-400 truncate">{e.description}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-gray-700 truncate max-w-[160px]">{e.event?.eventName ?? '—'}</p>
-                        <p className="text-xs text-gray-400">{(e.category ?? '').replace(/_/g, ' ')}</p>
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
-                        ${Number(e.amountUsd).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={statusToBadgeVariant(e.status)}>
-                          {e.status.replace(/_/g, ' ')}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-                        {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </td>
-                      {/* Action cell: z-20 sits above the overlay link */}
-                      <td className="px-4 py-3">
-                        <div className="relative z-20 flex items-center gap-2">
-                          {isPending ? (
-                            <ExpenseApproveActions expenseId={e.id} />
-                          ) : (
-                            <Link
-                              href={detailHref}
-                              className="text-sm font-medium text-indigo-600 hover:underline whitespace-nowrap"
-                            >
-                              View →
-                            </Link>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {data && data.pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t px-3 py-3">
+            <p className="text-xs text-gray-500">
+              Showing {((page - 1) * data.pagination.pageSize) + 1}–{Math.min(page * data.pagination.pageSize, data.pagination.total)} of {data.pagination.total} expenses
+            </p>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">‹</button>
+              {Array.from({ length: Math.min(data.pagination.totalPages, 9) }, (_, i) => {
+                const p = i + 1
+                return <button type="button" key={p} onClick={() => setPage(p)} className={`rounded px-2.5 py-1 text-xs font-medium ${p === page ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>{p}</button>
+              })}
+              {data.pagination.totalPages > 9 && <span className="text-xs text-gray-400">...</span>}
+              <button type="button" onClick={() => setPage(p => Math.min(data.pagination.totalPages, p + 1))} disabled={page === data.pagination.totalPages} className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">›</button>
+            </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   )
 }

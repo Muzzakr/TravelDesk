@@ -5,7 +5,7 @@ import { useState } from 'react'
 
 type Mode = 'idle' | 'approving' | 'rejecting'
 
-export function ExpenseApproveActions({ expenseId }: { expenseId: string }) {
+export function ExpenseApproveActions({ expenseId, onDone }: { expenseId: string; onDone?: () => void }) {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('idle')
   const [note, setNote] = useState('')
@@ -27,7 +27,7 @@ export function ExpenseApproveActions({ expenseId }: { expenseId: string }) {
       }),
     })
     if (res.ok) {
-      router.refresh()
+      if (onDone) onDone(); else router.refresh()
     } else {
       const d = await res.json().catch(() => ({}))
       setError(typeof d.error === 'string' ? d.error : 'Failed')

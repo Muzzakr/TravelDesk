@@ -48,14 +48,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 
-  await writeAuditLog({
-    companyId: company.id,
-    actorId: user.id,
-    action: 'COMPANY_CREATED',
-    entityType: 'Company',
-    entityId: company.id,
-    payload: { companyName: company.name, slug: company.slug, adminEmail: user.email },
-  })
+  try {
+    await writeAuditLog({
+      companyId: company.id,
+      actorId: user.id,
+      action: 'COMPANY_CREATED',
+      entityType: 'Company',
+      entityId: company.id,
+      payload: { companyName: company.name, slug: company.slug, adminEmail: user.email },
+    })
+  } catch (err) {
+    // Account is already created — a logging failure must not fail the signup.
+    console.error('Signup audit log failed:', err)
+  }
 
   return NextResponse.json(
     { companyId: company.id, slug: company.slug, userId: user.id },

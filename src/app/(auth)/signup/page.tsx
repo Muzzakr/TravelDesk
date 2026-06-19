@@ -33,27 +33,32 @@ export default function SignupPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const res = await fetch('/api/companies/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      const err = data.error
-      let message = 'Signup failed'
-      if (typeof err === 'string') {
-        message = err
-      } else if (err?.fieldErrors) {
-        // zod flatten(): { formErrors: [], fieldErrors: { field: [msg] } }
-        const msgs = Object.values(err.fieldErrors as Record<string, string[]>).flat()
-        if (msgs.length) message = msgs.join(', ')
+    try {
+      const res = await fetch('/api/companies/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const err = (data as { error?: unknown }).error
+        let message = 'Signup failed. Please try again.'
+        if (typeof err === 'string') {
+          message = err
+        } else if (err && typeof err === 'object' && 'fieldErrors' in err) {
+          // zod flatten(): { formErrors: [], fieldErrors: { field: [msg] } }
+          const msgs = Object.values((err as { fieldErrors: Record<string, string[]> }).fieldErrors).flat()
+          if (msgs.length) message = msgs.join(', ')
+        }
+        setError(message)
+        return
       }
-      setError(message)
+      router.push(`/login?company=${form.companySlug}&registered=1`)
+    } catch {
+      setError('Could not reach the server. Please check your connection and try again.')
+    } finally {
       setLoading(false)
-      return
     }
-    router.push(`/login?company=${form.companySlug}&registered=1`)
   }
 
   return (

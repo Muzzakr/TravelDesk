@@ -18,10 +18,10 @@ type PageData = {
   expenses: Expense[]
   pagination: { page: number; pageSize: number; total: number; totalPages: number }
   kpis: {
-    totalAmount: number; totalCount: number
-    pendingAmount: number; pendingCount: number
-    approvedAmount: number; approvedCount: number
-    rejectedCount: number
+    awaitingPaymentAmount: number; awaitingPaymentCount: number
+    paidThisMonthAmount: number; paidThisMonthCount: number
+    pendingManagerReviewAmount: number; pendingManagerReviewCount: number
+    totalExpensesAmount: number; totalExpensesCount: number
   }
   employees: { id: string; name: string }[]
 }
@@ -51,7 +51,7 @@ export default function TeamExpensesPage() {
       ...(employeeFilter && { employeeId: employeeFilter }),
       ...(search && { search }),
     })
-    const res = await fetch(`/api/manager/expenses?${p}`)
+    const res = await fetch(`/api/finance/expenses?${p}`)
     if (res.ok) setData(await res.json())
     setLoading(false)
   }, [month, year, page, statusFilter, employeeFilter, search])
@@ -80,11 +80,11 @@ export default function TeamExpensesPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {/* Header — identical to Finance page */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Team Expenses</h1>
-          <p className="text-sm text-gray-500 mt-0.5">All expenses submitted by your team</p>
+          <p className="text-sm text-gray-500 mt-0.5">All expenses across your team</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
@@ -107,13 +107,33 @@ export default function TeamExpensesPage() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs — same 4-card layout as Finance page */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total this month', value: kpis ? `$${kpis.totalAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.totalCount} expenses` : '', color: 'text-gray-900' },
-          { label: 'Pending your review', value: kpis ? `$${kpis.pendingAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.pendingCount} expenses` : '', color: 'text-yellow-600' },
-          { label: 'Approved this month', value: kpis ? `$${kpis.approvedAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.approvedCount} approved` : '', color: 'text-green-700' },
-          { label: 'Rejected', value: kpis ? String(kpis.rejectedCount) : '—', sub: 'expenses rejected', color: 'text-red-600' },
+          {
+            label: 'Total this month',
+            value: kpis ? `$${kpis.totalExpensesAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—',
+            sub: kpis ? `${kpis.totalExpensesCount} expenses` : '',
+            color: 'text-gray-900',
+          },
+          {
+            label: 'Pending your review',
+            value: kpis ? `$${kpis.pendingManagerReviewAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—',
+            sub: kpis ? `${kpis.pendingManagerReviewCount} expenses` : '',
+            color: 'text-yellow-600',
+          },
+          {
+            label: 'Approved (awaiting pay)',
+            value: kpis ? `$${kpis.awaitingPaymentAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—',
+            sub: kpis ? `${kpis.awaitingPaymentCount} expenses` : '',
+            color: 'text-blue-700',
+          },
+          {
+            label: 'Paid this month',
+            value: kpis ? `$${kpis.paidThisMonthAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—',
+            sub: kpis ? `${kpis.paidThisMonthCount} paid` : '',
+            color: 'text-green-700',
+          },
         ].map((card) => (
           <div key={card.label} className="rounded-xl bg-white border border-gray-100 shadow-sm p-4">
             <p className="text-xs text-gray-500">{card.label}</p>
@@ -123,16 +143,15 @@ export default function TeamExpensesPage() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filters — identical to Finance page */}
       <div className="flex flex-wrap gap-2">
         <select title="Filter by status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">All statuses</option>
           <option value="SUBMITTED">Pending Review</option>
-          <option value="UNDER_REVIEW">Under Review</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
+          <option value="APPROVED">Awaiting Payment</option>
           <option value="PAID">Paid</option>
+          <option value="REJECTED">Rejected</option>
         </select>
         <select title="Filter by employee" value={employeeFilter} onChange={(e) => { setEmployeeFilter(e.target.value); setPage(1) }}
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -153,7 +172,7 @@ export default function TeamExpensesPage() {
         )}
       </div>
 
-      {/* Table */}
+      {/* Table — same structure as Finance page, Action = Approve/Reject for pending */}
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
         {/* Mobile cards */}
         <div className="sm:hidden divide-y divide-gray-100">
@@ -175,8 +194,8 @@ export default function TeamExpensesPage() {
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  e.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                  e.status === 'PAID' ? 'bg-indigo-100 text-indigo-700' :
+                  e.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
+                  e.status === 'PAID' ? 'bg-green-100 text-green-700' :
                   e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                   'bg-yellow-100 text-yellow-700'
                 }`}>{STATUS_LABELS[e.status] ?? e.status}</span>
@@ -190,7 +209,7 @@ export default function TeamExpensesPage() {
           ))}
         </div>
 
-        {/* Desktop table */}
+        {/* Desktop table — 8 columns, identical to Finance */}
         <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
             <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
@@ -237,8 +256,8 @@ export default function TeamExpensesPage() {
                   </td>
                   <td className="px-3 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      e.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                      e.status === 'PAID' ? 'bg-indigo-100 text-indigo-700' :
+                      e.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
+                      e.status === 'PAID' ? 'bg-green-100 text-green-700' :
                       e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                       'bg-yellow-100 text-yellow-700'
                     }`}>

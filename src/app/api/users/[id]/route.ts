@@ -5,8 +5,10 @@ import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SYSTEM_ADMIN', 'MANAGER'] as const
+const MANAGER_ALLOWED_ROLES = ['EMPLOYEE', 'TRAVEL_AGENT', 'FINANCE_ADMIN'] as const
 
 const PatchSchema = z.object({
+  name: z.string().min(1).optional(),
   isActive: z.boolean().optional(),
   role: z.enum(['EMPLOYEE', 'MANAGER', 'TRAVEL_AGENT', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']).optional(),
   managerId: z.string().nullable().optional(),
@@ -15,11 +17,18 @@ const PatchSchema = z.object({
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SYSTEM_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const actorRole = session.user.role ?? ''
+  if (!ALLOWED_ROLES.includes(actorRole as typeof ALLOWED_ROLES[number]))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
   const parsed = PatchSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+
+  if (actorRole === 'MANAGER' && parsed.data.role &&
+    !MANAGER_ALLOWED_ROLES.includes(parsed.data.role as typeof MANAGER_ALLOWED_ROLES[number])) {
+    return NextResponse.json({ error: 'Forbidden: cannot assign that role' }, { status: 403 })
+  }
 
   const target = await prisma.user.findUnique({
     where: { id: params.id },

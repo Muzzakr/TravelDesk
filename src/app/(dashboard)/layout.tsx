@@ -94,7 +94,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const profileStatus = await getProfileStatus(session.user.id, role)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Mobile top bar (primary nav is the bottom tab bar) */}
       <MobileNav />
 
@@ -132,7 +132,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </aside>
 
       {/* Main — header + profile banner + page content */}
-      <div className="flex-1 overflow-auto flex flex-col">
+      <div className="flex-1 min-w-0 overflow-auto flex flex-col">
         {!profileStatus.complete && (
           <ProfileBanner
             missingFields={profileStatus.missingFields}

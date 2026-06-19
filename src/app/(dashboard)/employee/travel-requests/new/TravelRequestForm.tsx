@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { TravelEvent } from '@/types/event'
 import { AIRPORTS, HOTEL_CITIES, TRAVEL_LOCATIONS, type AirportOption } from '@/lib/travel-locations'
 import { DateInput } from '@/components/ui/DateInput'
+import { advanceOnEnter } from '@/lib/form-nav'
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, UserGroupIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
 import { Check } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
@@ -692,7 +693,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
 
       <ProgressBar step={step} />
 
-      <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+      <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 space-y-6" onKeyDown={advanceOnEnter}>
 
         {/* ─── Step 1: Select Event ─────────────────────────── */}
         {step === 1 && (

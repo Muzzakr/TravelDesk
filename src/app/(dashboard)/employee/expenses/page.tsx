@@ -6,10 +6,11 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
 import Link from 'next/link'
 import { DateInput } from '@/components/ui/DateInput'
+import { advanceOnEnter } from '@/lib/form-nav'
 import type { TravelEvent } from '@/types/event'
 import type { Expense } from '@/types/expense'
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, ShoppingBagIcon, MapPinIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
-import { Check, AlertTriangle } from 'lucide-react'
+import { Check, AlertTriangle, Plus } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 
@@ -251,13 +252,13 @@ function ExpensesContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
         {!showForm && (
           <button
             type="button"
             onClick={() => { setShowForm(true); setStep(1); setExpenseType(''); setVehicleType(''); setError('') }}
-            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 text-sm font-semibold transition-colors"
+            className="shrink-0 whitespace-nowrap rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 text-sm font-semibold transition-colors"
           >
             + Add expense
           </button>
@@ -299,7 +300,7 @@ function ExpensesContent() {
               })}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 space-y-6" onKeyDown={advanceOnEnter}>
 
               {/* ─── Step 1: Event ──────────────────────────────── */}
               {step === 1 && (
@@ -663,6 +664,18 @@ function ExpensesContent() {
           </table>
         )}
       </div>}
+
+      {/* Mobile floating add button — always reachable on small screens */}
+      {!showForm && (
+        <button
+          type="button"
+          onClick={() => { setShowForm(true); setStep(1); setExpenseType(''); setVehicleType(''); setError('') }}
+          aria-label="Add expense"
+          className="sm:hidden fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
     </div>
   )
 }

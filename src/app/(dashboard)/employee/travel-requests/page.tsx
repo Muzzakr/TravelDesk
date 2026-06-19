@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
-import { Zap } from 'lucide-react'
+import { Zap, Plus } from 'lucide-react'
 
 interface TravelRequest {
   id: string
@@ -57,10 +57,10 @@ export default function TravelRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Travel requests</h1>
         {['EMPLOYEE', 'SYSTEM_ADMIN'].includes(role ?? '') && (
-          <Link href="/employee/travel-requests/new" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          <Link href="/employee/travel-requests/new" className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
             + New
           </Link>
         )}
@@ -180,6 +180,17 @@ export default function TravelRequestsPage() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Mobile floating new-request button — always reachable on small screens */}
+      {['EMPLOYEE', 'SYSTEM_ADMIN'].includes(role ?? '') && (
+        <Link
+          href="/employee/travel-requests/new"
+          aria-label="New travel request"
+          className="sm:hidden fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700"
+        >
+          <Plus className="w-6 h-6" />
+        </Link>
       )}
     </div>
   )

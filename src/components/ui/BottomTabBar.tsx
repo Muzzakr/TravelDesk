@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
   LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
-  Users, Calendar, User, Workflow, Settings, MoreHorizontal, X, Circle, type LucideIcon,
+  Users, Calendar, User, Workflow, Settings, MoreHorizontal, X, Circle,
+  LogOut, type LucideIcon,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string }
@@ -46,7 +47,20 @@ function shortLabel(label: string): string {
   return SHORT[label] ?? label.replace(/^(Team|Travel) /, '')
 }
 
-export function BottomTabBar({ nav, userName, role, logoutAction }: {
+const ROLE_LABEL: Record<string, string> = {
+  EMPLOYEE: 'Employee',
+  MANAGER: 'Manager',
+  TRAVEL_AGENT: 'Travel Agent',
+  FINANCE_ADMIN: 'Finance Admin',
+  SYSTEM_ADMIN: 'System Admin',
+}
+
+export function BottomTabBar({
+  nav,
+  userName,
+  role,
+  logoutAction,
+}: {
   nav: NavItem[]
   userName: string
   role: string
@@ -59,9 +73,17 @@ export function BottomTabBar({ nav, userName, role, logoutAction }: {
   const tabs = links.slice(0, 4)
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
+  const initials = userName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      {/* ── Bottom tab bar ── */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white pb-[env(safe-area-inset-bottom)] shadow-tab-bar">
         <div className="grid grid-cols-5">
           {tabs.map((item) => {
             const Icon = iconFor(item.label)
@@ -70,56 +92,135 @@ export function BottomTabBar({ nav, userName, role, logoutAction }: {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-800'}`}
+                className="flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1"
               >
-                <Icon className="h-5 w-5" />
-                <span className="max-w-[68px] truncate">{shortLabel(item.label)}</span>
+                <span
+                  className={`flex items-center justify-center rounded-[10px] px-3 py-1 transition-all duration-150 ${
+                    active ? 'bg-indigo-50' : ''
+                  }`}
+                >
+                  <Icon
+                    className={`h-5 w-5 transition-colors duration-150 ${
+                      active ? 'text-indigo-600' : 'text-gray-400'
+                    }`}
+                  />
+                </span>
+                <span
+                  className={`text-[10px] font-medium tracking-tight transition-colors duration-150 ${
+                    active ? 'text-indigo-600' : 'text-gray-400'
+                  }`}
+                >
+                  {shortLabel(item.label)}
+                </span>
               </Link>
             )
           })}
+
+          {/* More */}
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className="flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-gray-500 hover:text-gray-800"
+            aria-label="Open menu"
+            className="flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1"
           >
-            <MoreHorizontal className="h-5 w-5" />
-            <span>More</span>
+            <span className="flex items-center justify-center rounded-[10px] px-3 py-1">
+              <MoreHorizontal className="h-5 w-5 text-gray-400" />
+            </span>
+            <span className="text-[10px] font-medium tracking-tight text-gray-400">More</span>
           </button>
         </div>
       </nav>
 
+      {/* ── Drawer (slides from left) ── */}
       {moreOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMoreOpen(false)} />
-          <aside className="relative ml-auto flex h-full w-72 max-w-[85vw] flex-col bg-indigo-900 text-white pt-[env(safe-area-inset-top)]">
-            <div className="flex h-14 items-center justify-between px-4">
-              <span className="text-base font-bold">Menu</span>
-              <button type="button" onClick={() => setMoreOpen(false)} aria-label="Close menu" className="rounded-lg p-2 hover:bg-indigo-800">
-                <X className="h-5 w-5" />
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setMoreOpen(false)}
+          />
+
+          {/* Panel */}
+          <aside className="animate-slide-in-left relative flex h-full w-72 max-w-[85vw] flex-col bg-white pt-[env(safe-area-inset-top)] shadow-2xl">
+
+            {/* Header */}
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 px-4">
+              <span className="text-sm font-bold tracking-tight text-gray-900">M4U Travel</span>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close menu"
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+
+            {/* User card */}
+            <div className="shrink-0 border-b border-gray-100 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                  {initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold leading-tight text-gray-900">{userName}</p>
+                  <p className="mt-0.5 text-xs leading-tight text-gray-400">
+                    {ROLE_LABEL[role] ?? role.replace(/_/g, ' ')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Nav items */}
+            <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
               {nav.map((item, i) =>
                 'heading' in item ? (
-                  <p key={i} className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-indigo-400">{item.heading}</p>
+                  <p
+                    key={i}
+                    className="px-3 pb-1 pt-5 text-[10px] font-semibold uppercase tracking-widest text-gray-400"
+                  >
+                    {item.heading}
+                  </p>
                 ) : (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMoreOpen(false)}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-100 ${
+                      isActive(item.href)
+                        ? 'bg-indigo-50 text-indigo-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
                   >
-                    {(() => { const Icon = iconFor(item.label); return <Icon className="h-4 w-4 shrink-0" /> })()}
-                    {item.label}
+                    {(() => {
+                      const Icon = iconFor(item.label)
+                      return (
+                        <Icon
+                          className={`h-4 w-4 shrink-0 transition-colors ${
+                            isActive(item.href)
+                              ? 'text-indigo-600'
+                              : 'text-gray-400 group-hover:text-gray-600'
+                          }`}
+                        />
+                      )
+                    })()}
+                    <span className="flex-1">{item.label}</span>
+                    {isActive(item.href) && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                    )}
                   </Link>
                 )
               )}
             </nav>
-            <div className="border-t border-indigo-800 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              <p className="text-sm font-medium text-white">{userName}</p>
-              <p className="mb-3 text-xs text-indigo-300">{role.replace(/_/g, ' ')}</p>
+
+            {/* Logout */}
+            <div className="shrink-0 border-t border-gray-100 px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               <form action={logoutAction}>
-                <button type="submit" className="w-full rounded-lg bg-indigo-800 px-3 py-2.5 text-left text-sm font-medium text-indigo-200 hover:bg-indigo-700 hover:text-white">
+                <button
+                  type="submit"
+                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-500 transition-colors duration-100 hover:bg-red-50 hover:text-red-600"
+                >
+                  <LogOut className="h-4 w-4 text-gray-400 transition-colors group-hover:text-red-500" />
                   Log out
                 </button>
               </form>

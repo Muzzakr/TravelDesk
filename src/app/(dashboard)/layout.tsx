@@ -7,6 +7,27 @@ import { BottomTabBar } from '@/components/ui/BottomTabBar'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
+import {
+  LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
+  Users, Calendar, User, Workflow, Settings, Circle, type LucideIcon,
+} from 'lucide-react'
+
+function sidebarIcon(label: string): LucideIcon {
+  const l = label.toLowerCase()
+  if (l.includes('dashboard') || l.includes('home') || l.includes('admin')) return LayoutDashboard
+  if (l.includes('inbox')) return Inbox
+  if (l.includes('approval')) return CheckCircle2
+  if (l.includes('payout')) return Wallet
+  if (l.includes('expense')) return Receipt
+  if (l.includes('travel') || l.includes('trip') || l.includes('book')) return Plane
+  if (l.includes('report') || l.includes('stat')) return BarChart3
+  if (l.includes('event')) return Calendar
+  if (l.includes('user') || l.includes('employee')) return Users
+  if (l.includes('profile')) return User
+  if (l.includes('workflow')) return Workflow
+  if (l.includes('policy') || l.includes('card') || l.includes('setting') || l.includes('audit')) return Settings
+  return Circle
+}
 
 type NavItem = { label: string; href: string } | { heading: string }
 
@@ -80,7 +101,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
         <div className="flex h-16 items-center justify-between px-6">
-          <span className="text-xl font-bold">TravelDesk</span>
+          <span className="text-xl font-bold">M4U Travel</span>
           <NotificationBell />
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5">
@@ -93,8 +114,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-indigo-800 ${item.label.startsWith('+') ? 'text-indigo-400 hover:text-indigo-100' : 'text-indigo-100 hover:text-white'}`}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-indigo-100 hover:bg-indigo-800 hover:text-white"
               >
+                {(() => { const Icon = sidebarIcon(item.label); return <Icon className="h-4 w-4 shrink-0 text-indigo-400" /> })()}
                 {item.label}
               </Link>
             )

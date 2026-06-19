@@ -165,7 +165,46 @@ export default function FinanceExpensesPage() {
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="p-4"><div className="h-4 bg-gray-100 rounded animate-pulse" /></div>
+            ))
+          ) : !data?.expenses.length ? (
+            <p className="p-8 text-center text-sm text-gray-400">No expenses found for this period.</p>
+          ) : data.expenses.map((e) => (
+            <div key={e.id} className="p-4 space-y-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{e.employee.name}</p>
+                  <p className="text-sm text-gray-600 truncate" title={e.description}>{e.description}</p>
+                  <p className="text-xs text-gray-400 truncate">{e.event.eventName}</p>
+                </div>
+                <span className="font-semibold text-gray-900 whitespace-nowrap">${Number(e.amountUsd).toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  e.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
+                  e.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                  e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>{STATUS_LABELS[e.status] ?? e.status}</span>
+                {e.status === 'APPROVED' ? (
+                  <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
+                    className="min-h-[2.5rem] rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                    {markingId === e.id ? '...' : 'Mark as Paid'}
+                  </button>
+                ) : (
+                  <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View →</Link>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
             <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
               <tr>

@@ -397,7 +397,7 @@ function ExpensesContent() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Amount (USD)" required>
-                      <input type="number" step="0.01" min="0" value={form.amountUsd}
+                      <input type="number" inputMode="decimal" step="0.01" min="0" value={form.amountUsd}
                         onChange={e => setForm(p => ({ ...p, amountUsd: e.target.value }))}
                         placeholder="45.00" className={inputCls} />
                     </Field>

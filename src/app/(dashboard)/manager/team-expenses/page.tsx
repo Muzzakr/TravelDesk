@@ -209,75 +209,60 @@ export default function TeamExpensesPage() {
           ))}
         </div>
 
-        {/* Desktop table — 8 columns, identical to Finance */}
+        {/* Desktop table */}
         <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
             <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
               <tr>
-                <th className="px-3 py-3 text-left">Employee</th>
-                <th className="px-3 py-3 text-left">Expense</th>
-                <th className="px-3 py-3 text-left">Event</th>
-                <th className="px-3 py-3 text-right">Amount</th>
-                <th className="px-3 py-3 text-left">Submitted</th>
-                <th className="px-3 py-3 text-left">Status</th>
-                <th className="px-3 py-3 text-center">Receipt</th>
-                <th className="px-3 py-3 text-left">Action</th>
+                <th className="px-4 py-3 text-left">Employee</th>
+                <th className="px-4 py-3 text-left">Description</th>
+                <th className="px-4 py-3 text-left">Category</th>
+                <th className="px-4 py-3 text-left">Amount</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-left">Receipt</th>
+                <th className="px-4 py-3 text-left">Date</th>
+                <th className="px-4 py-3 text-left">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>{Array.from({ length: 8 }).map((_, j) => (
-                    <td key={j} className="px-3 py-3"><div className="h-3 bg-gray-100 rounded animate-pulse" /></td>
+                    <td key={j} className="px-4 py-3"><div className="h-3 bg-gray-100 rounded animate-pulse" /></td>
                   ))}</tr>
                 ))
               ) : !data?.expenses.length ? (
                 <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found for this period.</td></tr>
               ) : data.expenses.map((e) => (
                 <tr key={e.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
-                        {e.employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-gray-900">{e.employee.name}</span>
-                    </div>
+                  <td className="px-4 py-3 font-medium text-gray-900">{e.employee.name}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-gray-900 max-w-[200px] truncate" title={e.description}>{e.description}</p>
+                    {e.merchantName && <p className="text-xs text-gray-400 max-w-[200px] truncate">{e.merchantName}</p>}
                   </td>
-                  <td className="px-3 py-3">
-                    <p className="font-medium text-gray-900 max-w-[180px] truncate" title={e.description}>{e.description}</p>
-                    {e.merchantName && <p className="text-xs text-gray-400 max-w-[180px] truncate" title={e.merchantName}>{e.merchantName}</p>}
-                  </td>
-                  <td className="px-3 py-3 text-gray-500 text-xs">
-                    <span className="block max-w-[140px] truncate" title={e.event.eventName}>{e.event.eventName}</span>
-                  </td>
-                  <td className="px-3 py-3 text-right font-semibold text-gray-900">${Number(e.amountUsd).toFixed(2)}</td>
-                  <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
-                    {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-3 text-gray-500">{e.category}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">${Number(e.amountUsd).toFixed(2)}</td>
+                  <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       e.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
                       e.status === 'PAID' ? 'bg-green-100 text-green-700' :
                       e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                       'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {STATUS_LABELS[e.status] ?? e.status}
-                    </span>
+                    }`}>{STATUS_LABELS[e.status] ?? e.status}</span>
                   </td>
-                  <td className="px-3 py-3 text-center">
-                    {e.receipts.length > 0 ? (
-                      <Link href={`/manager/approvals/expense/${e.id}`} title="View receipt">
-                        <svg className="h-5 w-5 text-red-400 hover:text-red-600 mx-auto" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
-                        </svg>
-                      </Link>
-                    ) : <span className="text-gray-300 text-xs">—</span>}
+                  <td className="px-4 py-3">
+                    {e.receipts.length > 0
+                      ? <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">✓ {e.receipts.length}</span>
+                      : <span className="text-xs text-gray-400">—</span>}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                    {new Date(e.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                  </td>
+                  <td className="px-4 py-3">
                     {isPending(e.status) ? (
                       <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
                     ) : (
-                      <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View</Link>
+                      <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs font-medium text-indigo-600 hover:underline">View →</Link>
                     )}
                   </td>
                 </tr>

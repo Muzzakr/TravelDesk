@@ -38,9 +38,6 @@ const STATUS_OPTIONS = [
   { value: 'CANCELLED', label: 'Cancelled' },
 ]
 
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 export default function AdminTravelRequestsPage() {
   const [data, setData]           = useState<PageData | null>(null)
@@ -178,11 +175,9 @@ export default function AdminTravelRequestsPage() {
               <tr>
                 <th className="px-4 py-3 text-left">Employee</th>
                 <th className="px-4 py-3 text-left">Route</th>
-                <th className="px-4 py-3 text-left">Event</th>
-                <th className="px-4 py-3 text-left">Dates</th>
                 <th className="px-4 py-3 text-left">Services</th>
+                <th className="px-4 py-3 text-left">Dates</th>
                 <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Agent</th>
                 <th className="px-4 py-3 text-left">Action</th>
               </tr>
             </thead>
@@ -192,24 +187,20 @@ export default function AdminTravelRequestsPage() {
                 return (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div>
-                        <p className="font-medium text-gray-900">{r.employee.name}</p>
-                        <p className="text-xs text-gray-400">{r.employee.email}</p>
-                      </div>
+                      <p className="font-medium text-gray-900">{r.employee.name}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[160px]">{r.employee.email}</p>
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{r.origin} → {r.destination}</td>
                     <td className="px-4 py-3">
-                      <p className="text-gray-800 font-medium">{r.event.eventName}</p>
-                      <p className="text-xs text-gray-400">{r.event.eventCode}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
-                      {dates.departureDate}<br />{dates.returnDate}
+                      <p className="font-medium text-gray-900">{r.origin} → {r.destination}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[180px]" title={r.event.eventName}>{r.event.eventName}</p>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{r.servicesRequested.join(', ')}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {dates.departureDate}<br />{dates.returnDate}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-gray-500">{r.agent?.name ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Link href={`/admin/travel-requests/${r.id}`}
                         className="text-xs font-medium text-indigo-600 hover:underline">

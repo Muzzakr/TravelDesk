@@ -45,7 +45,7 @@ export default async function TeamTravelPage({
   }
 
   const statuses = [
-    'PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED',
+    'PENDING_MANAGER', 'PENDING_ADMIN', 'PENDING_AGENT', 'OPTIONS_PROVIDED',
     'APPROVED', 'BOOKING_CONFIRMED', 'REJECTED', 'CANCELLED',
   ]
 

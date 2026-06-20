@@ -18,6 +18,7 @@ type TravelRequest = {
   purpose: string
   specialInstructions: string | null
   rejectionNote: string | null
+  adminEscalationNote: string | null
   createdAt: string
   employee: { id: string; name: string; email: string }
   event: { id: string; eventName: string; eventCode: string }
@@ -42,7 +43,7 @@ function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-const ACTIONABLE = ['SUBMITTED', 'PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED', 'APPROVED']
+const ACTIONABLE = ['SUBMITTED', 'PENDING_MANAGER', 'PENDING_ADMIN', 'PENDING_AGENT', 'OPTIONS_PROVIDED', 'APPROVED']
 
 export default function AdminTravelRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -154,6 +155,16 @@ export default function AdminTravelRequestDetailPage() {
         <div className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2 ${request.status === 'CANCELLED' ? 'bg-gray-100 text-gray-700' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           <AlertTriangle className="w-4 h-4 shrink-0" />
           {request.status === 'CANCELLED' ? 'This request was cancelled.' : `Rejected: ${request.rejectionNote ?? 'No reason given.'}`}
+        </div>
+      )}
+
+      {request.status === 'PENDING_ADMIN' && request.adminEscalationNote && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Manager requested your review</p>
+            <p className="text-sm text-amber-700 mt-0.5">{request.adminEscalationNote}</p>
+          </div>
         </div>
       )}
 

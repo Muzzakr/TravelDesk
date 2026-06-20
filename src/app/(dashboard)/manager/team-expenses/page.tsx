@@ -199,11 +199,10 @@ export default function TeamExpensesPage() {
                   e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                   'bg-yellow-100 text-yellow-700'
                 }`}>{STATUS_LABELS[e.status] ?? e.status}</span>
-                {isPending(e.status) ? (
-                  <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
-                ) : (
+                <div className="flex items-center gap-3 flex-wrap">
+                  {isPending(e.status) && <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />}
                   <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View →</Link>
-                )}
+                </div>
               </div>
             </div>
           ))}
@@ -259,11 +258,10 @@ export default function TeamExpensesPage() {
                     {new Date(e.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                   </td>
                   <td className="px-4 py-3">
-                    {isPending(e.status) ? (
-                      <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
-                    ) : (
+                    <div className="flex items-center gap-3">
+                      {isPending(e.status) && <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />}
                       <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs font-medium text-indigo-600 hover:underline">View →</Link>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}

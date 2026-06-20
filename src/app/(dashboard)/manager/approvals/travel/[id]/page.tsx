@@ -66,25 +66,52 @@ export default function ApproveTravelPage() {
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [panel, setPanel] = useState<'approve' | 'reject' | 'escalate' | null>(null)
+  const [escalationNote, setEscalationNote] = useState('')
+  const [approvedServices, setApprovedServices] = useState<string[]>([])
+  const [rejectedServices, setRejectedServices] = useState<string[]>([])
 
   useEffect(() => {
     async function load() {
       const r = await fetch(`/api/travel-requests/${id}`)
-      if (r.ok) setRequest(await r.json())
+      if (r.ok) {
+        const d = await r.json()
+        setRequest(d)
+        // Pre-select all services as approved
+        const services = (d.servicesRequested as string[]) ?? []
+        setApprovedServices(services)
+      }
     }
     load()
   }, [id])
+
+  function toggleService(svc: string, list: 'approved' | 'rejected') {
+    if (list === 'approved') {
+      setApprovedServices(p => p.includes(svc) ? p.filter(s => s !== svc) : [...p, svc])
+      setRejectedServices(p => p.filter(s => s !== svc))
+    } else {
+      setRejectedServices(p => p.includes(svc) ? p.filter(s => s !== svc) : [...p, svc])
+      setApprovedServices(p => p.filter(s => s !== svc))
+    }
+  }
 
   async function handle(status: 'APPROVED' | 'REJECTED') {
     if (status === 'REJECTED' && !note.trim()) {
       setError('A note is required when rejecting.')
       return
     }
-    setLoading(true)
+    setLoading(true); setError('')
+    const services = (request?.servicesRequested as string[]) ?? []
+    const allApproved = approvedServices.length === services.length && rejectedServices.length === 0
+    const body: Record<string, unknown> = { status, rejectionNote: status === 'REJECTED' ? note : undefined }
+    if (status === 'APPROVED' && !allApproved) {
+      body.approvedServices = approvedServices
+      body.rejectedServices = rejectedServices
+    }
     const res = await fetch(`/api/travel-requests/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, rejectionNote: status === 'REJECTED' ? note : undefined }),
+      body: JSON.stringify(body),
     })
     if (res.ok) {
       router.push('/manager')
@@ -93,6 +120,18 @@ export default function ApproveTravelPage() {
       setError(d.error ?? 'Failed')
       setLoading(false)
     }
+  }
+
+  async function handleEscalate() {
+    if (!escalationNote.trim()) { setError('Please explain why you need admin approval.'); return }
+    setLoading(true); setError('')
+    const res = await fetch(`/api/travel-requests/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'PENDING_ADMIN', adminEscalationNote: escalationNote }),
+    })
+    if (res.ok) router.push('/manager')
+    else { const d = await res.json(); setError(d.error ?? 'Failed'); setLoading(false) }
   }
 
   if (!request) return <div className="p-8 text-gray-400">Loading…</div>
@@ -115,7 +154,8 @@ export default function ApproveTravelPage() {
   const confirmations = (request.bookingConfirmations as BookingConfirmation[] | undefined) ?? []
   const actions = (request.approvalActions as ApprovalAction[]) ?? []
   const reqStatus = String(request.status)
-  const isDecided = ['APPROVED', 'REJECTED', 'BOOKING_CONFIRMED', 'CANCELLED'].includes(reqStatus)
+  const isDecided = ['APPROVED', 'REJECTED', 'BOOKING_CONFIRMED', 'CANCELLED', 'PENDING_ADMIN'].includes(reqStatus)
+  const services = (request.servicesRequested as string[]) ?? []
 
   // Group selected options by serviceType
   const grouped = selectedOptions.reduce<Record<string, BookingOption[]>>((acc, o) => {
@@ -317,26 +357,107 @@ export default function ApproveTravelPage() {
       )}
 
       <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
+        {reqStatus === 'PENDING_ADMIN' && (
+          <p className="rounded-lg bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-800">
+            This request has been escalated to an Admin for a second opinion. Awaiting admin response.
+          </p>
+        )}
+
         {!isDecided && (
           <>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Note (required for rejection)</label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                placeholder="Add a note…"
-              />
-            </div>
+            {/* Per-service approve/reject (only shown in approve panel with multiple services) */}
+            {panel === 'approve' && services.length > 1 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Select services to approve</p>
+                {services.map(svc => {
+                  const isApproved = approvedServices.includes(svc)
+                  const isRejected = rejectedServices.includes(svc)
+                  const SvcIcon = serviceIcon[svc] ?? PlusCircleIcon
+                  return (
+                    <div key={svc} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                      <SvcIcon className="w-4 h-4 shrink-0 text-gray-400" />
+                      <p className="flex-1 text-sm font-medium text-gray-900">{serviceLabel[svc] ?? svc}</p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleService(svc, 'approved')}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${isApproved ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-700'}`}
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleService(svc, 'rejected')}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${isRejected ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-700'}`}
+                        >
+                          ✗ Reject
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Note textarea */}
+            {(panel === 'approve' || panel === 'reject') && (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {panel === 'reject' ? 'Rejection reason (required)' : 'Note to employee (optional)'}
+                </label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none w-full"
+                  placeholder={panel === 'reject' ? 'Explain why this request is being rejected…' : 'Add a note for the employee (optional)…'}
+                />
+              </div>
+            )}
+
+            {/* Escalation note */}
+            {panel === 'escalate' && (
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Ask Admin for second opinion</p>
+                <p className="text-xs text-gray-400 mb-1">This will notify all system admins and put the request on hold until they respond.</p>
+                <textarea
+                  value={escalationNote}
+                  onChange={(e) => setEscalationNote(e.target.value)}
+                  rows={3}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none w-full"
+                  placeholder="Why do you need admin approval for this request?…"
+                />
+              </div>
+            )}
 
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
 
-            <div className="flex gap-3">
-              <Button onClick={() => handle('APPROVED')} loading={loading}>Approve</Button>
-              <Button variant="danger" onClick={() => handle('REJECTED')} loading={loading}>Reject</Button>
-              <Button variant="secondary" onClick={() => router.back()}>Back</Button>
-            </div>
+            {/* Primary action buttons */}
+            {panel === null && (
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => { setPanel('approve'); setError('') }}>Approve</Button>
+                <Button variant="danger" onClick={() => { setPanel('reject'); setError('') }}>Reject</Button>
+                <Button variant="secondary" onClick={() => { setPanel('escalate'); setError('') }}>Ask Admin</Button>
+              </div>
+            )}
+
+            {/* Confirm / cancel sub-panel buttons */}
+            {panel !== null && (
+              <div className="flex gap-3">
+                {panel === 'approve' && (
+                  <Button onClick={() => handle('APPROVED')} loading={loading}>
+                    {approvedServices.length < services.length && rejectedServices.length > 0 ? 'Partially Approve' : 'Confirm Approval'}
+                  </Button>
+                )}
+                {panel === 'reject' && (
+                  <Button variant="danger" onClick={() => handle('REJECTED')} loading={loading}>Confirm Rejection</Button>
+                )}
+                {panel === 'escalate' && (
+                  <Button onClick={handleEscalate} loading={loading}>Send to Admin</Button>
+                )}
+                <Button variant="secondary" onClick={() => { setPanel(null); setError('') }}>Cancel</Button>
+              </div>
+            )}
           </>
         )}
 

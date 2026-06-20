@@ -15,9 +15,12 @@ export async function GET(req: NextRequest) {
   const page      = parseInt(searchParams.get('page') ?? '1')
   const pageSize  = 15
 
+  const managerId = searchParams.get('managerId') ?? ''
+
   const where: Record<string, unknown> = { companyId }
   if (status)     where.status = status
   if (employeeId) where.employeeId = employeeId
+  if (managerId)  where.managerId = managerId
   if (search) {
     where.OR = [
       { employee: { name: { contains: search, mode: 'insensitive' } } },
@@ -34,6 +37,7 @@ export async function GET(req: NextRequest) {
         employee: { select: { id: true, name: true, email: true } },
         event:    { select: { eventName: true, eventCode: true } },
         agent:    { select: { id: true, name: true } },
+        manager:  { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
@@ -50,21 +54,29 @@ export async function GET(req: NextRequest) {
   const countMap: Record<string, number> = {}
   counts.forEach(c => { countMap[c.status] = c._count.id })
 
-  const employees = await prisma.user.findMany({
-    where: { companyId, role: 'EMPLOYEE' },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  })
+  const [employees, managers] = await Promise.all([
+    prisma.user.findMany({
+      where: { companyId, role: 'EMPLOYEE' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.user.findMany({
+      where: { companyId, role: { in: ['MANAGER', 'TRAVEL_MANAGER'] }, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ])
 
   return NextResponse.json({
     requests,
     pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     counts: {
       total: Object.values(countMap).reduce((s, n) => s + n, 0),
-      pending: (countMap['PENDING_MANAGER'] ?? 0) + (countMap['PENDING_AGENT'] ?? 0) + (countMap['SUBMITTED'] ?? 0),
+      pending: (countMap['PENDING_MANAGER'] ?? 0) + (countMap['PENDING_AGENT'] ?? 0) + (countMap['SUBMITTED'] ?? 0) + (countMap['PENDING_ADMIN'] ?? 0),
       approved: countMap['APPROVED'] ?? 0,
       confirmed: countMap['BOOKING_CONFIRMED'] ?? 0,
     },
     employees,
+    managers,
   })
 }

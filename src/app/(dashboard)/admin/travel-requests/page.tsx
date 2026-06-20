@@ -17,6 +17,7 @@ type TravelRequest = {
   employee: { id: string; name: string; email: string }
   event: { eventName: string; eventCode: string }
   agent: { id: string; name: string } | null
+  manager: { id: string; name: string } | null
 }
 
 type PageData = {
@@ -24,12 +25,14 @@ type PageData = {
   pagination: { page: number; pageSize: number; total: number; totalPages: number }
   counts: { total: number; pending: number; approved: number; confirmed: number }
   employees: { id: string; name: string }[]
+  managers: { id: string; name: string }[]
 }
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'SUBMITTED', label: 'Submitted' },
   { value: 'PENDING_MANAGER', label: 'Pending manager' },
+  { value: 'PENDING_ADMIN', label: 'Needs admin review' },
   { value: 'PENDING_AGENT', label: 'Pending agent' },
   { value: 'OPTIONS_PROVIDED', label: 'Options provided' },
   { value: 'APPROVED', label: 'Approved' },
@@ -44,6 +47,7 @@ export default function AdminTravelRequestsPage() {
   const [loading, setLoading]     = useState(true)
   const [status, setStatus]       = useState('')
   const [employeeId, setEmployee] = useState('')
+  const [managerId, setManagerId] = useState('')
   const [search, setSearch]       = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [page, setPage]           = useState(1)
@@ -53,12 +57,13 @@ export default function AdminTravelRequestsPage() {
     const p = new URLSearchParams()
     if (status)     p.set('status', status)
     if (employeeId) p.set('employeeId', employeeId)
+    if (managerId)  p.set('managerId', managerId)
     if (search)     p.set('search', search)
     p.set('page', String(page))
     const res = await fetch(`/api/admin/travel-requests?${p}`)
     if (res.ok) setData(await res.json())
     setLoading(false)
-  }, [status, employeeId, search, page])
+  }, [status, employeeId, managerId, search, page])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -117,6 +122,18 @@ export default function AdminTravelRequestsPage() {
           </select>
         )}
 
+        {data && data.managers.length > 0 && (
+          <select
+            title="Filter by manager"
+            value={managerId}
+            onChange={e => { setManagerId(e.target.value); setPage(1) }}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white focus:border-indigo-500 outline-none"
+          >
+            <option value="">All managers</option>
+            {data.managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        )}
+
         <div className="flex gap-1 flex-1 min-w-[180px]">
           <input
             type="text"
@@ -130,8 +147,8 @@ export default function AdminTravelRequestsPage() {
             className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors">
             Search
           </button>
-          {(status || employeeId || search) && (
-            <button type="button" onClick={() => { setStatus(''); setEmployee(''); setSearch(''); setSearchInput(''); setPage(1) }}
+          {(status || employeeId || managerId || search) && (
+            <button type="button" onClick={() => { setStatus(''); setEmployee(''); setManagerId(''); setSearch(''); setSearchInput(''); setPage(1) }}
               className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
               Clear
             </button>
@@ -175,6 +192,7 @@ export default function AdminTravelRequestsPage() {
               <tr>
                 <th className="px-4 py-3 text-left">Employee</th>
                 <th className="px-4 py-3 text-left">Route</th>
+                <th className="px-4 py-3 text-left">Manager</th>
                 <th className="px-4 py-3 text-left">Services</th>
                 <th className="px-4 py-3 text-left">Dates</th>
                 <th className="px-4 py-3 text-left">Status</th>
@@ -193,6 +211,11 @@ export default function AdminTravelRequestsPage() {
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{r.origin} → {r.destination}</p>
                       <p className="text-xs text-gray-400 truncate max-w-[180px]" title={r.event.eventName}>{r.event.eventName}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.manager
+                        ? <p className="text-sm text-gray-700">{r.manager.name}</p>
+                        : <p className="text-xs text-gray-400 italic">Unassigned</p>}
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{r.servicesRequested.join(', ')}</td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">

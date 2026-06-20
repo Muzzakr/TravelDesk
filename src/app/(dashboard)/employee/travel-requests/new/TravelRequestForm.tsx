@@ -429,12 +429,16 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
   const [purpose, setPurpose]                   = useState('')
   const [estimatedCostUsd, setEstimatedCostUsd] = useState('')
   const [paymentResponsibility, setPaymentResponsibility] = useState('m4u')
-
+  const [managerId, setManagerId] = useState('')
+  const [managers, setManagers]   = useState<{ id: string; name: string }[]>([])
 
   useEffect(() => {
     fetch('/api/events')
       .then(r => r.json())
       .then(data => setEvents(data.filter((e: TravelEvent) => e.status !== 'CLOSED')))
+    fetch('/api/manager/list')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setManagers(data))
   }, [])
 
   // Restore draft on mount
@@ -454,6 +458,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
       if (d.purpose)               setPurpose(d.purpose)
       if (d.estimatedCostUsd)      setEstimatedCostUsd(d.estimatedCostUsd)
       if (d.paymentResponsibility) setPaymentResponsibility(d.paymentResponsibility)
+      if (d.managerId)             setManagerId(d.managerId)
     } catch { /* ignore */ }
   }, [])
 
@@ -464,10 +469,10 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
         step, eventId, selectedEvent, services,
         flight, hotel, taxi, car,
-        purpose, estimatedCostUsd, paymentResponsibility,
+        purpose, estimatedCostUsd, paymentResponsibility, managerId,
       }))
     } catch { /* ignore */ }
-  }, [step, eventId, selectedEvent, services, flight, hotel, taxi, car, purpose, estimatedCostUsd, paymentResponsibility])
+  }, [step, eventId, selectedEvent, services, flight, hotel, taxi, car, purpose, estimatedCostUsd, paymentResponsibility, managerId])
 
 
 
@@ -553,6 +558,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
             'AGENT_CHOOSES: Agent will select appropriate services for this trip',
             `Payment: ${paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'}`,
           ].join('\n'),
+          managerId: managerId || undefined,
         }),
       })
       const data = await res.json()
@@ -615,6 +621,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
         hotelNights:         services.includes('HOTEL')      ? daysBetween(hotel.checkIn, hotel.checkOut) : undefined,
         carRentalDays:       services.includes('CAR_RENTAL') ? daysBetween(car.pickupDate, car.returnDate) : undefined,
         specialInstructions: parts.join('\n'),
+        managerId: managerId || undefined,
       }),
     })
 
@@ -971,6 +978,18 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                   ))}
                 </div>
               </div>
+
+              {managers.length > 0 && (
+                <Field label="Preferred manager (optional)">
+                  <select value={managerId} onChange={e => setManagerId(e.target.value)} title="Preferred manager" className={inputCls}>
+                    <option value="">Anyone available</option>
+                    {managers.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Leave as &ldquo;Anyone available&rdquo; to let any manager pick this up.</p>
+                </Field>
+              )}
             </section>
           </div>
         )}

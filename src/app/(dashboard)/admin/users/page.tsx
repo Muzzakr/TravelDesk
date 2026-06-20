@@ -20,6 +20,7 @@ type UserRow = {
 const roleBadge: Record<string, 'blue' | 'green' | 'purple' | 'yellow' | 'gray'> = {
   EMPLOYEE: 'blue',
   MANAGER: 'green',
+  TRAVEL_MANAGER: 'green',
   TRAVEL_AGENT: 'purple',
   FINANCE_ADMIN: 'yellow',
   SYSTEM_ADMIN: 'gray',
@@ -28,6 +29,7 @@ const roleBadge: Record<string, 'blue' | 'green' | 'purple' | 'yellow' | 'gray'>
 const ROLE_OPTIONS = [
   { value: 'EMPLOYEE', label: 'Employee' },
   { value: 'MANAGER', label: 'Manager' },
+  { value: 'TRAVEL_MANAGER', label: 'Travel Manager' },
   { value: 'TRAVEL_AGENT', label: 'Travel Agent' },
   { value: 'FINANCE_ADMIN', label: 'Finance Admin' },
   { value: 'SYSTEM_ADMIN', label: 'System Admin' },

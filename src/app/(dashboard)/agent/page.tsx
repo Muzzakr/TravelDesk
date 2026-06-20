@@ -109,15 +109,6 @@ export default async function AgentDashboard() {
               : 'All caught up — manage bookings below'}
           </p>
         </div>
-        <Link
-          href="/agent/book"
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Travel Booking
-        </Link>
       </div>
 
       {/* KPI cards */}

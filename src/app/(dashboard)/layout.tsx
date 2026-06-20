@@ -69,7 +69,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { heading: 'Operations' },
     { label: 'Admin Dashboard',   href: '/admin' },
     { label: 'Travel Inbox',      href: '/manager/inbox' },
-    { label: 'Travel Requests',   href: '/employee/travel-requests' },
+    { label: 'Travel Requests',   href: '/admin/travel-requests' },
     { label: 'Expenses',          href: '/employee/expenses?view=admin' },
     { label: 'Card Transactions', href: '/finance/cards' },
     { heading: 'Finance' },
@@ -80,6 +80,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Events',            href: '/admin/events' },
     { label: 'Policy Limits',     href: '/finance/policy' },
     { label: 'Audit Log',         href: '/admin/audit-log' },
+    { label: 'Settings',          href: '/admin/settings' },
   ],
 }
 

@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Inbox, Clock, Clock3, Plane, Check, Mail } from 'lucide-react'
+import { Inbox, Clock, Clock3, Plane, Check, User } from 'lucide-react'
 
 const VENDOR_URLS: Record<string, string> = {
   sas: 'https://www.flysas.com',
@@ -184,13 +184,13 @@ export default async function AgentDashboard() {
                       {r.estimatedCostUsd && (
                         <span className="text-sm font-bold text-gray-700">${Number(r.estimatedCostUsd).toFixed(0)}</span>
                       )}
-                      <a
-                        href={`mailto:${r.employee.email}`}
+                      <Link
+                        href={`/agent/employees/${r.employee.id}`}
                         className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-                        title="Contact employee"
+                        title="View employee profile"
                       >
-                        <Mail className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Contact
-                      </a>
+                        <User className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />View Profile
+                      </Link>
                       <Link
                         href={`/agent/requests/${r.id}`}
                         className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"

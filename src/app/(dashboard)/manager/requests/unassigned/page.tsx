@@ -106,7 +106,7 @@ export default function UnassignedRequestsPage() {
                     <span className="flex items-center gap-1">
                       {req.servicesRequested.map(s => {
                         const Icon = SERVICE_ICONS[s] ?? PlusCircle
-                        return <Icon key={s} className="w-3.5 h-3.5 text-gray-400" title={SERVICE_LABEL[s] ?? s} />
+                        return <Icon key={s} className="w-3.5 h-3.5 text-gray-400" />
                       })}
                     </span>
                     <span className="text-gray-300">·</span>

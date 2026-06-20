@@ -56,18 +56,27 @@ type ServiceEntry = {
   files: File[]
 }
 
-const STATUS_STEPS = ['SUBMITTED', 'PENDING_MANAGER', 'PENDING_AGENT', 'BOOKING_CONFIRMED']
+const STATUS_STEPS = ['Submitted', 'Agent Review', 'Approved', 'Confirmed']
+
+const STATUS_TO_STEP: Record<string, number> = {
+  SUBMITTED:         0,
+  PENDING_AGENT:     1,
+  OPTIONS_PROVIDED:  1,
+  PENDING_MANAGER:   1,
+  APPROVED:          2,
+  BOOKING_CONFIRMED: 3,
+}
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Submitted',
-  SUBMITTED: 'Submitted',
-  PENDING_MANAGER: 'Manager review',
-  PENDING_AGENT: 'With agent',
-  APPROVED: 'With agent',
-  OPTIONS_PROVIDED: 'With agent',
+  DRAFT:             'Submitted',
+  SUBMITTED:         'Submitted',
+  PENDING_AGENT:     'With agent',
+  OPTIONS_PROVIDED:  'Options sent',
+  PENDING_MANAGER:   'Manager review',
+  APPROVED:          'Manager approved',
   BOOKING_CONFIRMED: 'Booking confirmed',
-  REJECTED: 'Rejected',
-  CANCELLED: 'Cancelled',
+  REJECTED:          'Rejected',
+  CANCELLED:         'Cancelled',
 }
 
 const SERVICE_ICON: Record<string, HeroIcon> = {
@@ -253,7 +262,7 @@ export default function AgentRequestDetailPage() {
     ? Math.round((Number(request.event.approvedSpendUsd) / Number(request.event.budgetUsd)) * 100)
     : 0
 
-  const currentStep = STATUS_STEPS.indexOf(request.status)
+  const currentStep = STATUS_TO_STEP[request.status] ?? 0
   const isTerminal = ['REJECTED', 'CANCELLED'].includes(request.status)
 
   const confirmSections = isAgentChooses ? agentPickedServices : request.servicesRequested
@@ -277,26 +286,24 @@ export default function AgentRequestDetailPage() {
 
       {/* Status timeline */}
       {!isTerminal && (
-        <div className="rounded-xl border bg-white p-4">
+        <div className="rounded-xl border bg-white p-5">
           <div className="flex items-start">
-            {STATUS_STEPS.map((step, i) => {
+            {STATUS_STEPS.map((stepLabel, i) => {
               const done = i < currentStep
               const active = i === currentStep
               return (
-                <div key={step} className="flex items-start flex-1 last:flex-none">
+                <div key={stepLabel} className="flex items-start flex-1 last:flex-none">
                   <div className="flex flex-col items-center shrink-0">
-                    <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors
                       ${done ? 'bg-green-500 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                       {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
                     </div>
-                    {active && (
-                      <p className="mt-1 text-[10px] text-gray-500 font-medium whitespace-nowrap text-center">
-                        {STATUS_LABELS[request.status] ?? request.status.replace(/_/g, ' ')}
-                      </p>
-                    )}
+                    <p className={`mt-1.5 text-[10px] font-semibold whitespace-nowrap text-center ${active ? 'text-indigo-600' : done ? 'text-green-600' : 'text-gray-400'}`}>
+                      {active ? (STATUS_LABELS[request.status] ?? stepLabel) : stepLabel}
+                    </p>
                   </div>
                   {i < STATUS_STEPS.length - 1 && (
-                    <div className={`h-0.5 flex-1 mx-1 mt-3.5 ${done ? 'bg-green-400' : 'bg-gray-200'}`} />
+                    <div className={`h-0.5 flex-1 mx-2 mt-4 rounded ${done ? 'bg-green-400' : 'bg-gray-200'}`} />
                   )}
                 </div>
               )

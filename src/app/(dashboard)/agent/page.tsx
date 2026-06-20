@@ -66,7 +66,7 @@ export default async function AgentDashboard() {
     prisma.travelRequest.findMany({
       where: { companyId, agentId },
       include: {
-        employee: { select: { name: true, email: true } },
+        employee: { select: { id: true, name: true, email: true } },
         event: { select: { eventName: true } },
         bookingOptions: { where: { isSelected: true } },
       },

@@ -83,7 +83,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
     <div className="flex gap-3 py-1.5 text-sm border-b border-gray-50 last:border-0">
       <span className="text-gray-400 w-40 shrink-0">{label}</span>

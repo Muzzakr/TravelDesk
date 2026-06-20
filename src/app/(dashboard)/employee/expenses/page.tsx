@@ -9,13 +9,7 @@ import { DateInput } from '@/components/ui/DateInput'
 import { advanceOnEnter } from '@/lib/form-nav'
 import type { TravelEvent } from '@/types/event'
 import type { Expense } from '@/types/expense'
-import {
-  Check, AlertTriangle, Plus,
-  Plane, Car, Train, Bus, Truck, MapPin, ParkingCircle, Fuel,
-  Building2, Home, BedDouble,
-  Coffee, Sandwich, Utensils, Cookie, Users,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Check, AlertTriangle, Plus } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -27,35 +21,35 @@ type ExpenseSubKey =
   | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS' | 'CLIENT_MEALS'
   | 'OTHER'
 
-const MAIN_CATEGORIES: { key: string; label: string; Icon: LucideIcon; color: string }[] = [
-  { key: 'TRANSPORT',     label: 'Transport',     Icon: Plane,     color: 'text-blue-500' },
-  { key: 'ACCOMMODATION', label: 'Accommodation', Icon: Building2, color: 'text-purple-500' },
-  { key: 'FOOD_MEALS',    label: 'Food & Meals',  Icon: Utensils,  color: 'text-orange-500' },
-  { key: 'OTHER',         label: 'Other',         Icon: Plus,      color: 'text-gray-400' },
+const MAIN_CATEGORIES: { key: string; label: string; emoji: string }[] = [
+  { key: 'TRANSPORT',     label: 'Transport',     emoji: '✈️' },
+  { key: 'ACCOMMODATION', label: 'Accommodation', emoji: '🏨' },
+  { key: 'FOOD_MEALS',    label: 'Food & Meals',  emoji: '🍽️' },
+  { key: 'OTHER',         label: 'Other',         emoji: '📎' },
 ]
 
-const SUB_CATEGORIES: Record<string, { key: ExpenseSubKey; label: string; Icon: LucideIcon }[]> = {
+const SUB_CATEGORIES: Record<string, { key: ExpenseSubKey; label: string; emoji: string }[]> = {
   TRANSPORT: [
-    { key: 'FLIGHT',     label: 'Flight',     Icon: Plane },
-    { key: 'TAXI',       label: 'Taxi',       Icon: Car },
-    { key: 'CAR_RENTAL', label: 'Car Rental', Icon: Truck },
-    { key: 'TRAIN',      label: 'Train',      Icon: Train },
-    { key: 'BUS',        label: 'Bus',        Icon: Bus },
-    { key: 'PARKING',    label: 'Parking',    Icon: ParkingCircle },
-    { key: 'FUEL',       label: 'Fuel',       Icon: Fuel },
+    { key: 'FLIGHT',     label: 'Flight',     emoji: '✈️' },
+    { key: 'TAXI',       label: 'Taxi',       emoji: '🚕' },
+    { key: 'CAR_RENTAL', label: 'Car Rental', emoji: '🚗' },
+    { key: 'TRAIN',      label: 'Train',      emoji: '🚂' },
+    { key: 'BUS',        label: 'Bus',        emoji: '🚌' },
+    { key: 'PARKING',    label: 'Parking',    emoji: '🅿️' },
+    { key: 'FUEL',       label: 'Fuel',       emoji: '⛽' },
   ],
   ACCOMMODATION: [
-    { key: 'HOTEL',         label: 'Hotel',         Icon: Building2 },
-    { key: 'APARTMENT',     label: 'Apartment',     Icon: Home },
-    { key: 'AIRBNB',        label: 'Airbnb',        Icon: Home },
-    { key: 'OTHER_LODGING', label: 'Other Lodging', Icon: BedDouble },
+    { key: 'HOTEL',         label: 'Hotel',         emoji: '🏨' },
+    { key: 'APARTMENT',     label: 'Apartment',     emoji: '🏢' },
+    { key: 'AIRBNB',        label: 'Airbnb',        emoji: '🏠' },
+    { key: 'OTHER_LODGING', label: 'Other Lodging', emoji: '🛏️' },
   ],
   FOOD_MEALS: [
-    { key: 'BREAKFAST',    label: 'Breakfast',    Icon: Coffee },
-    { key: 'LUNCH',        label: 'Lunch',        Icon: Sandwich },
-    { key: 'DINNER',       label: 'Dinner',       Icon: Utensils },
-    { key: 'SNACKS',       label: 'Snacks',       Icon: Cookie },
-    { key: 'CLIENT_MEALS', label: 'Client Meals', Icon: Users },
+    { key: 'BREAKFAST',    label: 'Breakfast',    emoji: '☕' },
+    { key: 'LUNCH',        label: 'Lunch',        emoji: '🥙' },
+    { key: 'DINNER',       label: 'Dinner',       emoji: '🍽️' },
+    { key: 'SNACKS',       label: 'Snacks',       emoji: '🍿' },
+    { key: 'CLIENT_MEALS', label: 'Client Meals', emoji: '🤝' },
   ],
 }
 
@@ -312,7 +306,7 @@ function ExpensesContent() {
   // Derived helpers
   const subCatInfo = subCategory ? (SUB_CATEGORIES[mainCategory] ?? []).find(s => s.key === subCategory) : null
   const mainCatInfo = mainCategory ? MAIN_CATEGORIES.find(m => m.key === mainCategory) : null
-  const CurrentIcon = subCatInfo?.Icon ?? mainCatInfo?.Icon ?? Plus
+  const currentEmoji = subCatInfo?.emoji ?? mainCatInfo?.emoji ?? '📎'
   const currentLabel = subCatInfo?.label ?? ''
   const cfg = subCategory ? SERVICE_DETAIL_CONFIG[subCategory] : null
   const selectedEvent = events.find(e => e.id === form.eventId)
@@ -409,7 +403,7 @@ function ExpensesContent() {
                     <h2 className="text-lg font-semibold text-gray-900 mb-1">Type of expense</h2>
                     <p className="text-sm text-gray-500 mb-5">Select the main category.</p>
                     <div className="grid grid-cols-2 gap-3">
-                      {MAIN_CATEGORIES.map(({ key, label, Icon, color }) => (
+                      {MAIN_CATEGORIES.map(({ key, label, emoji }) => (
                         <button
                           key={key}
                           type="button"
@@ -422,7 +416,7 @@ function ExpensesContent() {
                           }}
                           className="rounded-2xl border-2 border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 p-6 flex flex-col items-center gap-3 transition-all group"
                         >
-                          <Icon className={`w-10 h-10 ${color} group-hover:scale-110 transition-transform`} />
+                          <span className="text-4xl group-hover:scale-110 transition-transform select-none">{emoji}</span>
                           <span className="text-sm font-semibold text-gray-800">{label}</span>
                         </button>
                       ))}
@@ -442,7 +436,7 @@ function ExpensesContent() {
                       <span className="text-gray-200">/</span>
                       {(() => { const mc = MAIN_CATEGORIES.find(m => m.key === mainCategory); return mc ? (
                         <div className="flex items-center gap-1.5">
-                          <mc.Icon className={`w-4 h-4 ${mc.color}`} />
+                          <span className="text-base select-none">{mc.emoji}</span>
                           <span className="text-sm font-semibold text-gray-700">{mc.label}</span>
                         </div>
                       ) : null })()}
@@ -450,14 +444,14 @@ function ExpensesContent() {
                     <h2 className="text-base font-semibold text-gray-900 mb-1">Select type</h2>
                     <p className="text-sm text-gray-500 mb-4">Choose the specific expense type.</p>
                     <div className={`grid gap-3 ${(SUB_CATEGORIES[mainCategory]?.length ?? 0) > 4 ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-2'}`}>
-                      {(SUB_CATEGORIES[mainCategory] ?? []).map(({ key, label, Icon }) => (
+                      {(SUB_CATEGORIES[mainCategory] ?? []).map(({ key, label, emoji }) => (
                         <button
                           key={key}
                           type="button"
                           onClick={() => selectSubCat(key)}
                           className="rounded-2xl border-2 border-gray-200 bg-white hover:border-indigo-500 hover:bg-indigo-600 hover:text-white p-4 flex flex-col items-center gap-2 transition-all group"
                         >
-                          <Icon className="w-7 h-7 text-gray-500 group-hover:text-white transition-colors" />
+                          <span className="text-3xl select-none group-hover:scale-110 transition-transform">{emoji}</span>
                           <span className="text-xs font-semibold text-gray-700 group-hover:text-white transition-colors text-center leading-tight">{label}</span>
                         </button>
                       ))}
@@ -473,7 +467,7 @@ function ExpensesContent() {
                 {/* Type header */}
                 <div className="flex items-center justify-between rounded-xl bg-indigo-50 border-l-4 border-indigo-600 px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <CurrentIcon className="w-6 h-6 text-indigo-600 shrink-0" />
+                    <span className="text-2xl select-none">{currentEmoji}</span>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">{mainCatInfo?.label}</p>
                       <p className="font-semibold text-indigo-900 leading-tight">{currentLabel}</p>
@@ -564,7 +558,7 @@ function ExpensesContent() {
                 <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                      <CurrentIcon className="w-5 h-5 text-gray-600" />
+                      <span className="text-xl select-none">{currentEmoji}</span>
                       <div>
                         <p className="text-[10px] text-gray-400 uppercase font-semibold tracking-wide">{mainCatInfo?.label}</p>
                         <p className="text-sm font-semibold text-gray-800 leading-tight">{currentLabel}</p>

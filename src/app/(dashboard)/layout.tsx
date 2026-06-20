@@ -31,12 +31,15 @@ function sidebarIcon(label: string): LucideIcon {
 
 type NavItem = { label: string; href: string } | { heading: string }
 
+const SECURITY_LINK = { label: 'Security', href: '/settings/security' }
+
 const navByRole: Record<Role, NavItem[]> = {
   EMPLOYEE: [
     { label: 'Dashboard', href: '/employee' },
     { label: 'Travel Requests', href: '/employee/travel-requests' },
     { label: 'Expenses', href: '/employee/expenses' },
     { label: 'My Profile', href: '/employee/profile' },
+    SECURITY_LINK,
   ],
   MANAGER: [
     { label: 'Dashboard', href: '/manager' },
@@ -48,12 +51,25 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Employee', href: '/manager/users-roles' },
     { label: 'Workflows', href: '/manager/workflows' },
     { label: 'Monthly Reports', href: '/manager/reports' },
+    SECURITY_LINK,
+  ],
+  TRAVEL_MANAGER: [
+    { label: 'Dashboard', href: '/manager' },
+    { heading: 'Travel' },
+    { label: 'Travel Inbox', href: '/manager/inbox' },
+    { label: 'Travel Requests', href: '/manager/team-travel' },
+    { label: 'Open Requests', href: '/manager/requests/unassigned' },
+    { heading: 'Administration' },
+    { label: 'Team Expenses', href: '/manager/team-expenses' },
+    { label: 'Employees', href: '/manager/users-roles' },
+    SECURITY_LINK,
   ],
   TRAVEL_AGENT: [
     { label: 'Dashboard', href: '/agent' },
     { label: 'Travel Inbox', href: '/agent/inbox' },
     { label: 'Travel Requests', href: '/agent/bookings' },
     { label: 'Create Travel Booking', href: '/agent/book' },
+    SECURITY_LINK,
   ],
   FINANCE_ADMIN: [
     { label: 'Dashboard', href: '/finance' },
@@ -64,6 +80,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Events & Budgets', href: '/finance/events' },
     { label: 'Policy Limits', href: '/finance/policy' },
     { label: 'Card Transactions', href: '/finance/cards' },
+    SECURITY_LINK,
   ],
   SYSTEM_ADMIN: [
     { heading: 'Operations' },
@@ -81,6 +98,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Policy Limits',     href: '/finance/policy' },
     { label: 'Audit Log',         href: '/admin/audit-log' },
     { label: 'Settings',          href: '/admin/settings' },
+    SECURITY_LINK,
   ],
 }
 

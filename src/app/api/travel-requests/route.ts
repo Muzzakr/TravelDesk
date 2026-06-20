@@ -22,6 +22,7 @@ const CreateSchema = z.object({
   hotelNights: z.number().int().positive().optional(),
   carRentalDays: z.number().int().positive().optional(),
   specialInstructions: z.string().optional(),
+  managerId: z.string().optional(),
 })
 
 export async function GET() {
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const creatorRoles = ['EMPLOYEE', 'TRAVEL_AGENT']
+  const creatorRoles = ['EMPLOYEE', 'TRAVEL_AGENT', 'MANAGER', 'TRAVEL_MANAGER']
   if (!creatorRoles.includes(session.user.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -90,9 +91,14 @@ export async function POST(req: NextRequest) {
     estimatedCostUsd: parsed.data.estimatedCostUsd ?? 0,
     departureDateIso: parsed.data.travelDates.departureDate,
     servicesRequested: parsed.data.servicesRequested,
+    requesterRole: session.user.role,
   })
 
   const initialStatus = 'PENDING_MANAGER'
+
+  // Resolve which manager gets this request
+  const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
+  const resolvedManagerId = parsed.data.managerId ?? emp?.managerId ?? null
 
   const travelRequest = await prisma.travelRequest.create({
     data: {
@@ -111,6 +117,7 @@ export async function POST(req: NextRequest) {
       specialInstructions: parsed.data.specialInstructions,
       routingPath,
       status: initialStatus,
+      ...(resolvedManagerId ? { managerId: resolvedManagerId } : {}),
     },
   })
 
@@ -146,10 +153,9 @@ export async function POST(req: NextRequest) {
     }).catch(() => {})
   }
 
-  // Email: always notify manager first
-  const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
-  if (emp?.managerId) {
-    const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
+  // Notify assigned manager (if any)
+  if (resolvedManagerId) {
+    const manager = await prisma.user.findUnique({ where: { id: resolvedManagerId }, select: { name: true, email: true } })
     if (manager?.email) {
       emailPendingManagerApproval(manager.email, manager.name ?? 'Manager', {
         employeeName: session.user.name ?? session.user.email ?? 'Employee',
@@ -162,7 +168,7 @@ export async function POST(req: NextRequest) {
     }
     await createNotification({
       companyId: session.user.companyId,
-      userId: emp.managerId,
+      userId: resolvedManagerId,
       type: 'travel_pending',
       title: 'New travel request awaiting review',
       description: `${session.user.name ?? 'Employee'} · ${parsed.data.origin} → ${parsed.data.destination}`,

@@ -9,9 +9,13 @@ import { z } from 'zod'
 import type { TravelRequestStatus } from '@prisma/client'
 
 const UpdateSchema = z.object({
-  status: z.enum(['APPROVED', 'REJECTED', 'CANCELLED', 'BOOKING_CONFIRMED']).optional(),
+  status: z.enum(['APPROVED', 'REJECTED', 'CANCELLED', 'BOOKING_CONFIRMED', 'PENDING_ADMIN']).optional(),
   rejectionNote: z.string().optional(),
+  adminEscalationNote: z.string().optional(),
   agentId: z.string().optional(),
+  managerId: z.string().optional(),
+  approvedServices: z.array(z.string()).optional(),
+  rejectedServices: z.array(z.string()).optional(),
   // Edit fields (allowed before first approval)
   purpose: z.string().optional(),
   estimatedCostUsd: z.number().optional(),
@@ -61,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const role = session.user.role ?? ''
-  const approverRoles = ['MANAGER', 'TRAVEL_AGENT', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']
+  const approverRoles = ['MANAGER', 'TRAVEL_MANAGER', 'TRAVEL_AGENT', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']
 
   if (parsed.data.status === 'CANCELLED') {
     if (request.employeeId !== session.user.id && !approverRoles.includes(role)) {
@@ -101,15 +105,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   let nextStatus: string | undefined = parsed.data.status
   if (parsed.data.status === 'APPROVED' && request.status === 'PENDING_MANAGER') {
-    // Always forward to travel agent after manager approval
-    nextStatus = 'PENDING_AGENT'
+    // Travel managers complete the booking themselves — skip agent step
+    nextStatus = role === 'TRAVEL_MANAGER' ? 'BOOKING_CONFIRMED' : 'PENDING_AGENT'
+  }
+  // Admin approving an escalated request → resume normal flow
+  if (parsed.data.status === 'APPROVED' && request.status === 'PENDING_ADMIN') {
+    nextStatus = role === 'SYSTEM_ADMIN' ? 'PENDING_AGENT' : 'APPROVED'
   }
 
   const updated = await prisma.travelRequest.update({
     where: { id: params.id },
     data: {
       rejectionNote: parsed.data.rejectionNote,
+      adminEscalationNote: parsed.data.adminEscalationNote,
       agentId: parsed.data.agentId,
+      ...(parsed.data.managerId !== undefined && { managerId: parsed.data.managerId }),
+      ...(parsed.data.approvedServices !== undefined && { approvedServices: parsed.data.approvedServices }),
+      ...(parsed.data.rejectedServices !== undefined && { rejectedServices: parsed.data.rejectedServices }),
       status: nextStatus as TravelRequestStatus | undefined,
     },
   })
@@ -121,6 +133,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const auditAction: Record<string, string> = {
     APPROVED: 'TRAVEL_REQUEST_APPROVED',
     PENDING_AGENT: 'TRAVEL_REQUEST_MANAGER_APPROVED',
+    PENDING_ADMIN: 'TRAVEL_REQUEST_ESCALATED_TO_ADMIN',
     REJECTED: 'TRAVEL_REQUEST_REJECTED',
     CANCELLED: 'TRAVEL_REQUEST_CANCELLED',
     BOOKING_CONFIRMED: 'TRAVEL_REQUEST_BOOKING_CONFIRMED',
@@ -144,6 +157,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     entityId: params.id,
     payload: { status: nextStatus, note: parsed.data.rejectionNote },
   })
+
+  // Notify admins when manager escalates for second opinion
+  if (nextStatus === 'PENDING_ADMIN') {
+    const admins = await prisma.user.findMany({
+      where: { companyId: session.user.companyId, role: 'SYSTEM_ADMIN', isActive: true },
+      select: { id: true },
+    })
+    for (const admin of admins) {
+      await createNotification({
+        companyId: session.user.companyId,
+        userId: admin.id,
+        type: 'travel_pending',
+        title: 'Manager needs your approval',
+        description: `${request.employee.name ?? 'Employee'} · ${request.origin} → ${request.destination}`,
+        href: `/admin/travel-requests/${params.id}`,
+      })
+    }
+  }
 
   if (nextStatus && ['APPROVED', 'PENDING_AGENT', 'REJECTED', 'CANCELLED', 'BOOKING_CONFIRMED'].includes(nextStatus)) {
     notifyTravelRequestStatusChanged({

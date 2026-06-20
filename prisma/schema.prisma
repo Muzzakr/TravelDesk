@@ -36,6 +36,7 @@ model Company {
 enum Role {
   EMPLOYEE
   MANAGER
+  TRAVEL_MANAGER
   TRAVEL_AGENT
   FINANCE_ADMIN
   SYSTEM_ADMIN
@@ -65,6 +66,7 @@ model User {
   directReports        User[]                @relation("ManagerReports")
   travelRequests       TravelRequest[]       @relation("EmployeeTravelRequests")
   agentBookings        TravelRequest[]       @relation("AgentBookings")
+  managedRequests      TravelRequest[]       @relation("ManagerTravelRequests")
   expenses             Expense[]
   approvalActions      ApprovalAction[]
   auditLogs            AuditLog[]
@@ -184,6 +186,7 @@ enum TravelRequestStatus {
   SUBMITTED
   PENDING_AGENT
   PENDING_MANAGER
+  PENDING_ADMIN
   OPTIONS_PROVIDED
   APPROVED
   BOOKING_CONFIRMED
@@ -214,6 +217,9 @@ model TravelRequest {
   destination       String
   travelDates       Json
   servicesRequested String[]
+  approvedServices  String[]            @default([])
+  rejectedServices  String[]            @default([])
+  managerId         String?
   estimatedCostUsd  Decimal?            @db.Decimal(12, 2)
   purpose           String
   preferredClass    TravelClass         @default(ECONOMY)
@@ -225,12 +231,14 @@ model TravelRequest {
   status            TravelRequestStatus @default(DRAFT)
   routingPath       RoutingPath         @default(AGENT_FIRST)
   rejectionNote     String?
+  adminEscalationNote String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
   company               Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employee              User                  @relation("EmployeeTravelRequests", fields: [employeeId], references: [id])
   agent                 User?                 @relation("AgentBookings", fields: [agentId], references: [id])
+  manager               User?                 @relation("ManagerTravelRequests", fields: [managerId], references: [id])
   event                 Event                 @relation(fields: [eventId], references: [id])
   approvalActions       ApprovalAction[]
   expenses              Expense[]

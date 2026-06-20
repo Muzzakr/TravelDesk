@@ -4,12 +4,16 @@ interface RoutingInput {
   estimatedCostUsd: number
   departureDateIso: string
   servicesRequested: string[]
+  requesterRole?: string
 }
 
 const MANAGER_FIRST_THRESHOLD_USD = 1500
 const URGENT_HOURS = 72
 
 export function determineRoutingPath(input: RoutingInput): RoutingPath {
+  // Travel managers handle everything end-to-end — no agent step
+  if (input.requesterRole === 'TRAVEL_MANAGER') return 'MANAGER_ONLY'
+
   const hoursUntilDeparture = getHoursUntilDeparture(input.departureDateIso)
   const isUrgent = hoursUntilDeparture <= URGENT_HOURS
   const isHighValue = input.estimatedCostUsd >= MANAGER_FIRST_THRESHOLD_USD

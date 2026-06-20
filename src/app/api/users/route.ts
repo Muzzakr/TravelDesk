@@ -81,13 +81,17 @@ export async function POST(req: NextRequest) {
     payload: { email: user.email, role: user.role },
   })
 
+  let emailSent = false
+  let setPasswordUrl: string | null = null
+
   try {
     const rawToken = await createVerificationToken(user.id, 'INVITE')
+    setPasswordUrl = `${process.env.APP_URL ?? ''}/set-password?token=${rawToken}`
     await sendInviteEmail(user.email, user.name, rawToken)
+    emailSent = true
   } catch (err) {
     console.error('Failed to send invite email:', err)
-    // User is created; email failure is non-fatal
   }
 
-  return NextResponse.json(user, { status: 201 })
+  return NextResponse.json({ ...user, emailSent, setPasswordUrl }, { status: 201 })
 }

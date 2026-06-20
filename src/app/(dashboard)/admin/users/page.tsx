@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import type { ExtractedUser } from '@/app/api/users/extract/route'
-import { Check, XCircle } from 'lucide-react'
+import { Check, XCircle, Copy, CheckCheck } from 'lucide-react'
 
 type UserRow = {
   id: string
@@ -54,6 +54,8 @@ export default function AdminUsersPage() {
   const [formError, setFormError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [inviteLink, setInviteLink] = useState<{ name: string; url: string } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   // Drawer state
   const [selected, setSelected] = useState<UserRow | null>(null)
@@ -163,14 +165,26 @@ export default function AdminUsersPage() {
       body: JSON.stringify(form),
     })
     if (res.ok) {
+      const data = await res.json()
       setShowForm(false)
       setForm({ name: '', email: '', role: 'EMPLOYEE' })
       loadUsers()
+      if (!data.emailSent && data.setPasswordUrl) {
+        setInviteLink({ name: data.name, url: data.setPasswordUrl })
+        setCopied(false)
+      }
     } else {
       const d = await res.json()
       setFormError(d.error ?? 'Failed to create user')
     }
     setSaving(false)
+  }
+
+  async function copyInviteLink() {
+    if (!inviteLink) return
+    await navigator.clipboard.writeText(inviteLink.url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -236,6 +250,40 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
+
+      {/* ── Invite link fallback modal ───────────────────── */}
+      {inviteLink && (
+        <>
+          <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setInviteLink(null)} />
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">Email could not be sent</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {inviteLink.name} was created but the invite email failed. Share this link manually.
+                  </p>
+                </div>
+                <button type="button" aria-label="Close" onClick={() => setInviteLink(null)}
+                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 flex items-center gap-2">
+                <span className="flex-1 text-xs text-gray-700 font-mono truncate">{inviteLink.url}</span>
+                <button type="button" onClick={copyInviteLink}
+                  className="shrink-0 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-medium flex items-center gap-1.5">
+                  {copied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">This link expires in 48 hours. Make sure to check your Gmail SMTP settings in Vercel environment variables.</p>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Right-side detail drawer ─────────────────────── */}
       {selected && (

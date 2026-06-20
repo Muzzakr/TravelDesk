@@ -86,9 +86,12 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   )
 }
 
+const PAGE_SIZE = 10
+
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<EventRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
@@ -302,6 +305,8 @@ export default function AdminEventsPage() {
 
   const validCount = preview ? preview.filter((ev) => ev.errors.length === 0).length : 0
   const invalidCount = preview ? preview.filter((ev) => ev.errors.length > 0).length : 0
+  const totalPages = Math.ceil(events.length / PAGE_SIZE)
+  const pagedEvents = events.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="space-y-6">
@@ -698,7 +703,7 @@ export default function AdminEventsPage() {
         <>
           {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
-            {events.map((ev) => (
+            {pagedEvents.map((ev) => (
               <button
                 key={ev.id}
                 type="button"
@@ -741,7 +746,7 @@ export default function AdminEventsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {events.map((ev) => (
+                {pagedEvents.map((ev) => (
                   <tr
                     key={ev.id}
                     onClick={() => openDetail(ev)}
@@ -765,6 +770,25 @@ export default function AdminEventsPage() {
                 ))}
               </tbody>
             </table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t px-4 py-3 bg-white">
+                <p className="text-xs text-gray-500">
+                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, events.length)} of {events.length} events
+                </p>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">‹</button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                    <button key={n} type="button" onClick={() => setPage(n)}
+                      className={`rounded px-2.5 py-1 text-xs font-medium ${n === page ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                      {n}
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                    className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">›</button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

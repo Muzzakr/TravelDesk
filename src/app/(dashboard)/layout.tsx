@@ -7,6 +7,7 @@ import { BottomTabBar } from '@/components/ui/BottomTabBar'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
+import { prisma } from '@/lib/prisma'
 import {
   LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
   Users, Calendar, User, Workflow, Settings, Circle, type LucideIcon,
@@ -87,7 +88,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Admin Dashboard',   href: '/admin' },
     { label: 'Travel Inbox',      href: '/manager/inbox' },
     { label: 'Travel Requests',   href: '/admin/travel-requests' },
-    { label: 'Expenses',          href: '/employee/expenses?view=admin' },
+    { label: 'Expenses',          href: '/admin/expenses' },
     { label: 'Card Transactions', href: '/finance/cards' },
     { heading: 'Finance' },
     { label: 'Payout Reports',    href: '/finance/payout-reports' },
@@ -112,6 +113,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Check profile completeness for roles that travel
   const profileStatus = await getProfileStatus(session.user.id, role)
 
+  // Fetch company logo (only if companyId present)
+  let logoUrl: string | null = null
+  if (session.user.companyId) {
+    const company = await prisma.company.findUnique({
+      where: { id: session.user.companyId },
+      select: { logoUrl: true },
+    })
+    logoUrl = company?.logoUrl ?? null
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Mobile top bar (primary nav is the bottom tab bar) */}
@@ -120,7 +131,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
         <div className="flex h-16 items-center justify-between px-6">
-          <span className="text-xl font-bold">M4U Travel</span>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="Company logo" className="h-8 max-w-[120px] object-contain" />
+          ) : (
+            <span className="text-xl font-bold">M4U Travel</span>
+          )}
           <NotificationBell />
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5">

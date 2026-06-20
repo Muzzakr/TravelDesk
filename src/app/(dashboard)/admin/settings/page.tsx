@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Building2, Key, RefreshCw, Save, ShieldAlert } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Building2, Key, RefreshCw, Save, ShieldAlert, ImageIcon } from 'lucide-react'
 
 type Settings = {
   id: string
@@ -9,6 +9,7 @@ type Settings = {
   slug: string
   plan: string
   createdAt: string
+  logoUrl: string | null
   webhookKey: string | null
   hasWebhookKey: boolean
 }
@@ -40,6 +41,11 @@ export default function AdminSettingsPage() {
   const [regenErr, setRegenErr] = useState('')
   const [newKey, setNewKey] = useState<string | null>(null)
 
+  const logoRef = useRef<HTMLInputElement>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoMsg, setLogoMsg] = useState('')
+  const [logoErr, setLogoErr] = useState('')
+
   useEffect(() => {
     fetch('/api/admin/settings')
       .then(r => r.json())
@@ -66,6 +72,35 @@ export default function AdminSettingsPage() {
       setSaveErr(d.error ?? 'Failed to save')
     }
     setSaving(false)
+  }
+
+  async function uploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoUploading(true); setLogoMsg(''); setLogoErr('')
+    const fd = new FormData(); fd.append('file', file)
+    const res = await fetch('/api/admin/logo', { method: 'POST', body: fd })
+    const d = await res.json()
+    if (res.ok) {
+      setSettings(s => s ? { ...s, logoUrl: d.logoUrl } : s)
+      setLogoMsg('Logo updated.')
+    } else {
+      setLogoErr(d.error ?? 'Upload failed')
+    }
+    setLogoUploading(false)
+    if (logoRef.current) logoRef.current.value = ''
+  }
+
+  async function removeLogo() {
+    setLogoUploading(true); setLogoMsg(''); setLogoErr('')
+    const res = await fetch('/api/admin/logo', { method: 'DELETE' })
+    if (res.ok) {
+      setSettings(s => s ? { ...s, logoUrl: null } : s)
+      setLogoMsg('Logo removed.')
+    } else {
+      setLogoErr('Failed to remove logo')
+    }
+    setLogoUploading(false)
   }
 
   async function regenerateKey() {
@@ -129,6 +164,35 @@ export default function AdminSettingsPage() {
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        </div>
+      </Section>
+
+      {/* Company Logo */}
+      <Section icon={ImageIcon} title="Company logo">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">Shown in the sidebar. PNG, JPEG, SVG, or WebP — max 2 MB.</p>
+          {settings.logoUrl ? (
+            <div className="flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={settings.logoUrl} alt="Company logo" className="h-16 max-w-[200px] rounded-lg border border-gray-200 object-contain p-2 bg-white" />
+              <button type="button" onClick={removeLogo} disabled={logoUploading}
+                className="rounded-xl border border-red-200 bg-red-50 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-50">
+                {logoUploading ? 'Removing…' : 'Remove logo'}
+              </button>
+            </div>
+          ) : (
+            <div className="flex h-20 w-40 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400 text-xs">
+              No logo set
+            </div>
+          )}
+          <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            aria-label="Upload company logo" className="hidden" onChange={uploadLogo} />
+          {logoErr && <p className="text-sm text-red-600 rounded-lg bg-red-50 px-3 py-2">{logoErr}</p>}
+          {logoMsg && <p className="text-sm text-green-700 rounded-lg bg-green-50 px-3 py-2">{logoMsg}</p>}
+          <button type="button" disabled={logoUploading} onClick={() => logoRef.current?.click()}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 px-5 py-2.5 text-sm font-semibold transition-colors">
+            {logoUploading ? 'Uploading…' : settings.logoUrl ? 'Change logo' : 'Upload logo'}
           </button>
         </div>
       </Section>

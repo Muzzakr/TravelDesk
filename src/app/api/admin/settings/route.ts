@@ -14,7 +14,7 @@ export async function GET() {
 
   const company = await prisma.company.findUnique({
     where: { id: session.user.companyId },
-    select: { id: true, name: true, slug: true, plan: true, createdAt: true, webhookApiKey: true },
+    select: { id: true, name: true, slug: true, plan: true, createdAt: true, webhookApiKey: true, logoUrl: true },
   })
   if (!company) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -25,6 +25,7 @@ export async function GET() {
     slug:      company.slug,
     plan:      company.plan,
     createdAt: company.createdAt,
+    logoUrl:   company.logoUrl ?? null,
     webhookKey: key ? `••••••••••••${key.slice(-8)}` : null,
     hasWebhookKey: !!key,
   })

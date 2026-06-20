@@ -13,9 +13,13 @@ type UserRow = {
   email: string
   role: string
   isActive: boolean
+  hasPassword: boolean
+  managerId: string | null
   createdAt: string
   manager: { name: string } | null
 }
+
+type Manager = { id: string; name: string; role: string }
 
 const roleBadge: Record<string, 'blue' | 'green' | 'purple' | 'yellow' | 'gray'> = {
   EMPLOYEE: 'blue',
@@ -46,6 +50,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([])
+  const [managers, setManagers] = useState<Manager[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -60,11 +65,22 @@ export default function AdminUsersPage() {
   // Drawer state
   const [selected, setSelected] = useState<UserRow | null>(null)
 
-  // Edit modal state (separate from drawer — avoids select dropdown focus issues)
+  // Edit modal state
   const [editModal, setEditModal] = useState<UserRow | null>(null)
-  const [editForm, setEditForm] = useState({ name: '', role: '', isActive: true })
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: '', isActive: true, managerId: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+
+  // Reset password modal state
+  const [resetPassUser, setResetPassUser] = useState<UserRow | null>(null)
+  const [resetPassVal, setResetPassVal] = useState('')
+  const [resetPassVal2, setResetPassVal2] = useState('')
+  const [resetPassSaving, setResetPassSaving] = useState(false)
+  const [resetPassMsg, setResetPassMsg] = useState('')
+  const [resetPassErr, setResetPassErr] = useState('')
+
+  // Resend invite state
+  const [resendingInvite, setResendingInvite] = useState(false)
 
   // Import state
   const fileRef = useRef<HTMLInputElement>(null)
@@ -85,7 +101,12 @@ export default function AdminUsersPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadUsers() }, [])
+  async function loadManagers() {
+    const res = await fetch('/api/manager/list')
+    if (res.ok) setManagers(await res.json())
+  }
+
+  useEffect(() => { loadUsers(); loadManagers() }, [])
 
   useEffect(() => {
     if (!selected) return
@@ -93,6 +114,7 @@ export default function AdminUsersPage() {
       if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
         setSelected(null)
         setEditError('')
+        setConfirmDelete(false)
       }
     }
     document.addEventListener('mousedown', onMouseDown)
@@ -103,6 +125,7 @@ export default function AdminUsersPage() {
     setSelected(u)
     setEditError('')
     setShowForm(false)
+    setConfirmDelete(false)
   }
 
   function closeDrawer() {
@@ -112,7 +135,7 @@ export default function AdminUsersPage() {
   }
 
   function openEditModal(u: UserRow) {
-    setEditForm({ name: u.name, role: u.role, isActive: u.isActive })
+    setEditForm({ name: u.name, email: u.email, role: u.role, isActive: u.isActive, managerId: u.managerId ?? '' })
     setEditError('')
     setEditModal(u)
   }
@@ -137,10 +160,17 @@ export default function AdminUsersPage() {
     if (!editModal) return
     setEditSaving(true)
     setEditError('')
+    const body: Record<string, unknown> = {
+      name: editForm.name,
+      role: editForm.role,
+      isActive: editForm.isActive,
+      managerId: editForm.managerId || null,
+    }
+    if (editForm.email !== editModal.email) body.email = editForm.email
     const res = await fetch(`/api/users/${editModal.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editForm.name, role: editForm.role, isActive: editForm.isActive }),
+      body: JSON.stringify(body),
     })
     if (res.ok) {
       const fresh = await fetch('/api/users').then((r) => r.json()) as UserRow[]
@@ -180,11 +210,69 @@ export default function AdminUsersPage() {
     setSaving(false)
   }
 
-  async function copyInviteLink() {
-    if (!inviteLink) return
-    await navigator.clipboard.writeText(inviteLink.url)
+  async function copyInviteLink(url: string) {
+    await navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function resendInvite() {
+    if (!selected) return
+    setResendingInvite(true)
+    const res = await fetch(`/api/admin/users/${selected.id}/resend-invite`, { method: 'POST' })
+    const d = await res.json()
+    if (!d.emailSent && d.setPasswordUrl) {
+      setInviteLink({ name: selected.name, url: d.setPasswordUrl })
+      setCopied(false)
+    } else {
+      alert(`Invite email resent to ${selected.email}`)
+    }
+    setResendingInvite(false)
+  }
+
+  async function submitResetPass(e: React.FormEvent) {
+    e.preventDefault()
+    if (!resetPassUser) return
+    if (resetPassVal !== resetPassVal2) { setResetPassErr('Passwords do not match'); return }
+    setResetPassSaving(true)
+    setResetPassErr('')
+    const res = await fetch(`/api/admin/users/${resetPassUser.id}/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword: resetPassVal }),
+    })
+    const d = await res.json()
+    if (res.ok) {
+      setResetPassMsg('Password updated successfully.')
+      setResetPassVal(''); setResetPassVal2('')
+      loadUsers()
+    } else {
+      setResetPassErr(d.error ?? 'Failed to set password')
+    }
+    setResetPassSaving(false)
+  }
+
+  function openResetPass(u: UserRow) {
+    setResetPassUser(u)
+    setResetPassVal(''); setResetPassVal2('')
+    setResetPassMsg(''); setResetPassErr('')
+  }
+
+  function exportCSV() {
+    const rows = users.map(u => [
+      u.name, u.email, u.role,
+      u.isActive ? 'Active' : 'Inactive',
+      u.manager?.name ?? '',
+      new Date(u.createdAt).toISOString().slice(0, 10),
+      u.hasPassword ? 'Yes' : 'No',
+    ])
+    const header = ['Name', 'Email', 'Role', 'Status', 'Manager', 'Joined', 'Password Set']
+    const csv = [header, ...rows].map(r => r.map(v => JSON.stringify(v)).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `users-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+    URL.revokeObjectURL(url)
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -273,14 +361,55 @@ export default function AdminUsersPage() {
               </div>
               <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 flex items-center gap-2">
                 <span className="flex-1 text-xs text-gray-700 font-mono truncate">{inviteLink.url}</span>
-                <button type="button" onClick={copyInviteLink}
+                <button type="button" onClick={() => copyInviteLink(inviteLink.url)}
                   className="shrink-0 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-medium flex items-center gap-1.5">
                   {copied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-              <p className="text-xs text-gray-400">This link expires in 48 hours. Make sure to check your Gmail SMTP settings in Vercel environment variables.</p>
+              <p className="text-xs text-gray-400">This link expires in 48 hours. Check Gmail SMTP settings in Vercel environment variables.</p>
             </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Reset password modal ──────────────────────────── */}
+      {resetPassUser && (
+        <>
+          <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setResetPassUser(null)} />
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+            <form onSubmit={submitResetPass}
+              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4"
+              onClick={e => e.stopPropagation()}>
+              <h2 className="text-base font-semibold text-gray-900">Set new password</h2>
+              <p className="text-sm text-gray-500">Setting a new password for <strong>{resetPassUser.name}</strong>.</p>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">New password</label>
+                <input type="password" required minLength={8} value={resetPassVal}
+                  onChange={e => { setResetPassVal(e.target.value); setResetPassErr(''); setResetPassMsg('') }}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+                  placeholder="At least 8 characters" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Confirm password</label>
+                <input type="password" required value={resetPassVal2}
+                  onChange={e => { setResetPassVal2(e.target.value); setResetPassErr('') }}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+                  placeholder="Repeat password" />
+              </div>
+              {resetPassErr && <p className="text-sm text-red-600">{resetPassErr}</p>}
+              {resetPassMsg && <p className="text-sm text-green-600">{resetPassMsg}</p>}
+              <div className="flex gap-3">
+                <button type="submit" disabled={resetPassSaving}
+                  className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+                  {resetPassSaving ? 'Saving…' : 'Set password'}
+                </button>
+                <button type="button" onClick={() => setResetPassUser(null)}
+                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </>
       )}
@@ -290,30 +419,27 @@ export default function AdminUsersPage() {
         <>
           <div className="fixed inset-0 z-50 bg-black/20 pointer-events-none" />
           <div ref={drawerRef} className="fixed right-0 top-0 h-full w-full max-w-md z-[51] flex flex-col bg-white shadow-2xl">
-            {/* Header */}
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div className="min-w-0 pr-4">
                 <p className="text-xs text-gray-400">{selected.email}</p>
                 <h2 className="mt-0.5 text-lg font-semibold text-gray-900 leading-tight">{selected.name}</h2>
               </div>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={closeDrawer}
-                className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              >
+              <button type="button" aria-label="Close" onClick={closeDrawer}
+                className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
               <div className="space-y-5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant={roleBadge[selected.role] ?? 'gray'}>{selected.role.replace(/_/g, ' ')}</Badge>
                   <Badge variant={selected.isActive ? 'green' : 'gray'}>{selected.isActive ? 'Active' : 'Inactive'}</Badge>
+                  {!selected.hasPassword && (
+                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Invite pending</span>
+                  )}
                 </div>
 
                 <div className="h-px bg-gray-100" />
@@ -330,18 +456,25 @@ export default function AdminUsersPage() {
 
                 <div className="h-px bg-gray-100" />
 
+                {!selected.hasPassword && (
+                  <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 flex items-center justify-between gap-3">
+                    <p className="text-xs text-yellow-800">This user has not set a password yet.</p>
+                    <button type="button" disabled={resendingInvite} onClick={resendInvite}
+                      className="shrink-0 rounded-lg bg-yellow-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-yellow-700 disabled:opacity-50">
+                      {resendingInvite ? '…' : 'Resend invite'}
+                    </button>
+                  </div>
+                )}
+
                 <div>
-                  <Link
-                    href={`/admin/users/${selected.id}`}
-                    className="text-sm font-medium text-indigo-600 hover:underline"
-                  >
+                  <Link href={`/admin/users/${selected.id}`}
+                    className="text-sm font-medium text-indigo-600 hover:underline">
                     View full profile →
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* Footer */}
             <div className="border-t px-6 py-4 flex items-center gap-3 flex-wrap">
               {confirmDelete ? (
                 <div className="flex items-center gap-2 flex-wrap">
@@ -358,6 +491,10 @@ export default function AdminUsersPage() {
               ) : (
                 <>
                   <Button onClick={() => openEditModal(selected!)}>Edit</Button>
+                  <button type="button" onClick={() => openResetPass(selected!)}
+                    className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                    Reset password
+                  </button>
                   <button type="button" onClick={() => setConfirmDelete(true)}
                     className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100">
                     Delete
@@ -374,47 +511,44 @@ export default function AdminUsersPage() {
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setEditModal(null); setEditError('') }} />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-            <form
-              onSubmit={saveEdit}
+            <form onSubmit={saveEdit}
               className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4"
-              onClick={e => e.stopPropagation()}
-            >
+              onClick={e => e.stopPropagation()}>
               <h2 className="text-lg font-semibold text-gray-900">Edit user</h2>
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-gray-500">Full name</label>
-                <input
-                  required title="Full name"
-                  value={editForm.name}
+                <input required title="Full name" value={editForm.name}
                   onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-                />
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-gray-500">Email</label>
-                <input
-                  title="Email" value={editModal.email} readOnly
-                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
-                />
+                <input type="email" title="Email" value={editForm.email}
+                  onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-gray-500">Role</label>
-                <select
-                  title="Role"
-                  value={editForm.role}
+                <select title="Role" value={editForm.role}
                   onChange={e => setEditForm({ ...editForm, role: e.target.value })}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-                >
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
                   {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Manager</label>
+                <select title="Manager" value={editForm.managerId}
+                  onChange={e => setEditForm({ ...editForm, managerId: e.target.value })}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                  <option value="">— No manager —</option>
+                  {managers.map(m => <option key={m.id} value={m.id}>{m.name} ({m.role.replace(/_/g, ' ')})</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-gray-500">Status</label>
-                <select
-                  title="Status"
-                  value={editForm.isActive ? 'active' : 'inactive'}
+                <select title="Status" value={editForm.isActive ? 'active' : 'inactive'}
                   onChange={e => setEditForm({ ...editForm, isActive: e.target.value === 'active' })}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-                >
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
@@ -422,11 +556,8 @@ export default function AdminUsersPage() {
               {editError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{editError}</p>}
               <div className="flex gap-3 pt-2">
                 <Button type="submit" loading={editSaving}>Save changes</Button>
-                <button
-                  type="button"
-                  onClick={() => { setEditModal(null); setEditError('') }}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                >
+                <button type="button" onClick={() => { setEditModal(null); setEditError('') }}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
                   Cancel
                 </button>
               </div>
@@ -447,11 +578,8 @@ export default function AdminUsersPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => { setPreview(null); setExtractError(''); setCreateResults(null) }}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-              >
+              <button type="button" onClick={() => { setPreview(null); setExtractError(''); setCreateResults(null) }}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
                 Discard
               </button>
               <Button onClick={bulkCreate} loading={creating} disabled={!allValid || !!createResults}>
@@ -523,20 +651,16 @@ export default function AdminUsersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">User management</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,.xlsx"
-            aria-label="Upload user file"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
+          <button type="button" onClick={exportCSV}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Export CSV
+          </button>
+          <input ref={fileRef} type="file" accept=".csv,.xlsx" aria-label="Upload user file"
+            className="hidden" onChange={handleFileChange} />
+          <button type="button"
             onClick={() => { setPreview(null); setExtractError(''); setCreateResults(null); fileRef.current?.click() }}
             disabled={extracting}
-            className="inline-flex items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+            className="inline-flex items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">
             {extracting ? (
               <>
                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -578,12 +702,14 @@ export default function AdminUsersPage() {
           <form onSubmit={createUser} className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">Full name</label>
-              <input required title="Full name" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              <input required title="Full name" placeholder="Full name" value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">Email</label>
-              <input type="email" required title="Email" placeholder="email@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+              <input type="email" required title="Email" placeholder="email@example.com" value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
               <p className="text-xs text-indigo-500 mt-0.5">An invite email will be sent automatically.</p>
             </div>
@@ -616,12 +742,8 @@ export default function AdminUsersPage() {
           {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
             {users.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => openDetail(u)}
-                className="w-full text-left rounded-xl border bg-white p-4 space-y-2 hover:bg-gray-50 active:bg-gray-100"
-              >
+              <button key={u.id} type="button" onClick={() => openDetail(u)}
+                className="w-full text-left rounded-xl border bg-white p-4 space-y-2 hover:bg-gray-50 active:bg-gray-100">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate">{u.name}</p>
@@ -632,6 +754,7 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant={roleBadge[u.role] ?? 'gray'}>{u.role.replace(/_/g, ' ')}</Badge>
                   {u.manager && <span className="text-xs text-gray-400">Manager: {u.manager.name}</span>}
+                  {!u.hasPassword && <span className="rounded-full bg-yellow-100 px-1.5 py-0.5 text-xs font-medium text-yellow-700">Pending</span>}
                 </div>
                 <p className="text-xs text-gray-400">Joined {new Date(u.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
               </button>
@@ -653,12 +776,12 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {users.map((u) => (
-                  <tr
-                    key={u.id}
-                    onClick={() => openDetail(u)}
-                    className="hover:bg-indigo-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-[128px]">{u.name}</td>
+                  <tr key={u.id} onClick={() => openDetail(u)}
+                    className="hover:bg-indigo-50 cursor-pointer transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900 truncate max-w-[128px]">{u.name}</p>
+                      {!u.hasPassword && <span className="text-[10px] font-medium text-yellow-600">Invite pending</span>}
+                    </td>
                     <td className="px-4 py-3 text-gray-500 truncate max-w-[200px]">{u.email}</td>
                     <td className="px-4 py-3">
                       <Badge variant={roleBadge[u.role] ?? 'gray'}>{u.role.replace(/_/g, ' ')}</Badge>
@@ -667,7 +790,9 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3">
                       <Badge variant={u.isActive ? 'green' : 'gray'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 hidden lg:table-cell whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
+                    <td className="px-4 py-3 text-gray-400 hidden lg:table-cell whitespace-nowrap">
+                      {new Date(u.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                    </td>
                   </tr>
                 ))}
               </tbody>

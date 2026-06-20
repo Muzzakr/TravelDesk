@@ -22,10 +22,10 @@ export async function GET() {
 
   const users = await prisma.user.findMany({
     where: { companyId: session.user.companyId },
-    select: { id: true, email: true, name: true, role: true, isActive: true, managerId: true, createdAt: true, manager: { select: { name: true } } },
+    select: { id: true, email: true, name: true, role: true, isActive: true, managerId: true, createdAt: true, passwordHash: true, manager: { select: { name: true } } },
     orderBy: { name: 'asc' },
   })
-  return NextResponse.json(users)
+  return NextResponse.json(users.map(({ passwordHash, ...u }) => ({ ...u, hasPassword: passwordHash !== null })))
 }
 
 const MANAGER_ALLOWED_ROLES = ['EMPLOYEE', 'TRAVEL_AGENT', 'FINANCE_ADMIN'] as const

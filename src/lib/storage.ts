@@ -85,3 +85,20 @@ export function buildProfilePhotoKey(companyId: string, userId: string, field: s
   const sanitized = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
   return `${companyId}/${userId}/${field}_${Date.now()}_${sanitized}`
 }
+
+const LOGOS_BUCKET = 'logos'
+
+export async function uploadLogo(companyId: string, body: Buffer, mimeType: string, ext: string): Promise<string> {
+  const key = `${companyId}/logo.${ext}`
+  const { error } = await getClient()
+    .storage
+    .from(LOGOS_BUCKET)
+    .upload(key, body, { contentType: mimeType, upsert: true })
+  if (error) throw new Error(`Logo upload failed: ${error.message}`)
+  const { data } = getClient().storage.from(LOGOS_BUCKET).getPublicUrl(key)
+  return data.publicUrl
+}
+
+export async function deleteLogo(companyId: string, ext: string): Promise<void> {
+  await getClient().storage.from(LOGOS_BUCKET).remove([`${companyId}/logo.${ext}`])
+}

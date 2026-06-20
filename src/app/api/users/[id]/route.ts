@@ -9,8 +9,9 @@ const MANAGER_ALLOWED_ROLES = ['EMPLOYEE', 'TRAVEL_AGENT', 'FINANCE_ADMIN'] as c
 
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
   isActive: z.boolean().optional(),
-  role: z.enum(['EMPLOYEE', 'MANAGER', 'TRAVEL_AGENT', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']).optional(),
+  role: z.enum(['EMPLOYEE', 'MANAGER', 'TRAVEL_AGENT', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']).optional(),
   managerId: z.string().nullable().optional(),
 })
 
@@ -36,6 +37,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   })
   if (!target || target.companyId !== session.user.companyId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  // If email is changing, check uniqueness within company
+  if (parsed.data.email) {
+    if (actorRole !== 'SYSTEM_ADMIN') return NextResponse.json({ error: 'Only SYSTEM_ADMIN can change email' }, { status: 403 })
+    const conflict = await prisma.user.findFirst({
+      where: { companyId: session.user.companyId, email: parsed.data.email, NOT: { id: params.id } },
+    })
+    if (conflict) return NextResponse.json({ error: 'Email already in use by another user' }, { status: 409 })
   }
 
   const updated = await prisma.user.update({

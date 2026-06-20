@@ -16,6 +16,7 @@ model Company {
   slug           String   @unique
   plan           String   @default("starter")
   webhookApiKey  String?  @unique
+  logoUrl        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

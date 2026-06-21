@@ -7,8 +7,8 @@ import { verifyMfaCookie } from '@/lib/mfa-cookie'
 const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/companies/signup', '/set-password', '/forgot-password', '/api/contact', '/api/subscribe', '/api/unsubscribe']
 
 const ROLE_PATHS: Record<string, Role[]> = {
-  '/employee': ['EMPLOYEE', 'MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],
-  '/manager': ['MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],
+  '/employee': ['EMPLOYEE', 'MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],
+  '/manager': ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],
   '/agent': ['TRAVEL_AGENT', 'SYSTEM_ADMIN'],
   '/finance': ['FINANCE_ADMIN', 'SYSTEM_ADMIN'],
   '/admin': ['SYSTEM_ADMIN'],

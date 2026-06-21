@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['TRAVEL_AGENT', 'SYSTEM_ADMIN'].includes(session.user.role ?? '')) {
+  if (!['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(session.user.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

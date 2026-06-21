@@ -178,10 +178,10 @@ export default function CardTransactionsPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap no-scrollbar">
         {['', 'PENDING_TAG', 'TAGGED', 'SUBMITTED', 'MATCHED'].map((s) => (
           <button key={s} type="button" onClick={() => applyFilter(s)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${filter === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}>
+            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${filter === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}>
             {s === '' ? 'All' : s.replace('_', ' ')}
           </button>
         ))}

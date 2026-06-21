@@ -38,6 +38,9 @@
     background-size: 28px 28px;
   }
 
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
   .bg-dot-grid-indigo {
     background-image: radial-gradient(circle, #6366f1 1px, transparent 1px);
     background-size: 32px 32px;

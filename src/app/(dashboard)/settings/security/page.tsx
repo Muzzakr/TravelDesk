@@ -225,7 +225,7 @@ export default function SecuritySettingsPage() {
             </div>
             <button type="button" onClick={() => setSetupStep('verify')}
               className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 text-sm font-semibold">
-              I've scanned it →
+              I&apos;ve scanned it →
             </button>
             <button type="button" onClick={() => setSetupStep('idle')}
               className="w-full rounded-xl border border-gray-200 py-2 text-sm text-gray-500 hover:bg-gray-50">

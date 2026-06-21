@@ -36,14 +36,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['TRAVEL_AGENT', 'EMPLOYEE'].includes(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'EMPLOYEE'].includes(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const isAgent = session.user.role === 'TRAVEL_AGENT'
+  const isAgent = ['TRAVEL_AGENT', 'TRAVEL_MANAGER'].includes(session.user.role)
   const travelRequest = await prisma.travelRequest.findFirst({
     where: {
       id: params.id,
       companyId: session.user.companyId,
-      ...(isAgent ? { agentId: session.user.id } : { employeeId: session.user.id }),
+      ...(isAgent ? {} : { employeeId: session.user.id }),
     },
     include: { employee: { select: { name: true, email: true } } },
   })

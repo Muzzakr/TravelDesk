@@ -68,10 +68,10 @@ export async function GET(req: NextRequest) {
   for (const company of companies) {
     const companyId = company.id
 
-    // Fetch recipients (SYSTEM_ADMIN + MANAGER)
+    // Fetch recipients (SYSTEM_ADMIN + MANAGER + TRAVEL_MANAGER + FINANCE_ADMIN)
     const recipients = await prisma.user.findMany({
-      where: { companyId, role: { in: ['SYSTEM_ADMIN', 'MANAGER'] }, isActive: true },
-      select: { email: true, name: true },
+      where: { companyId, role: { in: ['SYSTEM_ADMIN', 'MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN'] }, isActive: true },
+      select: { email: true, name: true, role: true },
     })
     if (recipients.length === 0) continue
 
@@ -151,16 +151,26 @@ export async function GET(req: NextRequest) {
       </div>
 
       <p style="margin:24px 0 0">
-        <a href="${process.env.NEXTAUTH_URL ?? ''}/admin/stats" style="background:#4f46e5;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View Full Report →</a>
+        <a href="__REPORT_HREF__" style="background:#4f46e5;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View Full Report →</a>
       </p>
     `)
 
+    const baseUrl = process.env.NEXTAUTH_URL ?? ''
+    const reportHrefByRole: Record<string, string> = {
+      SYSTEM_ADMIN: `${baseUrl}/admin/stats`,
+      FINANCE_ADMIN: `${baseUrl}/finance/reports`,
+      MANAGER: `${baseUrl}/manager/reports`,
+      TRAVEL_MANAGER: `${baseUrl}/manager/reports`,
+    }
+
     for (const recipient of recipients) {
+      const reportHref = reportHrefByRole[recipient.role] ?? `${baseUrl}/manager/reports`
+      const personalHtml = html.replace('__REPORT_HREF__', reportHref)
       await transporter.sendMail({
         from: FROM,
         to: recipient.email,
         subject: `Monthly Report — ${monthLabel} · ${company.name}`,
-        html,
+        html: personalHtml,
       }).catch(err => console.error(`[cron] email failed for ${recipient.email}:`, err))
       totalEmailsSent++
     }

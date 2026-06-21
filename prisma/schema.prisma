@@ -46,6 +46,7 @@ enum Role {
 enum TokenType {
   INVITE
   PASSWORD_RESET
+  GOOGLE_VERIFY
 }
 
 model User {
@@ -55,9 +56,10 @@ model User {
   name          String
   role          Role      @default(EMPLOYEE)
   passwordHash  String?
-  mfaSecret     String?
-  mfaEnabled    Boolean   @default(false)
-  managerId     String?
+  mfaSecret      String?
+  mfaEnabled     Boolean   @default(false)
+  googleVerified Boolean   @default(false)
+  managerId      String?
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

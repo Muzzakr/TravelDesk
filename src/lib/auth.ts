@@ -1,8 +1,11 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
+import Google from 'next-auth/providers/google'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { writeAuditLog } from './audit'
+import { createVerificationToken } from './tokens'
+import { sendGoogleVerificationEmail } from './mail'
 import type { Role } from '@/types/user'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -13,6 +16,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/login',
   },
   providers: [
+    Google({
+      clientId:     process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
     Credentials({
       name: 'credentials',
       credentials: {
@@ -72,20 +79,64 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.companyId = (user as { companyId: string }).companyId
-        token.role = (user as { role: Role }).role
+    async signIn({ user, account }) {
+      if (account?.provider !== 'google') return true
+
+      const dbUser = await prisma.user.findFirst({
+        where: { email: user.email!, isActive: true },
+      })
+      if (!dbUser) return '/login?google=notfound'
+
+      if (!dbUser.googleVerified) {
+        try {
+          const raw = await createVerificationToken(dbUser.id, 'GOOGLE_VERIFY')
+          await sendGoogleVerificationEmail(dbUser.email, dbUser.name, raw)
+        } catch (err) {
+          console.error('Google verification email failed:', err)
+        }
+        return '/login?google=pending'
+      }
+
+      try {
+        await writeAuditLog({
+          companyId: dbUser.companyId,
+          actorId: dbUser.id,
+          action: 'LOGIN_GOOGLE',
+          entityType: 'User',
+          entityId: dbUser.id,
+          payload: { email: dbUser.email, role: dbUser.role },
+        })
+      } catch {}
+
+      return true
+    },
+
+    async jwt({ token, user, account }) {
+      if (account?.provider === 'google') {
+        const dbUser = await prisma.user.findFirst({
+          where: { email: token.email!, isActive: true },
+        })
+        if (dbUser) {
+          token.id         = dbUser.id
+          token.companyId  = dbUser.companyId
+          token.role       = dbUser.role
+          token.mfaEnabled = dbUser.mfaEnabled
+          token.mfaVerified = false
+        }
+      } else if (user) {
+        token.id         = user.id
+        token.companyId  = (user as { companyId: string }).companyId
+        token.role       = (user as { role: Role }).role
         token.mfaEnabled = (user as { mfaEnabled: boolean }).mfaEnabled
         token.mfaVerified = false
       }
       return token
     },
+
     async session({ session, token }) {
-      session.user.id = token.id as string
-      session.user.companyId = token.companyId as string
-      session.user.role = token.role as Role
+      session.user.id         = token.id as string
+      session.user.companyId  = token.companyId as string
+      session.user.role       = token.role as Role
       session.user.mfaEnabled = token.mfaEnabled as boolean
       session.user.mfaVerified = token.mfaVerified as boolean
       return session

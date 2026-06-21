@@ -39,6 +39,22 @@ function table(rows: string) {
 
 // ─── Auth emails ──────────────────────────────────────────────────────────────
 
+export async function sendGoogleVerificationEmail(to: string, name: string, rawToken: string) {
+  const link = `${APP}/api/auth/google-verify?token=${rawToken}`
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: 'Confirm your Google login — M4U Travel',
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Confirm your Google login</h2>
+      <p style="color:#374151;margin:0">Hi ${name}, someone just signed in to your M4U Travel account using Google.</p>
+      <p style="color:#374151;margin-top:8px">Click the button below to confirm it was you. After confirming, you can always sign in with Google instantly.</p>
+      ${btn(link, 'Confirm Google login')}
+      <p style="color:#9ca3af;font-size:12px;margin-top:20px">This link expires in 24 hours. If this wasn't you, ignore this email — your account is still safe.</p>
+    `),
+  })
+}
+
 export async function sendInviteEmail(to: string, name: string, rawToken: string) {
   const link = `${APP}/set-password?token=${rawToken}`
   await transporter.sendMail({

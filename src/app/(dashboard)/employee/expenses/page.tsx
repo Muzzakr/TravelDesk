@@ -1,6 +1,7 @@
 'use client'
 
 import React, { Suspense, useState, useEffect } from 'react'
+import { compressImageFile } from '@/lib/compress'
 import { useSearchParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
@@ -244,8 +245,9 @@ function ExpensesContent() {
     }
 
     if (pendingFile && data.expense) {
+      const compressed = await compressImageFile(pendingFile)
       const fd = new FormData()
-      fd.append('file', pendingFile)
+      fd.append('file', compressed)
       fd.append('expenseId', data.expense.id)
       const uploadRes = await fetch('/api/receipts/upload', { method: 'POST', body: fd })
       if (!uploadRes.ok) {
@@ -274,8 +276,9 @@ function ExpensesContent() {
   async function handleQuickReceiptUpload(expenseId: string, file: File) {
     setUploadingReceiptFor(expenseId)
     setReceiptUploadError('')
+    const compressed = await compressImageFile(file)
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', compressed)
     fd.append('expenseId', expenseId)
     const res = await fetch('/api/receipts/upload', { method: 'POST', body: fd })
     if (!res.ok) {

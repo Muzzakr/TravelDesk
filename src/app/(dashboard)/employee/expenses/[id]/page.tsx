@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { compressImageFile } from '@/lib/compress'
 import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
@@ -139,8 +140,9 @@ export default function ExpenseDetailPage() {
     setUploadingReceipt(true)
     setUploadError('')
     try {
+      const compressed = await compressImageFile(file)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', compressed)
       fd.append('expenseId', id)
       const res = await fetch('/api/receipts/upload', { method: 'POST', body: fd })
       if (!res.ok) {

@@ -46,6 +46,7 @@ function LoginForm() {
     const home: Record<string, string> = {
       SYSTEM_ADMIN: '/admin',
       MANAGER: '/manager',
+      TRAVEL_MANAGER: '/manager',
       TRAVEL_AGENT: '/agent',
       FINANCE_ADMIN: '/finance',
     }

@@ -726,6 +726,25 @@ export default function AdminEventsPage() {
                 </div>
               </button>
             ))}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between rounded-xl border bg-white px-4 py-3">
+                <p className="text-xs text-gray-500">
+                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, events.length)} of {events.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-40">‹</button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                    <button key={n} type="button" onClick={() => setPage(n)}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium ${n === page ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                      {n}
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                    className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-40">›</button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Desktop table */}

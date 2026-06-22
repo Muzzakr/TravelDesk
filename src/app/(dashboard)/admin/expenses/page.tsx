@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
+import { Receipt, Clock, CheckCircle, CreditCard } from 'lucide-react'
 
 type Expense = {
   id: string
@@ -21,16 +22,25 @@ const STATUS_BADGE: Record<string, 'blue' | 'green' | 'gray' | 'red' | 'yellow'>
   APPROVED: 'green', REJECTED: 'red', PAID: 'green',
 }
 
-const STATUS_OPTIONS = ['', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PAID', 'DRAFT']
+const STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'UNDER_REVIEW', label: 'Under review' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'PAID', label: 'Paid' },
+  { value: 'DRAFT', label: 'Draft' },
+]
 
 export default function AdminExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]   = useState(true)
   const [statusFilter, setStatusFilter] = useState('SUBMITTED')
-  const [acting, setActing] = useState<string | null>(null)
+  const [search, setSearch]     = useState('')
+  const [acting, setActing]     = useState<string | null>(null)
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectNote, setRejectNote] = useState('')
-  const [rejectErr, setRejectErr] = useState('')
+  const [rejectErr, setRejectErr]   = useState('')
 
   async function load() {
     setLoading(true)
@@ -88,12 +98,41 @@ export default function AdminExpensesPage() {
     URL.revokeObjectURL(url)
   }
 
-  const filtered = expenses.filter(e => !statusFilter || e.status === statusFilter)
+  // KPI counts
+  const counts = useMemo(() => ({
+    total:    expenses.length,
+    pending:  expenses.filter(e => e.status === 'SUBMITTED' || e.status === 'UNDER_REVIEW').length,
+    approved: expenses.filter(e => e.status === 'APPROVED').length,
+    paid:     expenses.filter(e => e.status === 'PAID').length,
+  }), [expenses])
+
+  const KPI_CARDS = [
+    { label: 'Total expenses',       value: counts.total,    Icon: Receipt,      color: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Awaiting approval',    value: counts.pending,  Icon: Clock,        color: 'bg-amber-50 text-amber-600' },
+    { label: 'Approved',             value: counts.approved, Icon: CheckCircle,  color: 'bg-green-50 text-green-600' },
+    { label: 'Paid',                 value: counts.paid,     Icon: CreditCard,   color: 'bg-blue-50 text-blue-600' },
+  ]
+
+  // Client-side filter + search
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return expenses.filter(e => {
+      if (statusFilter && e.status !== statusFilter) return false
+      if (!q) return true
+      return (
+        e.employee.name.toLowerCase().includes(q) ||
+        e.description.toLowerCase().includes(q) ||
+        e.event.eventName.toLowerCase().includes(q) ||
+        e.event.eventCode.toLowerCase().includes(q) ||
+        (e.merchantName ?? '').toLowerCase().includes(q)
+      )
+    })
+  }, [expenses, statusFilter, search])
 
   return (
     <div className="space-y-6">
 
-      {/* Reject modal */}
+      {/* ── Reject modal ── */}
       {rejectId && (
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setRejectId(null); setRejectNote(''); setRejectErr('') }} />
@@ -120,68 +159,110 @@ export default function AdminExpensesPage() {
         </>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-sm text-gray-500 mt-0.5">All company expenses — approve or reject directly</p>
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">All Expenses</h1>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{expenses.length} total</span>
+          <button type="button" onClick={exportCSV}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Export CSV
+          </button>
         </div>
-        <button type="button" onClick={exportCSV}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-          Export CSV
-        </button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      {/* ── KPI cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {KPI_CARDS.map(({ label, value, Icon, color }) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-9 h-9 rounded-xl ${color} flex items-center justify-center`}>
+                <Icon className="w-5 h-5" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filters ── */}
+      <div className="flex flex-wrap gap-2">
         <select title="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s || 'All statuses'}</option>)}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white focus:border-indigo-500 outline-none">
+          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+
+        <div className="flex gap-1 flex-1 min-w-[180px]">
+          <input
+            type="text"
+            placeholder="Search employee, description, event…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm flex-1 focus:border-indigo-500 outline-none"
+          />
+          {(statusFilter !== 'SUBMITTED' || search) && (
+            <button type="button" onClick={() => { setStatusFilter('SUBMITTED'); setSearch('') }}
+              className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <p className="text-sm text-gray-400 py-8 text-center">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">No expenses found.</div>
+        <div className="rounded-2xl border bg-white p-10 text-center">
+          <p className="text-sm text-gray-500 font-medium">No expenses found</p>
+          {(statusFilter || search) && (
+            <button type="button" onClick={() => { setStatusFilter(''); setSearch('') }}
+              className="mt-3 text-xs text-indigo-600 hover:underline">Clear filters</button>
+          )}
+        </div>
       ) : (
         <>
-          {/* Mobile */}
+          {/* ── Mobile cards ── */}
           <div className="sm:hidden space-y-3">
             {filtered.map(e => (
-              <div key={e.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-gray-900">{e.employee.name}</p>
-                    <p className="text-sm text-gray-600">{e.description}</p>
-                    <p className="text-xs text-gray-400">{e.event.eventName}</p>
+              <div key={e.id} className="rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-sm space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 text-sm leading-snug">{e.employee.name}</p>
+                    <p className="text-sm text-gray-600 mt-0.5 line-clamp-2">{e.description}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{e.event.eventName}</p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-semibold text-gray-900">${Number(e.amountUsd).toFixed(2)}</p>
-                    <Badge variant={STATUS_BADGE[e.status] ?? 'gray'}>{e.status}</Badge>
+                  <div className="text-right shrink-0 space-y-1">
+                    <p className="font-bold text-gray-900 text-base">${Number(e.amountUsd).toFixed(2)}</p>
+                    <Badge variant={STATUS_BADGE[e.status] ?? 'gray'}>{e.status.replace(/_/g, ' ')}</Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-gray-50">
                   {e.status === 'SUBMITTED' && (
                     <>
                       <button type="button" disabled={acting === e.id} onClick={() => approve(e.id)}
-                        className="rounded-lg bg-green-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-green-700 disabled:opacity-50 min-h-[44px]">
+                        className="rounded-xl bg-green-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-green-700 disabled:opacity-50 min-h-[44px] flex-1">
                         {acting === e.id ? '…' : 'Approve'}
                       </button>
                       <button type="button" onClick={() => { setRejectId(e.id); setRejectNote(''); setRejectErr('') }}
-                        className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-4 py-2.5 text-sm font-medium hover:bg-red-100 min-h-[44px]">
+                        className="rounded-xl border border-red-200 bg-red-50 text-red-600 px-4 py-2.5 text-sm font-medium hover:bg-red-100 min-h-[44px] flex-1">
                         Reject
                       </button>
                     </>
                   )}
-                  <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs font-medium text-indigo-600 hover:underline">View →</Link>
+                  <Link href={`/manager/approvals/expense/${e.id}`}
+                    className="text-xs font-medium text-indigo-600 hover:underline px-1 py-2 min-h-[44px] flex items-center">
+                    View details →
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Desktop */}
-          <div className="hidden sm:block rounded-xl border bg-white overflow-x-auto">
+          {/* ── Desktop table ── */}
+          <div className="hidden sm:block rounded-2xl border border-gray-100 bg-white shadow-sm overflow-x-auto">
             <table className="w-full divide-y divide-gray-100 text-sm">
-              <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+              <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-400">
                 <tr>
                   <th className="px-4 py-3 text-left">Employee</th>
                   <th className="px-4 py-3 text-left">Description</th>
@@ -195,34 +276,45 @@ export default function AdminExpensesPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map(e => (
-                  <tr key={e.id} className="hover:bg-gray-50">
+                  <tr key={e.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{e.employee.name}</p>
-                      <p className="text-xs text-gray-400">{e.employee.email}</p>
+                      <p className="font-semibold text-gray-900">{e.employee.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{e.employee.email}</p>
                     </td>
-                    <td className="px-4 py-3 text-gray-700 max-w-[180px] truncate">{e.description}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{e.category.replace(/_/g, ' ')}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs max-w-[140px] truncate">{e.event.eventName}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">${Number(e.amountUsd).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-gray-700 max-w-[200px]">
+                      <p className="truncate">{e.description}</p>
+                      {e.merchantName && <p className="text-xs text-gray-400 truncate">{e.merchantName}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{e.category.replace(/_/g, ' ')}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs max-w-[150px]">
+                      <p className="truncate">{e.event.eventName}</p>
+                      <p className="text-gray-400 font-mono">{e.event.eventCode}</p>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-gray-900 whitespace-nowrap">${Number(e.amountUsd).toFixed(2)}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                       {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
-                    <td className="px-4 py-3"><Badge variant={STATUS_BADGE[e.status] ?? 'gray'}>{e.status}</Badge></td>
+                    <td className="px-4 py-3">
+                      <Badge variant={STATUS_BADGE[e.status] ?? 'gray'}>{e.status.replace(/_/g, ' ')}</Badge>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {e.status === 'SUBMITTED' && (
                           <>
                             <button type="button" disabled={acting === e.id} onClick={() => approve(e.id)}
-                              className="rounded-lg bg-green-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-green-700 disabled:opacity-50">
+                              className="rounded-lg bg-green-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
                               {acting === e.id ? '…' : 'Approve'}
                             </button>
                             <button type="button" onClick={() => { setRejectId(e.id); setRejectNote(''); setRejectErr('') }}
-                              className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-3 py-1.5 text-xs font-medium hover:bg-red-100">
+                              className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-3 py-1.5 text-xs font-medium hover:bg-red-100 whitespace-nowrap">
                               Reject
                             </button>
                           </>
                         )}
-                        <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs font-medium text-indigo-600 hover:underline whitespace-nowrap">View →</Link>
+                        <Link href={`/manager/approvals/expense/${e.id}`}
+                          className="text-xs font-medium text-indigo-600 hover:underline whitespace-nowrap">
+                          View →
+                        </Link>
                       </div>
                     </td>
                   </tr>

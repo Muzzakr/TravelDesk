@@ -22,7 +22,7 @@ export default async function ApproveExpensePage({ params }: { params: { id: str
   const companyId = session.user.companyId
   const role = session.user.role ?? ''
 
-  if (!['MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(role)) redirect('/manager')
+  if (!['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(role)) redirect('/manager')
 
   const expense = await prisma.expense.findFirst({
     where: { id: params.id, companyId },

@@ -418,11 +418,11 @@ export default function AdminEventsPage() {
       {/* ── Edit modal ────────────────────────────────── */}
       {editModal && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
           onMouseDown={(e) => { if (e.target === e.currentTarget) setEditModal(null) }}
         >
           <div className="absolute inset-0 bg-black/50" onMouseDown={() => setEditModal(null)} />
-          <div className="relative w-full max-w-lg rounded-xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl bg-white shadow-2xl flex flex-col max-h-[90dvh]">
             <form onSubmit={saveEdit} className="flex flex-col max-h-[90vh]">
               {/* Modal header */}
               <div className="flex items-start justify-between border-b px-6 py-4">

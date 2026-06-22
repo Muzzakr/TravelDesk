@@ -8,7 +8,14 @@
   }
 
   body {
-    @apply bg-white text-gray-900;
+    @apply bg-gray-50 text-gray-900;
+  }
+
+  /* Prevent iOS Safari from zooming on input focus (requires font-size >= 16px) */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
 }
 

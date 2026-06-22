@@ -128,10 +128,10 @@ export default async function SpendCategoriesPage({
       <h1 className="text-2xl font-bold text-gray-900">Spend overview</h1>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-xl p-1 w-full">
         <Link
           href="?tab=expenses"
-          className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
+          className={`rounded-lg px-5 py-2.5 text-sm font-medium text-center transition-colors ${
             activeTab === 'expenses'
               ? 'bg-white text-gray-900 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
@@ -141,7 +141,7 @@ export default async function SpendCategoriesPage({
         </Link>
         <Link
           href="?tab=travel"
-          className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
+          className={`rounded-lg px-5 py-2.5 text-sm font-medium text-center transition-colors ${
             activeTab === 'travel'
               ? 'bg-white text-gray-900 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
@@ -154,22 +154,22 @@ export default async function SpendCategoriesPage({
       {activeTab === 'expenses' ? (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-gray-500">Total spend</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-white p-3 sm:p-5 shadow-sm">
+              <p className="text-xs sm:text-sm text-gray-500">Total spend</p>
+              <p className="mt-1 text-xl sm:text-3xl font-bold text-gray-900">
                 ${grandTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </p>
             </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-gray-500">Approved & paid</p>
-              <p className="mt-1 text-3xl font-bold text-green-600">
+            <div className="rounded-xl bg-white p-3 sm:p-5 shadow-sm">
+              <p className="text-xs sm:text-sm text-gray-500">Approved & paid</p>
+              <p className="mt-1 text-xl sm:text-3xl font-bold text-green-600">
                 ${approvedTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </p>
             </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-gray-500">Pending approval</p>
-              <p className="mt-1 text-3xl font-bold text-yellow-500">
+            <div className="rounded-xl bg-white p-3 sm:p-5 shadow-sm">
+              <p className="text-xs sm:text-sm text-gray-500">Pending approval</p>
+              <p className="mt-1 text-xl sm:text-3xl font-bold text-yellow-500">
                 ${pendingTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </p>
             </div>
@@ -183,70 +183,100 @@ export default async function SpendCategoriesPage({
                 No approved expenses yet.
               </div>
             ) : (
-              <div className="rounded-xl border bg-white overflow-hidden">
-                <table className="w-full text-sm divide-y divide-gray-100">
-                  <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
-                    <tr>
-                      <th className="px-5 py-3 text-left">Category</th>
-                      <th className="px-5 py-3 text-right">Expenses</th>
-                      <th className="px-5 py-3 text-right">Total</th>
-                      <th className="px-5 py-3 text-left w-56">Share</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {expensesByCategory.map((cat) => {
-                      const amount = Number(cat._sum.amountUsd ?? 0)
-                      const pct = Math.round((amount / maxCategory) * 100)
-                      const sharePct =
-                        approvedTotal > 0 ? Math.round((amount / approvedTotal) * 100) : 0
-                      const meta =
-                        CATEGORY_META[cat.category] ?? {
-                          label: cat.category,
-                          Icon: PlusCircleIcon,
-                          color: 'bg-gray-400',
-                        }
-                      return (
-                        <tr key={cat.category} className="hover:bg-gray-50">
-                          <td className="px-5 py-4 font-medium text-gray-900">
-                            <meta.Icon className="w-4 h-4 inline shrink-0 mr-1.5" />
+              <>
+                {/* Mobile cards */}
+                <div className="sm:hidden space-y-2">
+                  {expensesByCategory.map((cat) => {
+                    const amount = Number(cat._sum.amountUsd ?? 0)
+                    const pct = Math.round((amount / maxCategory) * 100)
+                    const sharePct = approvedTotal > 0 ? Math.round((amount / approvedTotal) * 100) : 0
+                    const meta = CATEGORY_META[cat.category] ?? { label: cat.category, Icon: PlusCircleIcon, color: 'bg-gray-400' }
+                    return (
+                      <div key={cat.category} className="rounded-xl border bg-white px-4 py-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-gray-900 flex items-center gap-1.5">
+                            <meta.Icon className="w-4 h-4 shrink-0" />
                             {meta.label}
-                          </td>
-                          <td className="px-5 py-4 text-right text-gray-500">{cat._count.id}</td>
-                          <td className="px-5 py-4 text-right font-semibold text-gray-900">
-                            ${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-2 rounded-full bg-gray-100">
-                                {/* eslint-disable-next-line react/forbid-component-props */}
-                                <div
-                                  className={`h-2 rounded-full ${meta.color}`}
-                                  style={{ width: `${pct}%` }}
-                                />
+                          </p>
+                          <p className="font-semibold text-gray-900">${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 rounded-full bg-gray-100">
+                            {/* eslint-disable-next-line react/forbid-component-props */}
+                            <div className={`h-2 rounded-full ${meta.color}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-gray-400 w-10 text-right">{sharePct}% · {cat._count.id}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden sm:block rounded-xl border bg-white overflow-x-auto">
+                  <table className="w-full text-sm divide-y divide-gray-100">
+                    <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                      <tr>
+                        <th className="px-5 py-3 text-left">Category</th>
+                        <th className="px-5 py-3 text-right">Expenses</th>
+                        <th className="px-5 py-3 text-right">Total</th>
+                        <th className="px-5 py-3 text-left w-56">Share</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {expensesByCategory.map((cat) => {
+                        const amount = Number(cat._sum.amountUsd ?? 0)
+                        const pct = Math.round((amount / maxCategory) * 100)
+                        const sharePct =
+                          approvedTotal > 0 ? Math.round((amount / approvedTotal) * 100) : 0
+                        const meta =
+                          CATEGORY_META[cat.category] ?? {
+                            label: cat.category,
+                            Icon: PlusCircleIcon,
+                            color: 'bg-gray-400',
+                          }
+                        return (
+                          <tr key={cat.category} className="hover:bg-gray-50">
+                            <td className="px-5 py-4 font-medium text-gray-900">
+                              <meta.Icon className="w-4 h-4 inline shrink-0 mr-1.5" />
+                              {meta.label}
+                            </td>
+                            <td className="px-5 py-4 text-right text-gray-500">{cat._count.id}</td>
+                            <td className="px-5 py-4 text-right font-semibold text-gray-900">
+                              ${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-2 rounded-full bg-gray-100">
+                                  {/* eslint-disable-next-line react/forbid-component-props */}
+                                  <div
+                                    className={`h-2 rounded-full ${meta.color}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-400 w-8 text-right">
+                                  {sharePct}%
+                                </span>
                               </div>
-                              <span className="text-xs text-gray-400 w-8 text-right">
-                                {sharePct}%
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                  <tfoot className="border-t-2 border-gray-200 bg-gray-50">
-                    <tr>
-                      <td className="px-5 py-3 text-sm font-semibold text-gray-700">Total</td>
-                      <td className="px-5 py-3 text-right text-sm text-gray-500">
-                        {expensesByCategory.reduce((s, c) => s + c._count.id, 0)}
-                      </td>
-                      <td className="px-5 py-3 text-right text-sm font-bold text-gray-900">
-                        ${approvedTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                      </td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot className="border-t-2 border-gray-200 bg-gray-50">
+                      <tr>
+                        <td className="px-5 py-3 text-sm font-semibold text-gray-700">Total</td>
+                        <td className="px-5 py-3 text-right text-sm text-gray-500">
+                          {expensesByCategory.reduce((s, c) => s + c._count.id, 0)}
+                        </td>
+                        <td className="px-5 py-3 text-right text-sm font-bold text-gray-900">
+                          ${approvedTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
             )}
           </section>
 
@@ -258,59 +288,91 @@ export default async function SpendCategoriesPage({
                 No approved expenses yet.
               </div>
             ) : (
-              <div className="rounded-xl border bg-white overflow-hidden">
-                <table className="w-full text-sm divide-y divide-gray-100">
-                  <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
-                    <tr>
-                      <th className="px-5 py-3 text-left w-8">#</th>
-                      <th className="px-5 py-3 text-left">Employee</th>
-                      <th className="px-5 py-3 text-left">Role</th>
-                      <th className="px-5 py-3 text-right">Approved spend</th>
-                      <th className="px-5 py-3 text-left w-48">Share</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {topSpenders.map((s, i) => {
-                      const info = spenderMap[s.employeeId]
-                      const amount = Number(s._sum.amountUsd ?? 0)
-                      const sharePct =
-                        approvedTotal > 0 ? Math.round((amount / approvedTotal) * 100) : 0
-                      return (
-                        <tr key={s.employeeId} className="hover:bg-gray-50">
-                          <td className="px-5 py-3 text-xs text-gray-400">{i + 1}.</td>
-                          <td className="px-5 py-3 font-medium text-gray-900">
+              <>
+                {/* Mobile cards */}
+                <div className="sm:hidden space-y-2">
+                  {topSpenders.map((s, i) => {
+                    const info = spenderMap[s.employeeId]
+                    const amount = Number(s._sum.amountUsd ?? 0)
+                    const sharePct = approvedTotal > 0 ? Math.round((amount / approvedTotal) * 100) : 0
+                    return (
+                      <div key={s.employeeId} className="rounded-xl border bg-white px-4 py-3 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-gray-900">
+                            <span className="text-gray-400 mr-1.5">{i + 1}.</span>
                             {info?.name ?? 'Unknown'}
-                          </td>
-                          <td className="px-5 py-3">
-                            {info?.role && (
-                              <Badge variant={roleBadge[info.role] ?? 'gray'}>
-                                {info.role.replace(/_/g, ' ')}
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="px-5 py-3 text-right font-semibold text-gray-800">
-                            ${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                          </td>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-2 rounded-full bg-gray-100">
-                                {/* eslint-disable-next-line react/forbid-component-props */}
-                                <div
-                                  className="h-2 rounded-full bg-indigo-500"
-                                  style={{ width: `${sharePct}%` }}
-                                />
+                          </p>
+                          <p className="font-semibold text-gray-800">${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>
+                        </div>
+                        {info?.role && (
+                          <Badge variant={roleBadge[info.role] ?? 'gray'}>{info.role.replace(/_/g, ' ')}</Badge>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 rounded-full bg-gray-100">
+                            {/* eslint-disable-next-line react/forbid-component-props */}
+                            <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${sharePct}%` }} />
+                          </div>
+                          <span className="text-xs text-gray-400 w-8 text-right">{sharePct}%</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden sm:block rounded-xl border bg-white overflow-x-auto">
+                  <table className="w-full text-sm divide-y divide-gray-100">
+                    <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                      <tr>
+                        <th className="px-5 py-3 text-left w-8">#</th>
+                        <th className="px-5 py-3 text-left">Employee</th>
+                        <th className="px-5 py-3 text-left">Role</th>
+                        <th className="px-5 py-3 text-right">Approved spend</th>
+                        <th className="px-5 py-3 text-left w-48">Share</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {topSpenders.map((s, i) => {
+                        const info = spenderMap[s.employeeId]
+                        const amount = Number(s._sum.amountUsd ?? 0)
+                        const sharePct =
+                          approvedTotal > 0 ? Math.round((amount / approvedTotal) * 100) : 0
+                        return (
+                          <tr key={s.employeeId} className="hover:bg-gray-50">
+                            <td className="px-5 py-3 text-xs text-gray-400">{i + 1}.</td>
+                            <td className="px-5 py-3 font-medium text-gray-900">
+                              {info?.name ?? 'Unknown'}
+                            </td>
+                            <td className="px-5 py-3">
+                              {info?.role && (
+                                <Badge variant={roleBadge[info.role] ?? 'gray'}>
+                                  {info.role.replace(/_/g, ' ')}
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="px-5 py-3 text-right font-semibold text-gray-800">
+                              ${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-2 rounded-full bg-gray-100">
+                                  {/* eslint-disable-next-line react/forbid-component-props */}
+                                  <div
+                                    className="h-2 rounded-full bg-indigo-500"
+                                    style={{ width: `${sharePct}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-400 w-8 text-right">
+                                  {sharePct}%
+                                </span>
                               </div>
-                              <span className="text-xs text-gray-400 w-8 text-right">
-                                {sharePct}%
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
         </>
@@ -342,7 +404,29 @@ export default async function SpendCategoriesPage({
           {trByStatus.length > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-semibold text-gray-800">By status</h2>
-              <div className="rounded-xl border bg-white overflow-hidden">
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {trByStatus.map(({ status, label, count }) => {
+                  const pct = trTotal > 0 ? Math.round((count / trTotal) * 100) : 0
+                  return (
+                    <div key={status} className="rounded-xl border bg-white px-4 py-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant={statusToBadgeVariant(status)}>{label}</Badge>
+                        <span className="font-semibold text-gray-700">{count}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 rounded-full bg-gray-100">
+                          {/* eslint-disable-next-line react/forbid-component-props */}
+                          <div className="h-2 rounded-full bg-indigo-400" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-gray-400 w-8 text-right">{pct}%</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden sm:block rounded-xl border bg-white overflow-x-auto">
                 <table className="w-full text-sm divide-y divide-gray-100">
                   <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
                     <tr>

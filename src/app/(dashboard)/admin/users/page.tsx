@@ -343,8 +343,8 @@ export default function AdminUsersPage() {
       {inviteLink && (
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setInviteLink(null)} />
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Email could not be sent</h2>
@@ -377,9 +377,9 @@ export default function AdminUsersPage() {
       {resetPassUser && (
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setResetPassUser(null)} />
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
             <form onSubmit={submitResetPass}
-              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
+              className="pointer-events-auto w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
               onClick={e => e.stopPropagation()}>
               <h2 className="text-base font-semibold text-gray-900">Set new password</h2>
               <p className="text-sm text-gray-500">Setting a new password for <strong>{resetPassUser.name}</strong>.</p>
@@ -510,9 +510,9 @@ export default function AdminUsersPage() {
       {editModal && (
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setEditModal(null); setEditError('') }} />
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
             <form onSubmit={saveEdit}
-              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
+              className="pointer-events-auto w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
               onClick={e => e.stopPropagation()}>
               <h2 className="text-lg font-semibold text-gray-900">Edit user</h2>
               <div className="flex flex-col gap-1">

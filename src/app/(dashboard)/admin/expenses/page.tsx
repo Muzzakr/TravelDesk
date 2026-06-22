@@ -136,8 +136,8 @@ export default function AdminExpensesPage() {
       {rejectId && (
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setRejectId(null); setRejectNote(''); setRejectErr('') }} />
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <h2 className="text-base font-semibold text-gray-900">Reject expense</h2>
               <textarea rows={3} placeholder="Reason for rejection (required)"
                 value={rejectNote} onChange={e => setRejectNote(e.target.value)}

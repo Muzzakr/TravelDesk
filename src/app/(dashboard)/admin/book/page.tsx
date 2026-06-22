@@ -27,7 +27,7 @@ type CarData   = { pickupCity: string; pickupDate: string; pickupTime: string; r
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
-const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
+const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-base w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
 
 // ─── Small components ─────────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ function ProgressBar({ step }: { step: number }) {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${done ? 'bg-indigo-500 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {done ? <Check className="w-4 h-4" /> : n}
               </div>
-              <span className={`mt-1 text-xs font-medium hidden sm:block ${active ? 'text-indigo-600' : done ? 'text-indigo-400' : 'text-gray-400'}`}>{label}</span>
+              <span className={`mt-1 text-[10px] sm:text-xs font-medium ${active ? 'text-indigo-600' : done ? 'text-indigo-400' : 'text-gray-400'}`}>{label}</span>
             </div>
             {i < steps.length - 1 && <div className={`flex-1 h-0.5 mx-2 rounded transition-colors ${step > n ? 'bg-indigo-400' : 'bg-gray-200'}`} />}
           </div>

@@ -123,7 +123,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
         </div>
         <button
           type="button" onClick={exportPdf} disabled={exporting || loading}
-          className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center gap-2"
+          className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 min-h-[44px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
           {exporting ? 'Exporting…' : '↓ Export PDF'}
         </button>
@@ -134,7 +134,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
         <div className="flex rounded-xl border border-gray-200 bg-white overflow-hidden">
           {(['weekly', 'monthly', 'custom'] as const).map((p) => (
             <button key={p} type="button" onClick={() => { setPeriod(p); setPage(1) }}
-              className={`px-4 py-2 text-sm font-medium transition-colors capitalize ${period === p ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-4 py-2.5 min-h-[44px] text-sm font-medium transition-colors capitalize ${period === p ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
               {p}
             </button>
           ))}
@@ -142,12 +142,12 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
         {period === 'custom' && (
           <div className="flex items-center gap-2">
             <input type="date" title="Start date" value={startDate} onChange={e => setStartDate(e.target.value)}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              className="rounded-lg border border-gray-200 px-3 py-2 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             <span className="text-gray-400 text-sm">→</span>
             <input type="date" title="End date" value={endDate} onChange={e => setEndDate(e.target.value)}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              className="rounded-lg border border-gray-200 px-3 py-2 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             <button type="button" onClick={() => load(1)}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Apply</button>
+              className="rounded-lg bg-indigo-600 px-4 py-2.5 min-h-[44px] text-sm font-semibold text-white hover:bg-indigo-700">Apply</button>
           </div>
         )}
         {loading && <span className="text-xs text-gray-400">Loading…</span>}
@@ -253,7 +253,27 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
           {data.pendingApprovals.length > 0 && (
             <section>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Pending approvals ({data.pendingApprovals.length})</p>
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/30 overflow-hidden">
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {data.pendingApprovals.map((p) => (
+                  <div key={p.id} className="rounded-xl border border-amber-200 bg-white px-4 py-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-gray-900 text-sm">{p.employee}</p>
+                      {p.amount > 0 && <p className="font-semibold text-gray-800 shrink-0">{fmtUsd(p.amount)}</p>}
+                    </div>
+                    <p className="text-xs text-gray-500">{p.type} · {p.event}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-gray-400">{new Date(p.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={statusToBadgeVariant(p.status.replace(/ /g, '_'))}>{p.status}</Badge>
+                        <Link href={p.href} className="text-xs font-medium text-indigo-600">View →</Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden sm:block rounded-2xl border border-amber-200 bg-amber-50/30 overflow-x-auto">
                 <table className="w-full text-sm divide-y divide-amber-100">
                   <thead className="bg-amber-50 text-xs font-semibold uppercase text-amber-700">
                     <tr>
@@ -294,10 +314,30 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
               </p>
               <input type="search" placeholder="Search employee, destination, event…" value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 w-64 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             </div>
-            <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-              <table className="w-full text-sm divide-y divide-gray-50">
+            {/* Mobile cards */}
+            <div className="sm:hidden space-y-2">
+              {filteredRecords.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-400">No records found.</p>
+              ) : filteredRecords.map((r) => (
+                <div key={r.id} className="rounded-xl border border-gray-100 bg-white px-4 py-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-gray-900 text-sm">{r.employee.name}</p>
+                    {r.estimatedCostUsd && <p className="font-semibold text-gray-800 shrink-0">{fmtUsd(Number(r.estimatedCostUsd))}</p>}
+                  </div>
+                  <p className="text-xs text-gray-500">{r.origin} → {r.destination}</p>
+                  <p className="text-xs text-gray-400 truncate">{r.event.eventCode} — {r.event.eventName}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-gray-400">{new Date(r.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
+                    <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block rounded-2xl border border-gray-100 bg-white overflow-x-auto">
+              <table className="min-w-[600px] w-full text-sm divide-y divide-gray-50">
                 <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                   <tr>
                     <th className="px-4 py-3 text-left">Employee</th>
@@ -331,9 +371,9 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                   </span>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setPage(p => Math.max(1, p - 1)); load(page - 1) }} disabled={data.records.page <= 1}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">← Prev</button>
+                      className="rounded-lg border border-gray-200 px-3 py-2.5 min-h-[44px] text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">← Prev</button>
                     <button type="button" onClick={() => { setPage(p => p + 1); load(page + 1) }} disabled={data.records.page * data.records.pageSize >= data.records.total}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">Next →</button>
+                      className="rounded-lg border border-gray-200 px-3 py-2.5 min-h-[44px] text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">Next →</button>
                   </div>
                 </div>
               )}
@@ -350,7 +390,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
               </div>
               <select title="Select event" value={selectedEventId}
                 onChange={e => { setSelectedEventId(e.target.value); load(1, e.target.value, selectedEmployeeId) }}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
                 <option value="">Select an event…</option>
                 {events.map(ev => <option key={ev.id} value={ev.id}>{ev.eventCode} — {ev.eventName}</option>)}
               </select>
@@ -391,7 +431,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
               <p className="text-sm font-semibold text-gray-900">Employee Analytics</p>
               <select title="Select employee" value={selectedEmployeeId}
                 onChange={e => { setSelectedEmployeeId(e.target.value); load(1, selectedEventId, e.target.value) }}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
                 <option value="">Select an employee…</option>
                 {employees.map(em => <option key={em.id} value={em.id}>{em.name}</option>)}
               </select>

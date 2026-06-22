@@ -6,7 +6,7 @@ import { writeAuditLog } from '@/lib/audit'
 export async function POST() {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(session.user.role ?? ''))
+  if (!['FINANCE_ADMIN', 'MANAGER', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(session.user.role ?? ''))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const companyId = session.user.companyId

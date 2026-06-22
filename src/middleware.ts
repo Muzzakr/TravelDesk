@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import type { Role } from '@/types/user'
@@ -10,7 +10,7 @@ const ROLE_PATHS: Record<string, Role[]> = {
   '/employee': ['EMPLOYEE', 'MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],
   '/manager': ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],
   '/agent': ['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN'],
-  '/finance': ['FINANCE_ADMIN', 'SYSTEM_ADMIN'],
+  '/finance': ['FINANCE_ADMIN', 'MANAGER', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN'],
   '/admin': ['SYSTEM_ADMIN'],
 }
 

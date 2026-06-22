@@ -163,13 +163,13 @@ export default async function AdminDashboard() {
       )}
 
       {/* ── KPI Cards ───────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href}
-            className={`rounded-xl border bg-white px-5 py-4 hover:shadow-md transition-all group ${k.urgent ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
-            <p className={`text-2xl font-bold ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
-            <p className="text-xs font-semibold text-gray-700 mt-0.5">{k.label}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">{k.sub}</p>
+            className={`rounded-xl border bg-white px-4 py-3 hover:shadow-md transition-all group ${k.urgent ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
+            <p className={`text-xl sm:text-2xl font-bold truncate ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
+            <p className="text-xs font-semibold text-gray-700 mt-0.5 line-clamp-1">{k.label}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{k.sub}</p>
           </Link>
         ))}
       </div>
@@ -230,8 +230,8 @@ export default async function AdminDashboard() {
 
           {/* Footer */}
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
-            <Link href="/employee/travel-requests" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
-            <Link href="/employee/travel-requests/new" className="text-xs text-gray-500 hover:underline">New request</Link>
+            <Link href="/employee/travel-requests" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
+            <Link href="/employee/travel-requests/new" className="inline-flex items-center text-xs text-gray-500 hover:underline px-1 py-2 min-h-[44px]">New request</Link>
           </div>
         </details>
 
@@ -266,8 +266,8 @@ export default async function AdminDashboard() {
           </div>
 
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
-            <Link href="/admin/events" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
-            <Link href="/finance/events" className="text-xs text-gray-500 hover:underline">Manage budgets</Link>
+            <Link href="/admin/events" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
+            <Link href="/finance/events" className="inline-flex items-center text-xs text-gray-500 hover:underline px-1 py-2 min-h-[44px]">Manage budgets</Link>
           </div>
         </details>
 
@@ -326,8 +326,8 @@ export default async function AdminDashboard() {
           )}
 
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
-            <Link href="/employee/expenses?view=admin" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
-            <Link href="/finance/payout-reports" className="text-xs text-gray-500 hover:underline">Generate payout</Link>
+            <Link href="/employee/expenses?view=admin" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
+            <Link href="/finance/payout-reports" className="inline-flex items-center text-xs text-gray-500 hover:underline px-1 py-2 min-h-[44px]">Generate payout</Link>
           </div>
         </details>
 
@@ -374,7 +374,7 @@ export default async function AdminDashboard() {
           )}
 
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
-            <Link href="/finance/payout-reports" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
+            <Link href="/finance/payout-reports" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
             <Link href="/finance/spend-analytics" className="text-xs text-gray-500 hover:underline">Spend analytics</Link>
           </div>
         </details>
@@ -422,7 +422,7 @@ export default async function AdminDashboard() {
                 <p className="text-xs text-gray-400">Recent activity</p>
               </div>
             </div>
-            <Link href="/admin/audit-log" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
+            <Link href="/admin/audit-log" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
           </div>
           <div className="divide-y divide-gray-50">
             {recentAudit.length === 0 ? (

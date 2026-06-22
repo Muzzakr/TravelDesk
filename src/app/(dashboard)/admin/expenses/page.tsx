@@ -98,7 +98,7 @@ export default function AdminExpensesPage() {
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setRejectId(null); setRejectNote(''); setRejectErr('') }} />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <div className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <h2 className="text-base font-semibold text-gray-900">Reject expense</h2>
               <textarea rows={3} placeholder="Reason for rejection (required)"
                 value={rejectNote} onChange={e => setRejectNote(e.target.value)}
@@ -107,11 +107,11 @@ export default function AdminExpensesPage() {
               <div className="flex gap-3">
                 <button type="button" disabled={!rejectNote.trim() || acting === rejectId}
                   onClick={() => reject(rejectId!)}
-                  className="rounded-xl bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                  className="rounded-xl bg-red-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-red-700 disabled:opacity-50 min-h-[44px]">
                   {acting === rejectId ? 'Rejecting…' : 'Reject'}
                 </button>
                 <button type="button" onClick={() => { setRejectId(null); setRejectNote(''); setRejectErr('') }}
-                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                  className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 min-h-[44px]">
                   Cancel
                 </button>
               </div>
@@ -163,11 +163,11 @@ export default function AdminExpensesPage() {
                   {e.status === 'SUBMITTED' && (
                     <>
                       <button type="button" disabled={acting === e.id} onClick={() => approve(e.id)}
-                        className="rounded-lg bg-green-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-green-700 disabled:opacity-50">
+                        className="rounded-lg bg-green-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-green-700 disabled:opacity-50 min-h-[44px]">
                         {acting === e.id ? '…' : 'Approve'}
                       </button>
                       <button type="button" onClick={() => { setRejectId(e.id); setRejectNote(''); setRejectErr('') }}
-                        className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-3 py-1.5 text-xs font-medium hover:bg-red-100">
+                        className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-4 py-2.5 text-sm font-medium hover:bg-red-100 min-h-[44px]">
                         Reject
                       </button>
                     </>
@@ -179,7 +179,7 @@ export default function AdminExpensesPage() {
           </div>
 
           {/* Desktop */}
-          <div className="hidden sm:block rounded-xl border bg-white overflow-hidden">
+          <div className="hidden sm:block rounded-xl border bg-white overflow-x-auto">
             <table className="w-full divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
                 <tr>

@@ -28,6 +28,12 @@ type PageData = {
   managers: { id: string; name: string }[]
 }
 
+function formatShortDate(dateStr: string | undefined): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'SUBMITTED', label: 'Submitted' },
@@ -200,7 +206,7 @@ export default function AdminTravelRequestsPage() {
               <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
             </div>
             <div className="flex items-center justify-between text-xs text-gray-400">
-              <span>{(r.travelDates as Record<string, string>).departureDate} → {(r.travelDates as Record<string, string>).returnDate}</span>
+              <span>{formatShortDate((r.travelDates as Record<string, string>).departureDate)} → {formatShortDate((r.travelDates as Record<string, string>).returnDate)}</span>
               {r.estimatedCostUsd && <span className="font-semibold text-gray-700">${Number(r.estimatedCostUsd).toFixed(0)}</span>}
             </div>
           </Link>
@@ -267,17 +273,17 @@ export default function AdminTravelRequestsPage() {
 
       {/* Pagination */}
       {data && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span className="text-gray-500 text-xs">
             Showing {((page - 1) * data.pagination.pageSize) + 1}–{Math.min(page * data.pagination.pageSize, data.pagination.total)} of {data.pagination.total}
           </span>
           <div className="flex gap-2">
             <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-              className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]">
               ← Prev
             </button>
             <button type="button" disabled={page >= data.pagination.totalPages} onClick={() => setPage(p => p + 1)}
-              className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]">
               Next →
             </button>
           </div>

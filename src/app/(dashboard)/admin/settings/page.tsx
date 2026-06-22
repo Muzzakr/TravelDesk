@@ -160,7 +160,7 @@ export default function AdminSettingsPage() {
             type="button"
             onClick={saveCompanyName}
             disabled={saving || name.trim() === settings.name}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-5 py-2.5 text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-5 py-3 text-sm font-semibold transition-colors min-h-[44px]"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving…' : 'Save changes'}
@@ -191,7 +191,7 @@ export default function AdminSettingsPage() {
           {logoErr && <p className="text-sm text-red-600 rounded-lg bg-red-50 px-3 py-2">{logoErr}</p>}
           {logoMsg && <p className="text-sm text-green-700 rounded-lg bg-green-50 px-3 py-2">{logoMsg}</p>}
           <button type="button" disabled={logoUploading} onClick={() => logoRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 px-5 py-2.5 text-sm font-semibold transition-colors">
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 px-5 py-3 text-sm font-semibold transition-colors min-h-[44px]">
             {logoUploading ? 'Uploading…' : settings.logoUrl ? 'Change logo' : 'Upload logo'}
           </button>
         </div>
@@ -224,7 +224,7 @@ export default function AdminSettingsPage() {
             type="button"
             onClick={regenerateKey}
             disabled={regenerating}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 px-5 py-2.5 text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 px-5 py-3 text-sm font-semibold transition-colors min-h-[44px]"
           >
             <RefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
             {regenerating ? 'Generating…' : settings.hasWebhookKey ? 'Regenerate key' : 'Generate key'}

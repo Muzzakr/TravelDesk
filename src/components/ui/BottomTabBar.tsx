@@ -55,6 +55,14 @@ const ROLE_LABEL: Record<string, string> = {
   SYSTEM_ADMIN: 'System Admin',
 }
 
+// Priority hrefs pinned as tabs per role (up to 4)
+const PRIORITY_TABS: Record<string, string[]> = {
+  SYSTEM_ADMIN: ['/admin', '/admin/expenses', '/admin/users', '/admin/events'],
+  FINANCE_ADMIN: ['/finance', '/finance/expenses', '/finance/payout-reports', '/finance/cards'],
+  MANAGER: ['/manager', '/manager/inbox', '/manager/team-expenses', '/finance/expenses'],
+  TRAVEL_MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/agent/book'],
+}
+
 export function BottomTabBar({
   nav,
   userName,
@@ -70,7 +78,10 @@ export function BottomTabBar({
   const [moreOpen, setMoreOpen] = useState(false)
 
   const links = nav.filter((i): i is NavLink => !('heading' in i))
-  const tabs = links.slice(0, 4)
+  const priorityHrefs = PRIORITY_TABS[role]
+  const tabs = priorityHrefs
+    ? priorityHrefs.map(h => links.find(l => l.href === h)).filter((l): l is NavLink => !!l)
+    : links.slice(0, 4)
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   const initials = userName
@@ -106,7 +117,7 @@ export function BottomTabBar({
                   />
                 </span>
                 <span
-                  className={`text-[10px] font-medium tracking-tight transition-colors duration-150 ${
+                  className={`text-[11px] font-medium tracking-tight transition-colors duration-150 ${
                     active ? 'text-indigo-600' : 'text-gray-400'
                   }`}
                 >
@@ -126,7 +137,7 @@ export function BottomTabBar({
             <span className="flex items-center justify-center rounded-[10px] px-3 py-1">
               <MoreHorizontal className="h-5 w-5 text-gray-400" />
             </span>
-            <span className="text-[10px] font-medium tracking-tight text-gray-400">More</span>
+            <span className="text-[11px] font-medium tracking-tight text-gray-400">More</span>
           </button>
         </div>
       </nav>
@@ -150,9 +161,9 @@ export function BottomTabBar({
                 type="button"
                 onClick={() => setMoreOpen(false)}
                 aria-label="Close menu"
-                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg p-2.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 

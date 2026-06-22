@@ -379,7 +379,7 @@ export default function AdminUsersPage() {
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setResetPassUser(null)} />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
             <form onSubmit={submitResetPass}
-              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4"
+              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
               onClick={e => e.stopPropagation()}>
               <h2 className="text-base font-semibold text-gray-900">Set new password</h2>
               <p className="text-sm text-gray-500">Setting a new password for <strong>{resetPassUser.name}</strong>.</p>
@@ -425,7 +425,7 @@ export default function AdminUsersPage() {
                 <h2 className="mt-0.5 text-lg font-semibold text-gray-900 leading-tight">{selected.name}</h2>
               </div>
               <button type="button" aria-label="Close" onClick={closeDrawer}
-                className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                className="shrink-0 rounded-lg p-2.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 min-w-[44px] min-h-[44px] flex items-center justify-center">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -460,7 +460,7 @@ export default function AdminUsersPage() {
                   <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 flex items-center justify-between gap-3">
                     <p className="text-xs text-yellow-800">This user has not set a password yet.</p>
                     <button type="button" disabled={resendingInvite} onClick={resendInvite}
-                      className="shrink-0 rounded-lg bg-yellow-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-yellow-700 disabled:opacity-50">
+                      className="shrink-0 rounded-lg bg-yellow-600 text-white px-3 py-2.5 text-xs font-medium hover:bg-yellow-700 disabled:opacity-50 min-h-[44px]">
                       {resendingInvite ? '…' : 'Resend invite'}
                     </button>
                   </div>
@@ -475,16 +475,16 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
-            <div className="border-t px-6 py-4 flex items-center gap-3 flex-wrap">
+            <div className="border-t px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center gap-3 flex-wrap md:pb-4">
               {confirmDelete ? (
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-red-600 font-medium">Delete {selected?.name}?</span>
                   <button type="button" onClick={deleteUser} disabled={deleting}
-                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                    className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 min-h-[44px]">
                     {deleting ? '…' : 'Yes, delete'}
                   </button>
                   <button type="button" onClick={() => setConfirmDelete(false)}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 min-h-[44px]">
                     Cancel
                   </button>
                 </div>
@@ -512,7 +512,7 @@ export default function AdminUsersPage() {
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setEditModal(null); setEditError('') }} />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
             <form onSubmit={saveEdit}
-              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4"
+              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
               onClick={e => e.stopPropagation()}>
               <h2 className="text-lg font-semibold text-gray-900">Edit user</h2>
               <div className="flex flex-col gap-1">
@@ -621,18 +621,18 @@ export default function AdminUsersPage() {
                       {u.errors.map((err, j) => <li key={j} className="text-xs text-red-600">• {err}</li>)}
                     </ul>
                   )}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-gray-500">Name</label>
                       <input value={u.name} onChange={(e) => updatePreviewRow(i, 'name', e.target.value)}
-                        className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:border-indigo-400 focus:outline-none" placeholder="Full name" />
+                        className="rounded-lg border border-gray-200 px-2 py-2.5 text-sm focus:border-indigo-400 focus:outline-none" placeholder="Full name" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-gray-500">Email</label>
                       <input value={u.email} onChange={(e) => updatePreviewRow(i, 'email', e.target.value)}
-                        className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:border-indigo-400 focus:outline-none" placeholder="email@example.com" />
+                        className="rounded-lg border border-gray-200 px-2 py-2.5 text-sm focus:border-indigo-400 focus:outline-none" placeholder="email@example.com" />
                     </div>
-                    <div className="col-span-2 flex flex-col gap-1">
+                    <div className="col-span-1 sm:col-span-2 flex flex-col gap-1">
                       <label className="text-xs font-medium text-gray-500">Role</label>
                       <select title="Role" value={u.role} onChange={(e) => updatePreviewRow(i, 'role', e.target.value)}
                         className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:border-indigo-400 focus:outline-none">
@@ -699,7 +699,7 @@ export default function AdminUsersPage() {
       {showForm && (
         <div className="rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="mb-5 text-lg font-semibold text-gray-800">New user</h2>
-          <form onSubmit={createUser} className="grid grid-cols-2 gap-4">
+          <form onSubmit={createUser} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">Full name</label>
               <input required title="Full name" placeholder="Full name" value={form.name}
@@ -713,15 +713,15 @@ export default function AdminUsersPage() {
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
               <p className="text-xs text-indigo-500 mt-0.5">An invite email will be sent automatically.</p>
             </div>
-            <div className="col-span-2 flex flex-col gap-1">
+            <div className="col-span-1 sm:col-span-2 flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">Role</label>
               <select title="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
                 {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            {formError && <p className="col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-600">{formError}</p>}
-            <div className="col-span-2">
+            {formError && <p className="col-span-1 sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-600">{formError}</p>}
+            <div className="col-span-1 sm:col-span-2">
               <Button type="submit" loading={saving}>Create user</Button>
             </div>
           </form>

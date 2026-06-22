@@ -52,18 +52,21 @@ export async function POST(req: NextRequest) {
   const parsed = CreateSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-  const event = await prisma.event.findFirst({
-    where: { id: parsed.data.eventId, companyId: session.user.companyId, status: 'ACTIVE' },
-  })
-  if (!event) return NextResponse.json({ error: 'Invalid or inactive event' }, { status: 400 })
+  // Parallel: event validation + policy check
+  const [event, policyFlags] = await Promise.all([
+    prisma.event.findFirst({
+      where: { id: parsed.data.eventId, companyId: session.user.companyId, status: 'ACTIVE' },
+    }),
+    checkExpensePolicy({
+      companyId: session.user.companyId,
+      eventId: parsed.data.eventId,
+      amountUsd: parsed.data.amountUsd,
+      category: parsed.data.category,
+      hasReceipt: false,
+    }),
+  ])
 
-  const policyFlags = await checkExpensePolicy({
-    companyId: session.user.companyId,
-    eventId: parsed.data.eventId,
-    amountUsd: parsed.data.amountUsd,
-    category: parsed.data.category,
-    hasReceipt: false,
-  })
+  if (!event) return NextResponse.json({ error: 'Invalid or inactive event' }, { status: 400 })
 
   const blocked = policyFlags.filter((f) => f.severity === 'BLOCK' && f.type !== 'MISSING_RECEIPT')
   if (blocked.length > 0) {
@@ -90,46 +93,53 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  await writeAuditLog({
-    companyId: session.user.companyId,
-    actorId: session.user.id,
-    action: 'EXPENSE_SUBMITTED',
-    entityType: 'Expense',
-    entityId: expense.id,
-    payload: { eventId: parsed.data.eventId, amountUsd: parsed.data.amountUsd, category: parsed.data.category },
-  })
-
-  notifyExpenseSubmitted({
-    employeeName: session.user.name ?? session.user.email ?? 'Employee',
-    amountUsd: parsed.data.amountUsd,
-    category: parsed.data.category,
-    description: parsed.data.description,
-    eventCode: event.eventCode,
-  }).catch(() => {})
-
-  // Email manager
-  const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
-  if (emp?.managerId) {
-    const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
-    if (manager?.email) {
-      emailExpenseToManager(manager.email, manager.name ?? 'Manager', {
-        employeeName: session.user.name ?? session.user.email ?? 'Employee',
+  // Fire-and-forget all side effects — user doesn't wait for these
+  const employeeName = session.user.name ?? session.user.email ?? 'Employee';
+  (async () => {
+    const emp = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { managerId: true, manager: { select: { name: true, email: true } } },
+    })
+    await Promise.all([
+      writeAuditLog({
+        companyId: session.user.companyId,
+        actorId: session.user.id,
+        action: 'EXPENSE_SUBMITTED',
+        entityType: 'Expense',
+        entityId: expense.id,
+        payload: { eventId: parsed.data.eventId, amountUsd: parsed.data.amountUsd, category: parsed.data.category },
+      }),
+      notifyExpenseSubmitted({
+        employeeName,
         amountUsd: parsed.data.amountUsd,
         category: parsed.data.category,
         description: parsed.data.description,
         eventCode: event.eventCode,
-        expenseId: expense.id,
-      }).catch(() => {})
-    }
-    await createNotification({
-      companyId: session.user.companyId,
-      userId: emp.managerId,
-      type: 'expense_pending',
-      title: 'Expense awaiting your approval',
-      description: `${session.user.name ?? 'Employee'} · ${parsed.data.description} · $${parsed.data.amountUsd.toFixed(2)}`,
-      href: `/manager/approvals/expense/${expense.id}`,
-    })
-  }
+      }).catch(() => {}),
+      emp?.managerId
+        ? Promise.all([
+            emp.manager?.email
+              ? emailExpenseToManager(emp.manager.email, emp.manager.name ?? 'Manager', {
+                  employeeName,
+                  amountUsd: parsed.data.amountUsd,
+                  category: parsed.data.category,
+                  description: parsed.data.description,
+                  eventCode: event.eventCode,
+                  expenseId: expense.id,
+                }).catch(() => {})
+              : Promise.resolve(),
+            createNotification({
+              companyId: session.user.companyId,
+              userId: emp.managerId,
+              type: 'expense_pending',
+              title: 'Expense awaiting your approval',
+              description: `${employeeName} · ${parsed.data.description} · $${parsed.data.amountUsd.toFixed(2)}`,
+              href: `/manager/approvals/expense/${expense.id}`,
+            }),
+          ])
+        : Promise.resolve(),
+    ])
+  })().catch(() => {})
 
   return NextResponse.json({ expense, warnings: policyFlags.filter((f) => f.severity === 'WARNING') }, { status: 201 })
 }

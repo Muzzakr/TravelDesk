@@ -225,6 +225,9 @@ function ExpensesContent() {
       ? `Vehicle: ${vehicleType}${form.description ? '. ' + form.description : ''}`
       : form.description
 
+    // Start compression in parallel with the API call
+    const compressPromise = pendingFile ? compressImageFile(pendingFile) : Promise.resolve(null)
+
     const res = await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -245,9 +248,9 @@ function ExpensesContent() {
     }
 
     if (pendingFile && data.expense) {
-      const compressed = await compressImageFile(pendingFile)
+      const compressed = await compressPromise
       const fd = new FormData()
-      fd.append('file', compressed)
+      fd.append('file', compressed as File)
       fd.append('expenseId', data.expense.id)
       const uploadRes = await fetch('/api/receipts/upload', { method: 'POST', body: fd })
       if (!uploadRes.ok) {

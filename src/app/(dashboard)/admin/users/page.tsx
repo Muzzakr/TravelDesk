@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
@@ -78,6 +78,19 @@ export default function AdminUsersPage() {
   const [resetPassSaving, setResetPassSaving] = useState(false)
   const [resetPassMsg, setResetPassMsg] = useState('')
   const [resetPassErr, setResetPassErr] = useState('')
+
+  // Search + filter state
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+
+  const filteredUsers = useMemo(() => {
+    return users.filter(u => {
+      const q = search.toLowerCase()
+      const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      const matchesRole = !roleFilter || u.role === roleFilter
+      return matchesSearch && matchesRole
+    })
+  }, [users, search, roleFilter])
 
   // Resend invite state
   const [resendingInvite, setResendingInvite] = useState(false)
@@ -682,6 +695,26 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* ── Search + role filter ─────────────────────────── */}
+      <div className="flex gap-2 flex-wrap">
+        <input
+          type="search"
+          placeholder="Search by name or email…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="flex-1 min-w-[180px] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        />
+        <select
+          value={roleFilter}
+          onChange={e => setRoleFilter(e.target.value)}
+          title="Filter by role"
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        >
+          <option value="">All roles</option>
+          {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+
       {extractError && (
         <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
           <p className="font-medium">Could not read file</p>
@@ -739,9 +772,14 @@ export default function AdminUsersPage() {
         </div>
       ) : (
         <>
+          {filteredUsers.length === 0 && (
+            <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">
+              No users match your search.
+            </div>
+          )}
           {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <button key={u.id} type="button" onClick={() => openDetail(u)}
                 className="w-full text-left rounded-xl border bg-white p-4 space-y-2 hover:bg-gray-50 active:bg-gray-100">
                 <div className="flex items-start justify-between gap-2">
@@ -775,7 +813,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {users.map((u) => (
+                {filteredUsers.map((u) => (
                   <tr key={u.id} onClick={() => openDetail(u)}
                     className="hover:bg-indigo-50 cursor-pointer transition-colors">
                     <td className="px-4 py-3">

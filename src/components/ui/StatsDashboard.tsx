@@ -254,7 +254,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
             <section>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Pending approvals ({data.pendingApprovals.length})</p>
               {/* Mobile cards */}
-              <div className="sm:hidden space-y-2">
+              <div className="md:hidden space-y-2">
                 {data.pendingApprovals.map((p) => (
                   <div key={p.id} className="rounded-xl border border-amber-200 bg-white px-4 py-3 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
@@ -273,7 +273,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                 ))}
               </div>
               {/* Desktop table */}
-              <div className="hidden sm:block rounded-2xl border border-amber-200 bg-amber-50/30 overflow-x-auto">
+              <div className="hidden md:block rounded-2xl border border-amber-200 bg-amber-50/30 overflow-x-auto">
                 <table className="w-full text-sm divide-y divide-amber-100">
                   <thead className="bg-amber-50 text-xs font-semibold uppercase text-amber-700">
                     <tr>
@@ -317,7 +317,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             </div>
             {/* Mobile cards */}
-            <div className="sm:hidden space-y-2">
+            <div className="md:hidden space-y-2">
               {filteredRecords.length === 0 ? (
                 <p className="py-8 text-center text-sm text-gray-400">No records found.</p>
               ) : filteredRecords.map((r) => (
@@ -336,7 +336,7 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
               ))}
             </div>
             {/* Desktop table */}
-            <div className="hidden sm:block rounded-2xl border border-gray-100 bg-white overflow-x-auto">
+            <div className="hidden md:block rounded-2xl border border-gray-100 bg-white overflow-x-auto">
               <table className="min-w-[600px] w-full text-sm divide-y divide-gray-50">
                 <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                   <tr>

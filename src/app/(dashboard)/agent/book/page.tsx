@@ -339,6 +339,25 @@ export default function AgentBookPage() {
   const [aiError, setAiError]                     = useState<string | null>(null)
   const [confirmingOptions, setConfirmingOptions] = useState(false)
 
+  type CustomOption = { id: string; serviceType: string; vendor: string; description: string; priceUsd: string; bookingLink: string; imageUrl: string }
+  const [customOptions, setCustomOptions]   = useState<CustomOption[]>([])
+  const [showCustomForm, setShowCustomForm] = useState(false)
+  const [customDraft, setCustomDraft]       = useState({ serviceType: '', vendor: '', description: '', priceUsd: '', bookingLink: '', imageUrl: '' })
+
+  function addCustomOption() {
+    if (!customDraft.serviceType || !customDraft.vendor || !customDraft.description || !customDraft.priceUsd) return
+    const id = Math.random().toString(36).slice(2)
+    setCustomOptions(prev => [...prev, { id, ...customDraft }])
+    setCustomDraft({ serviceType: '', vendor: '', description: '', priceUsd: '', bookingLink: '', imageUrl: '' })
+    setShowCustomForm(false)
+    setSelectedOptionKeys(prev => { const n = new Set(prev); n.add(`custom-${id}`); return n })
+  }
+
+  function removeCustomOption(id: string) {
+    setCustomOptions(prev => prev.filter(o => o.id !== id))
+    setSelectedOptionKeys(prev => { const n = new Set(prev); n.delete(`custom-${id}`); return n })
+  }
+
   const [flight, setFlight] = useState<FlightData>({
     originAirport: null, destAirport: null, tripType: 'round-trip',
     departureDate: '', departureTime: '', returnDate: '', returnTime: '',
@@ -549,6 +568,13 @@ export default function AgentBookPage() {
         }
       })
     }
+    customOptions.forEach(opt => {
+      const optKey = `custom-${opt.id}`
+      if (selectedOptionKeys.has(optKey)) {
+        const desc = opt.imageUrl ? `${opt.description}\n[Image: ${opt.imageUrl}]` : opt.description
+        chosen.push({ serviceType: opt.serviceType, vendor: opt.vendor, description: desc, priceUsd: Number(opt.priceUsd), bookingLink: opt.bookingLink || undefined })
+      }
+    })
     if (chosen.length > 0) {
       const res = await fetch(`/api/travel-requests/${createdRequestId}/options`, {
         method: 'POST',
@@ -955,6 +981,111 @@ export default function AgentBookPage() {
                   })}
                 </div>
               ))}
+
+            {/* Own options */}
+            <div className="space-y-3 border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-700">Own option</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomForm(v => !v)}
+                  className="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                >
+                  {showCustomForm ? '− Cancel' : '+ Add option'}
+                </button>
+              </div>
+
+              {showCustomForm && (
+                <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                  <Field label="Service type" required>
+                    <select
+                      title="Service type"
+                      value={customDraft.serviceType}
+                      onChange={e => setCustomDraft(d => ({ ...d, serviceType: e.target.value }))}
+                      className={inputCls}
+                    >
+                      <option value="">Select…</option>
+                      {services.map(s => (
+                        <option key={s} value={s}>{SERVICE_META[s]?.label ?? s}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Vendor / Provider" required>
+                      <input type="text" value={customDraft.vendor} onChange={e => setCustomDraft(d => ({ ...d, vendor: e.target.value }))} placeholder="E.g. SAS, Radisson…" className={inputCls} />
+                    </Field>
+                    <Field label="Price (USD)" required>
+                      <input type="number" min="0" value={customDraft.priceUsd} onChange={e => setCustomDraft(d => ({ ...d, priceUsd: e.target.value }))} placeholder="0" className={inputCls} />
+                    </Field>
+                  </div>
+                  <Field label="Description" required>
+                    <textarea value={customDraft.description} onChange={e => setCustomDraft(d => ({ ...d, description: e.target.value }))} rows={2} placeholder="E.g. Direct flight, departs 08:00, Economy class…" className={inputCls + ' resize-none'} />
+                  </Field>
+                  <Field label="Booking link (optional)">
+                    <input type="url" value={customDraft.bookingLink} onChange={e => setCustomDraft(d => ({ ...d, bookingLink: e.target.value }))} placeholder="https://…" className={inputCls} />
+                  </Field>
+                  <Field label="Image URL (optional)">
+                    <input type="url" value={customDraft.imageUrl} onChange={e => setCustomDraft(d => ({ ...d, imageUrl: e.target.value }))} placeholder="https://… (screenshot, hotel photo…)" className={inputCls} />
+                  </Field>
+                  {customDraft.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={customDraft.imageUrl} alt="Preview" className="w-full max-h-40 object-cover rounded-lg border border-gray-200" onError={e => (e.currentTarget.style.display = 'none')} />
+                  )}
+                  <button
+                    type="button"
+                    onClick={addCustomOption}
+                    disabled={!customDraft.serviceType || !customDraft.vendor || !customDraft.description || !customDraft.priceUsd}
+                    className="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-4 py-2 text-sm font-semibold transition-colors"
+                  >
+                    + Add to options
+                  </button>
+                </div>
+              )}
+
+              {customOptions.map(opt => {
+                const optKey = `custom-${opt.id}`
+                const selected = selectedOptionKeys.has(optKey)
+                return (
+                  <div
+                    key={optKey}
+                    className={`rounded-xl border-2 bg-white transition-all cursor-pointer ${selected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}
+                    onClick={() => toggleOptionKey(optKey)}
+                  >
+                    <div className="px-4 py-3 flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${selected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                          {selected && (
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-gray-900">{opt.vendor}</p>
+                            <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{SERVICE_META[opt.serviceType]?.label ?? opt.serviceType}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 break-words">{opt.description}</p>
+                          {opt.bookingLink && (
+                            <a href={opt.bookingLink} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-xs text-indigo-600 hover:underline mt-0.5 block truncate">
+                              {opt.bookingLink}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm font-bold text-indigo-700 shrink-0">${Number(opt.priceUsd).toLocaleString('en-US')}</p>
+                    </div>
+                    {opt.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={opt.imageUrl} alt="" className="w-full max-h-48 object-cover border-t border-gray-100" onError={e => (e.currentTarget.style.display = 'none')} />
+                    )}
+                    <div className="px-4 pb-2 flex justify-end" onClick={e => e.stopPropagation()}>
+                      <button type="button" onClick={() => removeCustomOption(opt.id)} className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
 
             <div className="flex gap-3 pt-2 justify-between">
               <button type="button" onClick={() => router.push(`/agent/requests/${createdRequestId}`)}

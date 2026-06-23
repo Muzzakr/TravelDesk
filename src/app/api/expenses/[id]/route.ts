@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const role = session.user.role ?? ''
-  const approverRoles = ['MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']
+  const approverRoles = ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']
 
   if (parsed.data.status === 'SUBMITTED') {
     // Only the expense owner can submit their own expense

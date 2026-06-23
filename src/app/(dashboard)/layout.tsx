@@ -97,6 +97,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Admin Dashboard',   href: '/admin' },
     { label: 'Travel Inbox',      href: '/manager/inbox' },
     { label: 'Travel Requests',   href: '/admin/travel-requests' },
+    { label: 'Open Requests',     href: '/manager/requests/unassigned' },
     { label: 'Expenses',          href: '/admin/expenses' },
     { label: 'Card Transactions', href: '/finance/cards' },
     { heading: 'Finance' },

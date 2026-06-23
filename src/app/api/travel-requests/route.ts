@@ -38,7 +38,7 @@ export async function GET() {
     where,
     include: {
       employee: {
-        select: { name: true, email: true, travelerProfile: true },
+        select: { id: true, name: true, email: true, travelerProfile: true },
       },
       event: true,
     },

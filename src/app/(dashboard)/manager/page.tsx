@@ -89,7 +89,7 @@ export default async function ManagerDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{session.user.role === 'TRAVEL_MANAGER' ? 'Travel Manager Dashboard' : 'Manager Dashboard'}</h1>
           <p className="text-sm text-gray-400 mt-0.5">
             {urgentItems.length > 0
               ? `${urgentItems.length} item${urgentItems.length > 1 ? 's' : ''} require${urgentItems.length === 1 ? 's' : ''} attention`

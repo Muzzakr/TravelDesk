@@ -51,9 +51,9 @@ function KPIGroup({ title, color, stats }: { title: string; color: string; stats
       <p className={`text-xs font-bold uppercase tracking-widest mb-4 ${color}`}>{title}</p>
       <div className="grid grid-cols-2 gap-3">
         {stats.map((s) => (
-          <div key={s.label} className={`rounded-xl p-3 ${s.accent ? 'bg-indigo-50 border border-indigo-100' : 'bg-gray-50'}`}>
-            <p className={`text-2xl font-bold ${s.accent ? 'text-indigo-700' : 'text-gray-900'}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+          <div key={s.label} className={`rounded-xl p-3 min-w-0 overflow-hidden ${s.accent ? 'bg-indigo-50 border border-indigo-100' : 'bg-gray-50'}`}>
+            <p className={`font-bold leading-tight break-all ${typeof s.value === 'string' && s.value.length > 7 ? 'text-base' : 'text-2xl'} ${s.accent ? 'text-indigo-700' : 'text-gray-900'}`}>{s.value}</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-tight">{s.label}</p>
           </div>
         ))}
       </div>

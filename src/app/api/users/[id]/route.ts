@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 
-const ALLOWED_ROLES = ['SYSTEM_ADMIN', 'MANAGER'] as const
+const ALLOWED_ROLES = ['SYSTEM_ADMIN', 'MANAGER', 'TRAVEL_MANAGER'] as const
 const MANAGER_ALLOWED_ROLES = ['EMPLOYEE', 'TRAVEL_AGENT', 'FINANCE_ADMIN'] as const
 
 const PatchSchema = z.object({

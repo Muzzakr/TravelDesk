@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Plane, Clock, CheckCircle, Calendar } from 'lucide-react'
+import { Pagination } from '@/components/ui/Pagination'
 
 type TravelRequest = {
   id: string
@@ -277,16 +278,7 @@ export default function AdminTravelRequestsPage() {
           <span className="text-gray-500 text-xs">
             Showing {((page - 1) * data.pagination.pageSize) + 1}–{Math.min(page * data.pagination.pageSize, data.pagination.total)} of {data.pagination.total}
           </span>
-          <div className="flex gap-2">
-            <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-              className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]">
-              ← Prev
-            </button>
-            <button type="button" disabled={page >= data.pagination.totalPages} onClick={() => setPage(p => p + 1)}
-              className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]">
-              Next →
-            </button>
-          </div>
+          <Pagination page={page} totalPages={data.pagination.totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

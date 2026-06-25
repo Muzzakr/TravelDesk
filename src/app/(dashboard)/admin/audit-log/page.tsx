@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Pagination } from '@/components/ui/Pagination'
 
 type LogEntry = {
   id: string
@@ -116,16 +117,7 @@ export default function AuditLogPage() {
               <span className="text-xs text-gray-500">
                 {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, logs.length)} of {logs.length}
               </span>
-              <div className="flex gap-2">
-                <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                  className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-40 hover:bg-gray-50 min-h-[44px]">
-                  ← Prev
-                </button>
-                <button type="button" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                  className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-40 hover:bg-gray-50 min-h-[44px]">
-                  Next →
-                </button>
-              </div>
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </>

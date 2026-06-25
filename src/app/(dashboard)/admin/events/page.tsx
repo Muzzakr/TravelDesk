@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { Pagination } from '@/components/ui/Pagination'
 import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
 import type { ExtractedEvent } from '@/app/api/events/extract/route'
@@ -807,18 +808,7 @@ export default function AdminEventsPage() {
                 <p className="text-xs text-gray-500">
                   {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredEvents.length)} of {filteredEvents.length}
                 </p>
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-40">‹</button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                    <button key={n} type="button" onClick={() => setPage(n)}
-                      className={`rounded px-2.5 py-1.5 text-xs font-medium ${n === page ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
-                      {n}
-                    </button>
-                  ))}
-                  <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-40">›</button>
-                </div>
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
               </div>
             )}
           </div>
@@ -870,18 +860,7 @@ export default function AdminEventsPage() {
                 <p className="text-xs text-gray-500">
                   {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredEvents.length)} of {filteredEvents.length} events
                 </p>
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">‹</button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                    <button key={n} type="button" onClick={() => setPage(n)}
-                      className={`rounded px-2.5 py-1 text-xs font-medium ${n === page ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
-                      {n}
-                    </button>
-                  ))}
-                  <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">›</button>
-                </div>
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
               </div>
             )}
           </div>

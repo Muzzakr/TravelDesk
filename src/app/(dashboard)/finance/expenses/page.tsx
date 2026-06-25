@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { Pagination } from '@/components/ui/Pagination'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -288,15 +289,7 @@ export default function FinanceExpensesPage() {
             <p className="text-xs text-gray-500">
               Showing {((page - 1) * data.pagination.pageSize) + 1}–{Math.min(page * data.pagination.pageSize, data.pagination.total)} of {data.pagination.total} expenses
             </p>
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">‹</button>
-              {Array.from({ length: Math.min(data.pagination.totalPages, 9) }, (_, i) => {
-                const p = i + 1
-                return <button type="button" key={p} onClick={() => setPage(p)} className={`rounded px-2.5 py-1 text-xs font-medium ${p === page ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>{p}</button>
-              })}
-              {data.pagination.totalPages > 9 && <span className="text-xs text-gray-400">...</span>}
-              <button type="button" onClick={() => setPage(p => Math.min(data.pagination.totalPages, p + 1))} disabled={page === data.pagination.totalPages} className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-40">›</button>
-            </div>
+            <Pagination page={page} totalPages={data.pagination.totalPages} onPageChange={setPage} />
           </div>
         )}
       </div>

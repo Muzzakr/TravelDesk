@@ -250,12 +250,41 @@ export default function ApproveTravelPage() {
             <div className="space-y-2">
               {String(request.specialInstructions).split('\n').filter(Boolean).map((line, i) => {
                 const { Icon, label, detail } = parseServiceLine(line)
+                // Try to match this line to a servicesRequested key
+                const svcKey = Object.keys(SERVICE_LINE_META).find(k =>
+                  SERVICE_LINE_META[k].label.toUpperCase() === label.toUpperCase() ||
+                  k === label.toUpperCase()
+                )
+                const isApproved = svcKey ? approvedServices.includes(svcKey) : false
+                const isRejected = svcKey ? rejectedServices.includes(svcKey) : false
+                const canToggle = !isDecided && !!svcKey && services.includes(svcKey)
+
                 return (
-                  <div key={i} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
-                    <Icon className="w-5 h-5 shrink-0 text-gray-500 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-                      <p className="text-sm text-gray-900 mt-0.5">{detail}</p>
+                  <div key={i} className={`rounded-lg border px-3 py-2.5 transition-colors ${
+                    isApproved ? 'border-green-200 bg-green-50' :
+                    isRejected ? 'border-red-200 bg-red-50' :
+                    'border-gray-100 bg-gray-50'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${isApproved ? 'text-green-600' : isRejected ? 'text-red-400' : 'text-gray-500'}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-semibold uppercase tracking-wide ${isApproved ? 'text-green-700' : isRejected ? 'text-red-500' : 'text-gray-500'}`}>{label}</p>
+                        <p className={`text-sm mt-0.5 ${isRejected ? 'line-through text-gray-400' : 'text-gray-900'}`}>{detail}</p>
+                      </div>
+                      {canToggle && (
+                        <div className="flex gap-1.5 shrink-0 mt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleService(svcKey, 'approved')}
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${isApproved ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-green-400 hover:text-green-600'}`}
+                          >✓</button>
+                          <button
+                            type="button"
+                            onClick={() => toggleService(svcKey, 'rejected')}
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${isRejected ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-red-400 hover:text-red-600'}`}
+                          >✗</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -365,40 +394,6 @@ export default function ApproveTravelPage() {
 
         {!isDecided && (
           <>
-            {/* Per-service approve/reject (only shown in approve panel with multiple services) */}
-            {panel === 'approve' && services.length > 1 && (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Select services to approve</p>
-                {services.map(svc => {
-                  const isApproved = approvedServices.includes(svc)
-                  const isRejected = rejectedServices.includes(svc)
-                  const SvcIcon = serviceIcon[svc] ?? PlusCircleIcon
-                  return (
-                    <div key={svc} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-                      <SvcIcon className="w-4 h-4 shrink-0 text-gray-400" />
-                      <p className="flex-1 text-sm font-medium text-gray-900">{serviceLabel[svc] ?? svc}</p>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleService(svc, 'approved')}
-                          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${isApproved ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-700'}`}
-                        >
-                          ✓ Approve
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleService(svc, 'rejected')}
-                          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${isRejected ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-700'}`}
-                        >
-                          ✗ Reject
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
             {/* Note textarea */}
             {(panel === 'approve' || panel === 'reject') && (
               <div className="flex flex-col gap-1">

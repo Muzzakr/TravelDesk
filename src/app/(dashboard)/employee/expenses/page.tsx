@@ -256,7 +256,7 @@ function ExpensesContent() {
       if (!uploadRes.ok) {
         let msg = `HTTP ${uploadRes.status}`
         try { const d = await uploadRes.json(); if (d?.error) msg = d.error } catch {}
-        setNotice(`Your expense was saved, but the receipt could not be uploaded (${msg}). Click "Add receipt" on the expense row below to attach it.`)
+        setNotice(`Your expense was saved, but the receipt could not be uploaded (${msg}). Click "Attach missing receipt" on the expense row below to attach it.`)
       }
     }
 
@@ -670,7 +670,7 @@ function ExpensesContent() {
                 ) : (
                   <button type="button" onClick={() => setAddingReceiptFor(exp.id)}
                     className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700">
-                    <AlertTriangle className="w-3.5 h-3.5" /> No receipt — Add receipt
+                    <AlertTriangle className="w-3.5 h-3.5" /> No receipt — Attach missing receipt
                   </button>
                 )}
               </div>
@@ -713,7 +713,7 @@ function ExpensesContent() {
                         <button type="button"
                           onClick={() => { setAddingReceiptFor(addingReceiptFor === exp.id ? null : exp.id); setReceiptUploadError('') }}
                           className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700">
-                          <AlertTriangle className="w-3.5 h-3.5" /> Add receipt
+                          <AlertTriangle className="w-3.5 h-3.5" /> Attach missing receipt
                         </button>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>

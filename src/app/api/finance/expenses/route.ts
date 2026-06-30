@@ -10,8 +10,10 @@ export async function GET(req: NextRequest) {
 
   const companyId = session.user.companyId
   const { searchParams } = new URL(req.url)
-  const month = parseInt(searchParams.get('month') ?? String(new Date().getMonth() + 1))
+  const monthParam = searchParams.get('month') ?? ''
+  const month = parseInt(monthParam)
   const year = parseInt(searchParams.get('year') ?? String(new Date().getFullYear()))
+  const allMonths = !monthParam || monthParam === '0'
   const status = searchParams.get('status') ?? ''
   const employeeId = searchParams.get('employeeId') ?? ''
   const search = searchParams.get('search') ?? ''
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {
     companyId,
-    createdAt: { gte: start, lte: end },
+    ...(!allMonths && { createdAt: { gte: start, lte: end } }),
   }
   if (status) where.status = status
   if (employeeId) where.employeeId = employeeId
@@ -49,9 +51,9 @@ export async function GET(req: NextRequest) {
       take: pageSize,
     }),
     prisma.expense.count({ where: where as never }),
-    // All expenses this month (unfiltered) for KPI stats
+    // All expenses for period (unfiltered) for KPI stats
     prisma.expense.findMany({
-      where: { companyId, createdAt: { gte: start, lte: end } },
+      where: { companyId, ...(!allMonths && { createdAt: { gte: start, lte: end } }) },
       select: { id: true, status: true, amountUsd: true, createdAt: true, updatedAt: true, category: true },
     }),
   ])

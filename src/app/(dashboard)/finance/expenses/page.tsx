@@ -28,7 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function FinanceExpensesPage() {
   const now = new Date()
-  const [month, setMonth] = useState(now.getMonth())
+  const [month, setMonth] = useState(-1) // -1 = all months
   const [year, setYear] = useState(now.getFullYear())
   const [data, setData] = useState<PageData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,7 +42,7 @@ export default function FinanceExpensesPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     const p = new URLSearchParams({
-      month: String(month + 1), year: String(year), page: String(page),
+      ...(month >= 0 && { month: String(month + 1) }), year: String(year), page: String(page),
       ...(statusFilter && { status: statusFilter }),
       ...(employeeFilter && { employeeId: employeeFilter }),
       ...(search && { search }),
@@ -76,7 +76,7 @@ export default function FinanceExpensesPage() {
     const csv = [header.join(','), ...rows.map((r) => r.map((v) => JSON.stringify(v)).join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `expenses-${MONTHS[month]}-${year}.csv`; a.click()
+    const a = document.createElement('a'); a.href = url; a.download = `expenses-${month >= 0 ? MONTHS[month] : 'all'}-${year}.csv`; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -95,7 +95,8 @@ export default function FinanceExpensesPage() {
             <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <select title="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))} className="bg-transparent text-sm focus:outline-none">
+            <select title="Month" value={month} onChange={(e) => { setMonth(Number(e.target.value)); setPage(1) }} className="bg-transparent text-sm focus:outline-none">
+              <option value={-1}>All months</option>
               {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
             <select title="Year" value={year} onChange={(e) => setYear(Number(e.target.value))} className="bg-transparent text-sm focus:outline-none">

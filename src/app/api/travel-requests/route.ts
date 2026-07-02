@@ -23,6 +23,7 @@ const CreateSchema = z.object({
   carRentalDays: z.number().int().positive().optional(),
   specialInstructions: z.string().optional(),
   managerId: z.string().optional(),
+  employeeId: z.string().optional(), // admin-only: create on behalf of employee
 })
 
 export async function GET() {
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const creatorRoles = ['EMPLOYEE', 'TRAVEL_AGENT', 'MANAGER', 'TRAVEL_MANAGER']
+  const creatorRoles = ['EMPLOYEE', 'TRAVEL_AGENT', 'MANAGER', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN']
   if (!creatorRoles.includes(session.user.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -96,14 +97,18 @@ export async function POST(req: NextRequest) {
 
   const initialStatus = 'PENDING_MANAGER'
 
+  // Admin can create on behalf of another employee
+  const isAdmin = session.user.role === 'SYSTEM_ADMIN'
+  const targetEmployeeId = (isAdmin && parsed.data.employeeId) ? parsed.data.employeeId : session.user.id
+
   // Resolve which manager gets this request
-  const emp = await prisma.user.findUnique({ where: { id: session.user.id }, select: { managerId: true } })
+  const emp = await prisma.user.findUnique({ where: { id: targetEmployeeId }, select: { managerId: true } })
   const resolvedManagerId = parsed.data.managerId ?? emp?.managerId ?? null
 
   const travelRequest = await prisma.travelRequest.create({
     data: {
       companyId: session.user.companyId,
-      employeeId: session.user.id,
+      employeeId: targetEmployeeId,
       eventId: parsed.data.eventId,
       origin: parsed.data.origin,
       destination: parsed.data.destination,

@@ -15,12 +15,16 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   })
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
+  const company = await prisma.company.findUnique({
+    where: { id: session.user.companyId },
+    select: { slug: true },
+  })
   const rawToken = await createVerificationToken(user.id, 'INVITE')
   const setPasswordUrl = `${process.env.APP_URL ?? ''}/set-password?token=${rawToken}`
 
   let emailSent = false
   try {
-    await sendInviteEmail(user.email, user.name, rawToken)
+    await sendInviteEmail(user.email, user.name, rawToken, company?.slug)
     emailSent = true
   } catch (err) {
     console.error('Resend invite email failed:', err)

@@ -55,8 +55,9 @@ export async function sendGoogleVerificationEmail(to: string, name: string, rawT
   })
 }
 
-export async function sendInviteEmail(to: string, name: string, rawToken: string) {
+export async function sendInviteEmail(to: string, name: string, rawToken: string, companySlug?: string) {
   const link = `${APP}/set-password?token=${rawToken}`
+  const loginLink = companySlug ? `${APP}/login?company=${companySlug}` : `${APP}/login`
   await transporter.sendMail({
     from: FROM,
     to,
@@ -66,6 +67,11 @@ export async function sendInviteEmail(to: string, name: string, rawToken: string
       <p style="color:#374151;margin:0 0 4px">Your account has been created on M4U Travel.</p>
       <p style="color:#374151;margin:0">Click the button below to set your password and get started.</p>
       ${btn(link, 'Set your password')}
+      ${companySlug ? `<p style="color:#6b7280;font-size:13px;margin-top:20px;padding:12px;background:#f3f4f6;border-radius:6px">
+        After setting your password, log in at:<br/>
+        <a href="${loginLink}" style="color:#4f46e5;font-weight:600">${loginLink}</a><br/>
+        <span style="font-size:12px;color:#9ca3af">Company: <strong>${companySlug}</strong></span>
+      </p>` : ''}
       <p style="color:#9ca3af;font-size:12px;margin-top:20px">This link expires in 48 hours. If you did not expect this email, you can ignore it.</p>
     `),
   })

@@ -85,9 +85,14 @@ export async function POST(req: NextRequest) {
   let setPasswordUrl: string | null = null
 
   try {
+    const company = await prisma.company.findUnique({
+      where: { id: session.user.companyId },
+      select: { slug: true },
+    })
+    const companySlug = company?.slug ?? ''
     const rawToken = await createVerificationToken(user.id, 'INVITE')
     setPasswordUrl = `${process.env.APP_URL ?? ''}/set-password?token=${rawToken}`
-    await sendInviteEmail(user.email, user.name, rawToken)
+    await sendInviteEmail(user.email, user.name, rawToken, companySlug)
     emailSent = true
   } catch (err) {
     console.error('Failed to send invite email:', err)

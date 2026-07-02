@@ -9,14 +9,14 @@ export async function GET(req: NextRequest) {
 
   const record = await prisma.verificationToken.findUnique({
     where: { token: hashToken(token) },
-    include: { user: { select: { name: true } } },
+    include: { user: { select: { name: true, company: { select: { slug: true } } } } },
   })
 
   if (!record || record.expiresAt < new Date()) {
     return NextResponse.json({ valid: false })
   }
 
-  return NextResponse.json({ valid: true, name: record.user.name })
+  return NextResponse.json({ valid: true, name: record.user.name, companySlug: record.user.company.slug })
 }
 
 export async function POST(req: NextRequest) {

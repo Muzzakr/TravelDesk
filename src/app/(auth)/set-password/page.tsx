@@ -10,6 +10,7 @@ function SetPasswordForm() {
 
   const [status, setStatus] = useState<'loading' | 'valid' | 'invalid'>('loading')
   const [name, setName] = useState('')
+  const [companySlug, setCompanySlug] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -20,7 +21,7 @@ function SetPasswordForm() {
     fetch(`/api/auth/set-password?token=${token}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.valid) { setName(d.name); setStatus('valid') }
+        if (d.valid) { setName(d.name); setCompanySlug(d.companySlug ?? ''); setStatus('valid') }
         else setStatus('invalid')
       })
       .catch(() => setStatus('invalid'))
@@ -38,7 +39,7 @@ function SetPasswordForm() {
       body: JSON.stringify({ token, password }),
     })
     if (res.ok) {
-      router.push('/login?message=password-set')
+      router.push(`/login?message=password-set${companySlug ? `&company=${companySlug}` : ''}`)
     } else {
       const d = await res.json()
       setError(d.error ?? 'Something went wrong. Please request a new invite.')

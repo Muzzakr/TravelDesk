@@ -2,311 +2,274 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { User } from 'lucide-react'
-import { DateInput } from '@/components/ui/DateInput'
+import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { Plane, Clock, CheckCircle, Calendar } from 'lucide-react'
+import { Pagination } from '@/components/ui/Pagination'
 
-interface TravelRequest {
+type TravelRequest = {
   id: string
-  status: string
   origin: string
   destination: string
+  status: string
   travelDates: { departureDate: string; returnDate: string }
   servicesRequested: string[]
-  estimatedCostUsd: number | null
-  agentId: string | null
+  estimatedCostUsd: string | number | null
   createdAt: string
   employee: { id: string; name: string; email: string }
-  event: { eventCode: string; eventName: string }
+  event: { eventName: string; eventCode: string }
+  agent: { id: string; name: string } | null
+  manager: { id: string; name: string } | null
 }
 
-function urgencyLabel(status: string, departureDate: string): { label: string; pill: string; border: string } {
-  const days = Math.ceil((new Date(departureDate).getTime() - Date.now()) / 86400000)
-  if (status === 'PENDING_AGENT' && days <= 7 && days >= 0)
-    return { label: 'Urgent', pill: 'bg-red-100 text-red-700 border-red-200', border: 'border-l-4 border-l-red-400' }
-  if (status === 'PENDING_AGENT')
-    return { label: 'Pending', pill: 'bg-amber-100 text-amber-700 border-amber-200', border: '' }
-  if (status === 'APPROVED')
-    return { label: 'Approved', pill: 'bg-green-100 text-green-700 border-green-200', border: 'border-l-4 border-l-green-400' }
-  if (status === 'BOOKING_CONFIRMED')
-    return { label: 'Completed', pill: 'bg-indigo-100 text-indigo-700 border-indigo-200', border: '' }
-  if (status === 'OPTIONS_PROVIDED' || status === 'PENDING_MANAGER')
-    return { label: 'Awaiting Approval', pill: 'bg-blue-100 text-blue-700 border-blue-200', border: 'border-l-4 border-l-blue-400' }
-  if (status === 'REJECTED') return { label: 'Rejected', pill: 'bg-red-100 text-red-600 border-red-200', border: '' }
-  if (status === 'CANCELLED') return { label: 'Cancelled', pill: 'bg-gray-100 text-gray-500 border-gray-200', border: '' }
-  return { label: status.replace(/_/g, ' '), pill: 'bg-gray-100 text-gray-600 border-gray-200', border: '' }
-}
-
-function exportCsv(r: TravelRequest) {
-  const dates = r.travelDates
-  const rows = [
-    ['Field', 'Value'],
-    ['Employee', r.employee.name],
-    ['Email', r.employee.email],
-    ['Route', `${r.origin} → ${r.destination}`],
-    ['Departure', dates.departureDate],
-    ['Return', dates.returnDate],
-    ['Services', r.servicesRequested.join(', ')],
-    ['Event', r.event.eventName],
-    ['Est. Cost USD', r.estimatedCostUsd ? String(r.estimatedCostUsd) : ''],
-    ['Status', r.status],
-  ]
-  const csv = rows.map((row) => row.map((v) => `"${v}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `travel-${r.id.slice(0, 8)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+type PageData = {
+  requests: TravelRequest[]
+  pagination: { page: number; pageSize: number; total: number; totalPages: number }
+  counts: { total: number; pending: number; approved: number; confirmed: number }
+  employees: { id: string; name: string }[]
 }
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
-  { value: 'PENDING_AGENT', label: 'Pending' },
+  { value: 'PENDING_MANAGER', label: 'Pending manager' },
+  { value: 'PENDING_AGENT', label: 'Pending agent' },
   { value: 'OPTIONS_PROVIDED', label: 'Options provided' },
-  { value: 'PENDING_MANAGER', label: 'Awaiting approval' },
   { value: 'APPROVED', label: 'Approved' },
-  { value: 'BOOKING_CONFIRMED', label: 'Completed' },
+  { value: 'BOOKING_CONFIRMED', label: 'Confirmed' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ]
 
+function formatDate(s: string | undefined) {
+  if (!s) return '—'
+  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 export default function TeamTravelPage() {
-  const [requests, setRequests] = useState<TravelRequest[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [dateFilter, setDateFilter] = useState('')
+  const [data, setData]               = useState<PageData | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [status, setStatus]           = useState('')
+  const [employeeId, setEmployeeId]   = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch]           = useState('')
+  const [page, setPage]               = useState(1)
 
-  useEffect(() => {
-    fetch('/api/travel-requests')
-      .then((r) => r.json())
-      .then((data) => {
-        setRequests(Array.isArray(data) ? data : [])
-        setLoading(false)
-      })
-  }, [])
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    const p = new URLSearchParams()
+    if (status)     p.set('status', status)
+    if (employeeId) p.set('employeeId', employeeId)
+    if (search)     p.set('search', search)
+    p.set('page', String(page))
+    const res = await fetch(`/api/manager/travel-requests?${p}`)
+    if (res.ok) setData(await res.json())
+    setLoading(false)
+  }, [status, employeeId, search, page])
 
-  const handleAssign = useCallback(async (id: string) => {
-    await fetch(`/api/travel-requests/${id}/assign`, { method: 'POST' })
-    const updated = await fetch('/api/travel-requests').then((r) => r.json())
-    setRequests(Array.isArray(updated) ? updated : [])
-  }, [])
+  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { setPage(1) }, [status, employeeId, search])
 
-  const filtered = requests.filter((r) => {
-    const q = search.toLowerCase()
-    const matchesSearch =
-      !q ||
-      r.employee.name.toLowerCase().includes(q) ||
-      r.employee.email.toLowerCase().includes(q) ||
-      r.destination.toLowerCase().includes(q) ||
-      r.origin.toLowerCase().includes(q) ||
-      r.event.eventName.toLowerCase().includes(q)
-    const matchesStatus = !statusFilter || r.status === statusFilter
-    const matchesDate = !dateFilter || r.travelDates.departureDate >= dateFilter
-    return matchesSearch && matchesStatus && matchesDate
-  })
+  function applySearch() { setSearch(searchInput); setPage(1) }
 
-  // KPI counts
-  const total = requests.length
-  const pending = requests.filter((r) => ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED'].includes(r.status)).length
-  const confirmed = requests.filter((r) => r.status === 'BOOKING_CONFIRMED').length
-  const totalCost = requests.reduce((s, r) => s + Number(r.estimatedCostUsd ?? 0), 0)
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-      </div>
-    )
+  function exportCSV() {
+    if (!data?.requests.length) return
+    const rows = data.requests.map(r => [
+      r.employee.name, r.employee.email,
+      `${r.origin} → ${r.destination}`,
+      r.event.eventName, r.event.eventCode,
+      r.servicesRequested.join('; '),
+      r.status,
+      (r.travelDates as Record<string, string>).departureDate,
+      (r.travelDates as Record<string, string>).returnDate,
+      r.estimatedCostUsd ? `$${Number(r.estimatedCostUsd).toFixed(2)}` : '',
+      new Date(r.createdAt).toISOString().slice(0, 10),
+    ])
+    const header = ['Employee','Email','Route','Event','Event Code','Services','Status','Departure','Return','Est. Cost','Submitted']
+    const csv = [header, ...rows].map(r => r.map(v => JSON.stringify(v ?? '')).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `travel-requests-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+    URL.revokeObjectURL(url)
   }
+
+  const kpis = data?.counts
+  const KPI_CARDS = [
+    { label: 'Total requests', value: kpis?.total    ?? 0, Icon: Plane,        color: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Pending',        value: kpis?.pending  ?? 0, Icon: Clock,        color: 'bg-amber-50 text-amber-600' },
+    { label: 'Approved',       value: kpis?.approved ?? 0, Icon: CheckCircle,  color: 'bg-green-50 text-green-600' },
+    { label: 'Confirmed',      value: kpis?.confirmed ?? 0, Icon: Calendar,    color: 'bg-blue-50 text-blue-600' },
+  ]
 
   return (
     <div className="space-y-6">
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Team Travel</h1>
-          <p className="mt-1 text-sm text-gray-500">All travel requests from your team</p>
+          <h1 className="text-2xl font-bold text-gray-900">Travel Requests</h1>
+          <p className="text-sm text-gray-500 mt-0.5">All travel requests across your team</p>
         </div>
-        <Link
-          href="/agent/book"
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Travel Booking
-        </Link>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{data?.pagination.total ?? 0} total</span>
+          <button type="button" onClick={exportCSV}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Requests', value: total, color: 'text-gray-900' },
-          { label: 'Pending Review', value: pending, color: 'text-yellow-600' },
-          { label: 'Confirmed Bookings', value: confirmed, color: 'text-green-600' },
-          { label: 'Total Est. Cost', value: `$${totalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, color: 'text-blue-700' },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl bg-white border border-gray-100 shadow-sm p-4 sm:p-5">
-            <p className="text-xs text-gray-500">{s.label}</p>
-            <p className={`mt-1 text-2xl font-bold ${s.color}`}>{s.value}</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {KPI_CARDS.map(({ label, value, Icon, color }) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-9 h-9 rounded-xl ${color} flex items-center justify-center`}>
+                <Icon className="w-5 h-5" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="rounded-xl border bg-white p-4 space-y-3">
-        <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+      <div className="flex flex-wrap gap-2">
+        <select
+          title="Filter by status"
+          value={status}
+          onChange={e => { setStatus(e.target.value); setPage(1) }}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white focus:border-indigo-500 outline-none"
+        >
+          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        {data && (
+          <select
+            title="Filter by employee"
+            value={employeeId}
+            onChange={e => { setEmployeeId(e.target.value); setPage(1) }}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white focus:border-indigo-500 outline-none"
+          >
+            <option value="">All employees</option>
+            {data.employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        )}
+
+        <div className="flex gap-1 flex-1 min-w-[200px]">
           <input
             type="text"
-            placeholder="Search employee, destination, event…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            placeholder="Search employee, route, event…"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && applySearch()}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm flex-1 focus:border-indigo-500 outline-none"
           />
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            title="Filter by status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-gray-700 focus:border-indigo-500 focus:outline-none"
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <DateInput
-            title="Filter by departure date"
-            value={dateFilter}
-            onChange={(v) => setDateFilter(v)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-gray-700 focus:border-indigo-500 focus:outline-none"
-          />
-          {(search || statusFilter || dateFilter) && (
-            <button
-              type="button"
-              onClick={() => { setSearch(''); setStatusFilter(''); setDateFilter('') }}
-              className="text-xs font-medium text-gray-400 hover:text-gray-600 underline"
-            >
-              Clear filters
+          <button type="button" onClick={applySearch}
+            className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors">
+            Search
+          </button>
+          {(status || employeeId || search) && (
+            <button type="button" onClick={() => { setStatus(''); setEmployeeId(''); setSearch(''); setSearchInput(''); setPage(1) }}
+              className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+              Clear
             </button>
           )}
         </div>
       </div>
 
-      {/* Results count */}
-      <p className="text-xs text-gray-500">{filtered.length} request{filtered.length !== 1 ? 's' : ''} found</p>
-
-      {/* Cards */}
-      {filtered.length === 0 ? (
-        <div className="rounded-xl border bg-white p-12 text-center">
-          <p className="text-gray-400">No requests match your filters.</p>
-          <button
-            type="button"
-            onClick={() => { setSearch(''); setStatusFilter(''); setDateFilter('') }}
-            className="mt-3 text-sm font-medium text-indigo-600 hover:underline"
-          >
-            Clear filters
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((r) => {
-            const dates = r.travelDates
-            const sl = urgencyLabel(r.status, dates.departureDate)
-            const isUnassigned = !r.agentId && r.status === 'PENDING_AGENT'
-            const isApproved = r.status === 'APPROVED'
-            const needsManagerApproval = r.status === 'PENDING_MANAGER' || r.status === 'OPTIONS_PROVIDED'
-
-            return (
-              <div key={r.id} className={`rounded-xl border bg-white p-5 hover:shadow-sm transition-shadow ${sl.border}`}>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  {/* Left — clickable detail */}
-                  <Link href={`/manager/approvals/travel/${r.id}`} className="flex items-start gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-600 shrink-0">
-                      {r.employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-900">{r.employee.name}</p>
-                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sl.pill}`}>
-                          {sl.label}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm font-medium text-gray-800">
-                        {r.origin} → {r.destination}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                        <span>
-                          <svg className="inline w-3.5 h-3.5 mr-1 -mt-0.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          {dates.departureDate} → {dates.returnDate}
-                        </span>
-                        <span>·</span>
-                        <span>{r.servicesRequested.join(', ')}</span>
-                        <span>·</span>
-                        <span>{r.event.eventName}</span>
-                        {r.estimatedCostUsd && (
-                          <>
-                            <span>·</span>
-                            <span className="font-semibold text-gray-700">${Number(r.estimatedCostUsd).toFixed(0)}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-
-                  {/* Right — actions */}
-                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-                    <Link
-                      href={`/agent/employees/${r.employee.id}`}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                      title={`View ${r.employee.name}'s profile`}
-                    >
-                      <User className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />View Profile
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => exportCsv(r)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      ↓ Export
-                    </button>
-                    {isUnassigned && (
-                      <button
-                        type="button"
-                        onClick={() => handleAssign(r.id)}
-                        className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                      >
-                        Accept
-                      </button>
-                    )}
-                    {needsManagerApproval && (
-                      <Link
-                        href={`/manager/approvals/travel/${r.id}`}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"
-                      >
-                        Review
-                      </Link>
-                    )}
-                    {isApproved && (
-                      <Link
-                        href={`/agent/requests/${r.id}`}
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
-                      >
-                        Confirm
-                      </Link>
-                    )}
-                  </div>
+      {/* Mobile cards */}
+      <div className="sm:hidden space-y-3">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border bg-white p-4"><div className="h-4 bg-gray-100 rounded animate-pulse" /></div>
+          ))
+        ) : (data?.requests.length ?? 0) === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-8">No requests found.</p>
+        ) : data?.requests.map(r => {
+          const dates = r.travelDates as Record<string, string>
+          return (
+            <Link key={r.id} href={`/manager/approvals/travel/${r.id}`}
+              className="block rounded-xl border bg-white px-4 py-3 space-y-2 hover:border-indigo-200 transition-colors">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-gray-900">{r.origin} → {r.destination}</p>
+                  <p className="text-xs text-gray-500">{r.employee.name} · {r.event.eventName}</p>
                 </div>
+                <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
               </div>
-            )
-          })}
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>{formatDate(dates.departureDate)} → {formatDate(dates.returnDate)}</span>
+                {r.estimatedCostUsd && <span className="font-semibold text-gray-700">${Number(r.estimatedCostUsd).toFixed(0)}</span>}
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block overflow-x-auto rounded-2xl border bg-white shadow-sm">
+        {loading ? (
+          <p className="p-8 text-center text-gray-400">Loading…</p>
+        ) : (data?.requests.length ?? 0) === 0 ? (
+          <p className="p-8 text-center text-gray-400">No requests found.</p>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-100 text-sm">
+            <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+              <tr>
+                <th className="px-4 py-3 text-left">Employee</th>
+                <th className="px-4 py-3 text-left">Route</th>
+                <th className="px-4 py-3 text-left">Services</th>
+                <th className="px-4 py-3 text-left">Dates</th>
+                <th className="px-4 py-3 text-left">Est. Cost</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-left">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {data?.requests.map(r => {
+                const dates = r.travelDates as Record<string, string>
+                return (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{r.employee.name}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[160px]">{r.employee.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{r.origin} → {r.destination}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-[180px]" title={r.event.eventName}>{r.event.eventName}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{r.servicesRequested.join(', ')}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {formatDate(dates.departureDate)}<br />{formatDate(dates.returnDate)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-700 whitespace-nowrap">
+                      {r.estimatedCostUsd ? `$${Number(r.estimatedCostUsd).toFixed(0)}` : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link href={`/manager/approvals/travel/${r.id}`}
+                        className="text-xs font-medium text-indigo-600 hover:underline whitespace-nowrap">
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {data && data.pagination.totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span className="text-gray-500 text-xs">
+            Showing {((page - 1) * data.pagination.pageSize) + 1}–{Math.min(page * data.pagination.pageSize, data.pagination.total)} of {data.pagination.total}
+          </span>
+          <Pagination page={page} totalPages={data.pagination.totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

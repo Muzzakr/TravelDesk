@@ -1,94 +1,21 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { Pagination } from '@/components/ui/Pagination'
 import { ExpenseApproveActions } from '@/components/manager/ExpenseApproveActions'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { compressImageFile } from '@/lib/compress'
-import { Check } from 'lucide-react'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-// ─── Same 2-level category system as employee/expenses ─────────────────────
-
-type ExpenseSubKey =
-  | 'FLIGHT' | 'TAXI' | 'CAR_RENTAL' | 'TRAIN' | 'BUS' | 'PARKING' | 'FUEL'
-  | 'HOTEL' | 'APARTMENT' | 'AIRBNB' | 'OTHER_LODGING'
-  | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS' | 'CLIENT_MEALS'
-  | 'OTHER'
-
-const MAIN_CATEGORIES: { key: string; label: string; emoji: string }[] = [
-  { key: 'TRANSPORT',     label: 'Transport',     emoji: '✈️' },
-  { key: 'ACCOMMODATION', label: 'Accommodation', emoji: '🏨' },
-  { key: 'FOOD_MEALS',    label: 'Food & Meals',  emoji: '🍽️' },
-  { key: 'OTHER',         label: 'Other',         emoji: '📎' },
+const CATEGORIES = [
+  { value: 'TRANSPORT', label: 'Transport' },
+  { value: 'ACCOMMODATION', label: 'Accommodation' },
+  { value: 'MEALS', label: 'Meals' },
+  { value: 'SUPPLIES', label: 'Supplies' },
+  { value: 'OTHER', label: 'Other' },
 ]
-
-const SUB_CATEGORIES: Record<string, { key: ExpenseSubKey; label: string; emoji: string }[]> = {
-  TRANSPORT: [
-    { key: 'FLIGHT',     label: 'Flight',     emoji: '✈️' },
-    { key: 'TAXI',       label: 'Taxi',       emoji: '🚕' },
-    { key: 'CAR_RENTAL', label: 'Car Rental', emoji: '🚗' },
-    { key: 'TRAIN',      label: 'Train',      emoji: '🚂' },
-    { key: 'BUS',        label: 'Bus',        emoji: '🚌' },
-    { key: 'PARKING',    label: 'Parking',    emoji: '🅿️' },
-    { key: 'FUEL',       label: 'Fuel',       emoji: '⛽' },
-  ],
-  ACCOMMODATION: [
-    { key: 'HOTEL',         label: 'Hotel',         emoji: '🏨' },
-    { key: 'APARTMENT',     label: 'Apartment',     emoji: '🏢' },
-    { key: 'AIRBNB',        label: 'Airbnb',        emoji: '🏠' },
-    { key: 'OTHER_LODGING', label: 'Other Lodging', emoji: '🛏️' },
-  ],
-  FOOD_MEALS: [
-    { key: 'BREAKFAST',    label: 'Breakfast',    emoji: '☕' },
-    { key: 'LUNCH',        label: 'Lunch',        emoji: '🥙' },
-    { key: 'DINNER',       label: 'Dinner',       emoji: '🍽️' },
-    { key: 'SNACKS',       label: 'Snacks',       emoji: '🍿' },
-    { key: 'CLIENT_MEALS', label: 'Client Meals', emoji: '🤝' },
-  ],
-}
-
-const SUB_CATEGORY_MAP: Record<string, { category: string; service: string }> = {
-  FLIGHT:        { category: 'TRANSPORT',     service: 'Flight' },
-  TAXI:          { category: 'TRANSPORT',     service: 'Taxi' },
-  CAR_RENTAL:    { category: 'TRANSPORT',     service: 'Car Rental' },
-  TRAIN:         { category: 'TRANSPORT',     service: 'Train' },
-  BUS:           { category: 'TRANSPORT',     service: 'Bus' },
-  PARKING:       { category: 'TRANSPORT',     service: 'Parking' },
-  FUEL:          { category: 'TRANSPORT',     service: 'Fuel' },
-  HOTEL:         { category: 'ACCOMMODATION', service: 'Hotel' },
-  APARTMENT:     { category: 'ACCOMMODATION', service: 'Apartment' },
-  AIRBNB:        { category: 'ACCOMMODATION', service: 'Airbnb' },
-  OTHER_LODGING: { category: 'ACCOMMODATION', service: 'Other Lodging' },
-  BREAKFAST:     { category: 'MEALS',         service: 'Breakfast' },
-  LUNCH:         { category: 'MEALS',         service: 'Lunch' },
-  DINNER:        { category: 'MEALS',         service: 'Dinner' },
-  SNACKS:        { category: 'MEALS',         service: 'Snacks' },
-  CLIENT_MEALS:  { category: 'MEALS',         service: 'Client Meals' },
-  OTHER:         { category: 'OTHER',         service: 'Other' },
-}
-
-const SERVICE_DETAIL_CONFIG: Record<string, { merchantLabel: string; merchantPlaceholder: string; descPlaceholder: string }> = {
-  FLIGHT:        { merchantLabel: 'Airline',               merchantPlaceholder: 'E.g. SAS, Norwegian',      descPlaceholder: 'E.g. Return flight to Stockholm' },
-  TAXI:          { merchantLabel: 'Provider (optional)',   merchantPlaceholder: 'E.g. Uber, Bolt',          descPlaceholder: 'E.g. Airport → hotel' },
-  CAR_RENTAL:    { merchantLabel: 'Rental company',        merchantPlaceholder: 'E.g. Avis, Hertz',         descPlaceholder: 'E.g. 3-day rental' },
-  TRAIN:         { merchantLabel: 'Operator (optional)',   merchantPlaceholder: 'E.g. SJ, Intercity',       descPlaceholder: 'E.g. Stockholm → Gothenburg' },
-  BUS:           { merchantLabel: 'Operator (optional)',   merchantPlaceholder: 'E.g. FlixBus',             descPlaceholder: 'E.g. Airport bus' },
-  PARKING:       { merchantLabel: 'Location (optional)',   merchantPlaceholder: 'E.g. Airport Parking',     descPlaceholder: 'E.g. 2 days parking' },
-  FUEL:          { merchantLabel: 'Station (optional)',    merchantPlaceholder: 'E.g. Shell, BP',           descPlaceholder: 'E.g. Fuel for rental car' },
-  HOTEL:         { merchantLabel: 'Hotel name',            merchantPlaceholder: 'E.g. Scandic Downtown',    descPlaceholder: 'E.g. 2 nights, conference rate' },
-  APARTMENT:     { merchantLabel: 'Property name',         merchantPlaceholder: 'E.g. City Centre Flat',    descPlaceholder: 'E.g. 3-night stay' },
-  AIRBNB:        { merchantLabel: 'Host / Property',       merchantPlaceholder: 'E.g. Studio in Milan',     descPlaceholder: 'E.g. 2-night Airbnb stay' },
-  OTHER_LODGING: { merchantLabel: 'Location (optional)',   merchantPlaceholder: 'E.g. Hostel name',         descPlaceholder: 'E.g. Overnight accommodation' },
-  BREAKFAST:     { merchantLabel: 'Vendor (optional)',     merchantPlaceholder: 'E.g. Hotel, Café',         descPlaceholder: 'E.g. Breakfast on travel day' },
-  LUNCH:         { merchantLabel: 'Restaurant (optional)', merchantPlaceholder: 'E.g. The Local Bistro',    descPlaceholder: 'E.g. Working lunch' },
-  DINNER:        { merchantLabel: 'Restaurant (optional)', merchantPlaceholder: 'E.g. Restaurant name',     descPlaceholder: 'E.g. Team dinner' },
-  SNACKS:        { merchantLabel: 'Vendor (optional)',     merchantPlaceholder: 'E.g. Convenience store',   descPlaceholder: 'E.g. Snacks during travel' },
-  CLIENT_MEALS:  { merchantLabel: 'Restaurant',            merchantPlaceholder: 'E.g. Restaurant name',     descPlaceholder: 'E.g. Lunch with client' },
-  OTHER:         { merchantLabel: 'Vendor (optional)',     merchantPlaceholder: 'E.g. Office Depot',        descPlaceholder: 'E.g. USB-C hub for laptop' },
-}
 
 type Expense = {
   id: string; description: string; merchantName: string | null; amountUsd: number
@@ -116,8 +43,8 @@ type PageData = {
 const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
 
 const EMPTY_FORM = {
-  employeeId: '', eventId: '', amountUsd: '', currency: 'USD',
-  description: '', merchantName: '', transactionDate: '', reason: '', personName: '',
+  employeeId: '', eventId: '', category: '', amountUsd: '', currency: 'USD',
+  description: '', merchantName: '', transactionDate: '', reason: '',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -141,7 +68,7 @@ export default function FinanceExpensesPage() {
   const [page, setPage] = useState(1)
   const [markingId, setMarkingId] = useState<string | null>(null)
 
-  // New expense modal — same step-by-step wizard as employee/expenses
+  // New expense modal
   const [showNewExpense, setShowNewExpense] = useState(false)
   const [newForm, setNewForm] = useState(EMPTY_FORM)
   const [newError, setNewError] = useState('')
@@ -151,10 +78,7 @@ export default function FinanceExpensesPage() {
   const [events, setEvents] = useState<TravelEvent[]>([])
   const [eventSearch, setEventSearch] = useState('')
   const [eventDropOpen, setEventDropOpen] = useState(false)
-  const [mainCategory, setMainCategory] = useState('')
-  const [subCategory, setSubCategory] = useState('')
-  const [newStep, setNewStep] = useState(1)
-  const [vehicleType, setVehicleType] = useState('')
+  const eventDropRef = useRef<HTMLDivElement>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -178,10 +102,6 @@ export default function FinanceExpensesPage() {
     setNewSuccess('')
     setPendingFile(null)
     setEventSearch('')
-    setMainCategory('')
-    setSubCategory('')
-    setVehicleType('')
-    setNewStep(1)
     if (events.length === 0) {
       fetch('/api/events').then(r => r.json()).then((d: TravelEvent[]) =>
         setEvents(d.filter(e => (e as unknown as { status: string }).status !== 'CLOSED'))
@@ -190,57 +110,20 @@ export default function FinanceExpensesPage() {
     setShowNewExpense(true)
   }
 
-  function closeNewExpense() {
-    setShowNewExpense(false)
-    setNewStep(1)
-    setMainCategory('')
-    setSubCategory('')
-    setVehicleType('')
+  async function submitNewExpense(e: React.FormEvent) {
+    e.preventDefault()
     setNewError('')
-    setEventSearch('')
-    setNewForm(EMPTY_FORM)
-    setPendingFile(null)
-  }
-
-  function selectSubCat(key: string) {
-    setSubCategory(key)
-    setNewError('')
-    setNewStep(3)
-  }
-
-  function newExpNext() {
-    if (newStep === 1 && (!newForm.employeeId || !newForm.eventId)) { setNewError('Please select an employee and an event.'); return }
-    if (newStep === 3) {
-      if (!newForm.amountUsd || Number(newForm.amountUsd) <= 0) { setNewError('Please enter a valid amount.'); return }
-      if (!newForm.description.trim()) { setNewError('Please enter a description.'); return }
-      if (!newForm.reason.trim()) { setNewError('Please enter a reason for this expense.'); return }
-    }
-    setNewError('')
-    setNewStep(s => s + 1)
-  }
-
-  async function submitNewExpense() {
-    if (!pendingFile) { setNewError('A receipt is required — please attach a receipt before submitting.'); return }
+    if (!newForm.employeeId) { setNewError('Please select an employee.'); return }
+    if (!newForm.eventId) { setNewError('Please select an event.'); return }
+    if (!newForm.category) { setNewError('Please select a category.'); return }
+    if (!newForm.amountUsd || Number(newForm.amountUsd) <= 0) { setNewError('Please enter a valid amount.'); return }
+    if (!newForm.description.trim()) { setNewError('Please enter a description.'); return }
+    if (!newForm.reason.trim()) { setNewError('Please enter a reason.'); return }
     setNewSubmitting(true)
-    setNewError('')
-
-    const mapped = SUB_CATEGORY_MAP[subCategory] ?? { category: 'OTHER', service: 'Other' }
-    const finalDescription = subCategory === 'CAR_RENTAL' && vehicleType
-      ? `Vehicle: ${vehicleType}${newForm.description ? '. ' + newForm.description : ''}`
-      : newForm.description
-
-    const compressPromise = pendingFile ? compressImageFile(pendingFile) : Promise.resolve(null)
-
     const res = await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...newForm,
-        description: finalDescription,
-        category: mapped.category,
-        service: mapped.service,
-        amountUsd: Number(newForm.amountUsd),
-      }),
+      body: JSON.stringify({ ...newForm, amountUsd: Number(newForm.amountUsd) }),
     })
     const resData = await res.json()
     if (!res.ok) {
@@ -249,14 +132,14 @@ export default function FinanceExpensesPage() {
       return
     }
     if (pendingFile && resData.expense?.id) {
-      const compressed = await compressPromise
+      const compressed = await compressImageFile(pendingFile)
       const fd = new FormData()
       fd.append('file', compressed as File)
       fd.append('expenseId', resData.expense.id)
       await fetch('/api/receipts/upload', { method: 'POST', body: fd })
     }
     setNewSubmitting(false)
-    closeNewExpense()
+    setShowNewExpense(false)
     setNewSuccess('Expense created successfully.')
     setTimeout(() => setNewSuccess(''), 4000)
     fetchData()
@@ -267,14 +150,6 @@ export default function FinanceExpensesPage() {
     ev.eventName.toLowerCase().includes(eventSearch.toLowerCase()) ||
     (ev.eventCode ?? '').toLowerCase().includes(eventSearch.toLowerCase())
   )
-
-  const subCatInfo = subCategory ? (SUB_CATEGORIES[mainCategory] ?? []).find(s => s.key === subCategory) : null
-  const mainCatInfo = mainCategory ? MAIN_CATEGORIES.find(m => m.key === mainCategory) : null
-  const currentEmoji = subCatInfo?.emoji ?? mainCatInfo?.emoji ?? '📎'
-  const currentLabel = subCatInfo?.label ?? ''
-  const svcCfg = subCategory ? SERVICE_DETAIL_CONFIG[subCategory] : null
-  const selectedEvent = events.find(ev => ev.id === newForm.eventId)
-  const selectedEmployee = data?.employees.find(emp => emp.id === newForm.employeeId)
 
   async function markAsPaid(expenseId: string) {
     setMarkingId(expenseId)
@@ -578,322 +453,134 @@ export default function FinanceExpensesPage() {
         )}
       </div>
 
-      {/* ── New Expense Modal — same step-by-step wizard as employee/expenses ── */}
+      {/* ── New Expense Modal ── */}
       {showNewExpense && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={closeNewExpense} />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowNewExpense(false)} />
           <div className="relative w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
               <h2 className="text-base font-semibold text-gray-900">New Expense</h2>
-              <button type="button" aria-label="Close" onClick={closeNewExpense} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+              <button type="button" aria-label="Close" onClick={() => setShowNewExpense(false)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="px-5 pt-5">
-              {/* Progress bar */}
-              <div className="flex items-center mb-6">
-                {(['Employee', 'Type', 'Details', 'Review'] as const).map((label, i) => {
-                  const n = i + 1; const done = newStep > n; const active = newStep === n
-                  return (
-                    <div key={label} className="flex items-center flex-1 last:flex-none">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${done ? 'bg-indigo-500 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                          {done ? <Check className="w-4 h-4" /> : n}
-                        </div>
-                        <span className={`mt-1 text-xs font-medium hidden sm:block ${active ? 'text-indigo-600' : done ? 'text-indigo-400' : 'text-gray-400'}`}>{label}</span>
-                      </div>
-                      {i < 3 && <div className={`flex-1 h-0.5 mx-2 rounded transition-colors ${newStep > n ? 'bg-indigo-400' : 'bg-gray-200'}`} />}
-                    </div>
-                  )
-                })}
+            <form onSubmit={submitNewExpense} className="px-5 py-5 space-y-4">
+              {/* Employee */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Employee<span className="text-red-500 ml-0.5">*</span></label>
+                <select title="Employee" value={newForm.employeeId}
+                  onChange={e => setNewForm(p => ({ ...p, employeeId: e.target.value }))}
+                  className={inputCls}>
+                  <option value="">Select employee…</option>
+                  {data?.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                </select>
               </div>
-            </div>
 
-            <div className="px-5 pb-5 space-y-6">
-
-              {/* ─── Step 1: Employee + Event ──────────────────────────── */}
-              {newStep === 1 && (
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Who & which event</h2>
-                    <p className="text-sm text-gray-500">Select the employee and event this expense is for.</p>
+              {/* Event */}
+              <div className="flex flex-col gap-1 relative" ref={eventDropRef}>
+                <label className="text-sm font-medium text-gray-700">Event<span className="text-red-500 ml-0.5">*</span></label>
+                <input type="text" value={eventSearch}
+                  onChange={e => { setEventSearch(e.target.value); setNewForm(p => ({ ...p, eventId: '' })); setEventDropOpen(true) }}
+                  onFocus={() => setEventDropOpen(true)}
+                  onBlur={() => setTimeout(() => setEventDropOpen(false), 150)}
+                  placeholder="Search event…" autoComplete="off" className={inputCls} />
+                {eventDropOpen && filteredEvents.length > 0 && (
+                  <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-44 overflow-y-auto">
+                    {filteredEvents.map(ev => (
+                      <button key={ev.id} type="button" onMouseDown={() => {
+                        setNewForm(p => ({ ...p, eventId: ev.id }))
+                        setEventSearch(`${ev.eventName} (${ev.eventCode})`)
+                        setEventDropOpen(false)
+                      }} className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0">
+                        <span className="font-medium">{ev.eventName}</span>
+                        <span className="text-gray-400 ml-1 text-xs">· {ev.eventCode}</span>
+                      </button>
+                    ))}
                   </div>
+                )}
+              </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Employee<span className="text-red-500 ml-0.5">*</span></label>
-                    <select title="Employee" value={newForm.employeeId}
-                      onChange={e => setNewForm(p => ({ ...p, employeeId: e.target.value }))}
-                      className={inputCls}>
-                      <option value="">Select employee…</option>
-                      {data?.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                    </select>
-                  </div>
+              {/* Category */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Category<span className="text-red-500 ml-0.5">*</span></label>
+                <select title="Category" value={newForm.category}
+                  onChange={e => setNewForm(p => ({ ...p, category: e.target.value }))}
+                  className={inputCls}>
+                  <option value="">Select category…</option>
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
 
-                  <div className="relative flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Event<span className="text-red-500 ml-0.5">*</span></label>
-                    <input
-                      type="text" value={eventSearch}
-                      onChange={e => { setEventSearch(e.target.value); setNewForm(p => ({ ...p, eventId: '' })); setEventDropOpen(true) }}
-                      onFocus={() => setEventDropOpen(true)}
-                      onBlur={() => setTimeout(() => setEventDropOpen(false), 150)}
-                      placeholder="Search events…" autoComplete="off" className={inputCls}
-                    />
-                    {eventDropOpen && filteredEvents.length > 0 && (
-                      <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
-                        {filteredEvents.map(ev => (
-                          <button key={ev.id} type="button" onMouseDown={() => {
-                            setNewForm(p => ({ ...p, eventId: ev.id }))
-                            setEventSearch(`${ev.eventName} (${ev.eventCode})`)
-                            setEventDropOpen(false)
-                          }} className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0">
-                            <span className="font-medium">{ev.eventName}</span>
-                            <span className="text-gray-400 ml-1 text-xs">· {ev.eventCode}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+              {/* Amount + Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Amount (USD)<span className="text-red-500 ml-0.5">*</span></label>
+                  <input type="number" inputMode="decimal" step="0.01" min="0" value={newForm.amountUsd}
+                    onChange={e => setNewForm(p => ({ ...p, amountUsd: e.target.value }))}
+                    placeholder="0.00" className={inputCls} />
                 </div>
-              )}
-
-              {/* ─── Step 2: Expense Type (2-level) ─────────────── */}
-              {newStep === 2 && (
-                <div>
-                  {!mainCategory ? (
-                    <>
-                      <h2 className="text-lg font-semibold text-gray-900 mb-1">Type of expense</h2>
-                      <p className="text-sm text-gray-500 mb-5">Select the main category.</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        {MAIN_CATEGORIES.map(({ key, label, emoji }) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => {
-                              if (key === 'OTHER') {
-                                setMainCategory('OTHER'); setSubCategory('OTHER'); setNewError(''); setNewStep(3)
-                              } else {
-                                setMainCategory(key)
-                              }
-                            }}
-                            className="rounded-2xl border-2 border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 p-6 flex flex-col items-center gap-3 transition-all group"
-                          >
-                            <span className="text-4xl group-hover:scale-110 transition-transform select-none">{emoji}</span>
-                            <span className="text-sm font-semibold text-gray-800">{label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2 mb-5">
-                        <button
-                          type="button"
-                          onClick={() => { setMainCategory(''); setSubCategory('') }}
-                          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
-                        >
-                          ← Change
-                        </button>
-                        <span className="text-gray-200">/</span>
-                        {(() => { const mc = MAIN_CATEGORIES.find(m => m.key === mainCategory); return mc ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-base select-none">{mc.emoji}</span>
-                            <span className="text-sm font-semibold text-gray-700">{mc.label}</span>
-                          </div>
-                        ) : null })()}
-                      </div>
-                      <h2 className="text-base font-semibold text-gray-900 mb-1">Select type</h2>
-                      <p className="text-sm text-gray-500 mb-4">Choose the specific expense type.</p>
-                      <div className={`grid gap-3 ${(SUB_CATEGORIES[mainCategory]?.length ?? 0) > 4 ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-2'}`}>
-                        {(SUB_CATEGORIES[mainCategory] ?? []).map(({ key, label, emoji }) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => selectSubCat(key)}
-                            className="rounded-2xl border-2 border-gray-200 bg-white hover:border-indigo-500 hover:bg-indigo-600 hover:text-white p-4 flex flex-col items-center gap-2 transition-all group"
-                          >
-                            <span className="text-3xl select-none group-hover:scale-110 transition-transform">{emoji}</span>
-                            <span className="text-xs font-semibold text-gray-700 group-hover:text-white transition-colors text-center leading-tight">{label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Date</label>
+                  <input type="date" title="Transaction date" value={newForm.transactionDate}
+                    onChange={e => setNewForm(p => ({ ...p, transactionDate: e.target.value }))}
+                    className={inputCls} />
                 </div>
-              )}
+              </div>
 
-              {/* ─── Step 3: Details ─────────────────────────────── */}
-              {newStep === 3 && svcCfg && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-xl bg-indigo-50 border-l-4 border-indigo-600 px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl select-none">{currentEmoji}</span>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">{mainCatInfo?.label}</p>
-                        <p className="font-semibold text-indigo-900 leading-tight">{currentLabel}</p>
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => { setNewStep(2); setSubCategory('') }} className="text-xs text-indigo-500 hover:underline">Change</button>
-                  </div>
+              {/* Description */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Description<span className="text-red-500 ml-0.5">*</span></label>
+                <input type="text" value={newForm.description}
+                  onChange={e => setNewForm(p => ({ ...p, description: e.target.value }))}
+                  placeholder="E.g. Return flight to Stockholm" className={inputCls} />
+              </div>
 
-                  {subCategory === 'CAR_RENTAL' && (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-gray-700">Type of vehicle</label>
-                      <select title="Type of vehicle" value={vehicleType} onChange={e => setVehicleType(e.target.value)} className={inputCls}>
-                        <option value="">Select type…</option>
-                        <option value="Economy">Economy</option>
-                        <option value="Compact">Compact</option>
-                        <option value="SUV">SUV</option>
-                        <option value="Van">Van</option>
-                        <option value="Minibus">Minibus</option>
-                        <option value="Luxury">Luxury</option>
-                      </select>
-                    </div>
-                  )}
+              {/* Reason */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Reason<span className="text-red-500 ml-0.5">*</span></label>
+                <input type="text" value={newForm.reason}
+                  onChange={e => setNewForm(p => ({ ...p, reason: e.target.value }))}
+                  placeholder="E.g. Business travel, client meeting" className={inputCls} />
+              </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">{svcCfg.merchantLabel}</label>
-                    <input type="text" value={newForm.merchantName}
-                      onChange={e => setNewForm(p => ({ ...p, merchantName: e.target.value }))}
-                      placeholder={svcCfg.merchantPlaceholder} className={inputCls} />
-                  </div>
+              {/* Merchant */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Merchant / Vendor</label>
+                <input type="text" value={newForm.merchantName}
+                  onChange={e => setNewForm(p => ({ ...p, merchantName: e.target.value }))}
+                  placeholder="E.g. SAS, Scandic Hotel" className={inputCls} />
+              </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-gray-700">Amount (USD)<span className="text-red-500 ml-0.5">*</span></label>
-                      <input type="number" inputMode="decimal" step="0.01" min="0" value={newForm.amountUsd}
-                        onChange={e => setNewForm(p => ({ ...p, amountUsd: e.target.value }))}
-                        placeholder="45.00" className={inputCls} />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-gray-700">Date</label>
-                      <input type="date" title="Transaction date" value={newForm.transactionDate}
-                        onChange={e => setNewForm(p => ({ ...p, transactionDate: e.target.value }))}
-                        className={inputCls} />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Description<span className="text-red-500 ml-0.5">*</span></label>
-                    <input type="text" value={newForm.description}
-                      onChange={e => setNewForm(p => ({ ...p, description: e.target.value }))}
-                      placeholder={svcCfg.descPlaceholder} className={inputCls} />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Reason for expense<span className="text-red-500 ml-0.5">*</span></label>
-                    <input type="text" value={newForm.reason}
-                      onChange={e => setNewForm(p => ({ ...p, reason: e.target.value }))}
-                      placeholder="E.g. Client meeting, business travel" className={inputCls} />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">Name of person (who it was for)</label>
-                    <input type="text" value={newForm.personName}
-                      onChange={e => setNewForm(p => ({ ...p, personName: e.target.value }))}
-                      placeholder={`E.g. ${selectedEmployee?.name ?? 'Jane Doe'} (leave blank if same as employee)`} className={inputCls} />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <p className="text-sm font-medium text-gray-700">Receipt<span className="text-red-500 ml-0.5">*</span></p>
-                    <FileUpload
-                      label="Drag & drop or click to upload"
-                      hint="JPG, PNG, PDF, WebP — max 10 MB"
-                      file={pendingFile}
-                      onFile={setPendingFile}
-                      onClear={() => setPendingFile(null)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* ─── Step 4: Review ──────────────────────────────── */}
-              {newStep === 4 && (
-                <div className="space-y-5">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Review the expense</h2>
-                    <p className="text-sm text-gray-500">Double-check everything before submitting.</p>
-                  </div>
-
-                  {selectedEmployee && (
-                    <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Employee</p>
-                      <p className="font-semibold text-gray-900">{selectedEmployee.name}</p>
-                    </div>
-                  )}
-
-                  {selectedEvent && (
-                    <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-4">
-                      <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-1">Event</p>
-                      <p className="font-semibold text-gray-900">{selectedEvent.eventName}</p>
-                      {selectedEvent.eventCode && <p className="text-sm text-gray-500">{selectedEvent.eventCode}</p>}
-                    </div>
-                  )}
-
-                  <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl select-none">{currentEmoji}</span>
-                        <div>
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold tracking-wide">{mainCatInfo?.label}</p>
-                          <p className="text-sm font-semibold text-gray-800 leading-tight">{currentLabel}</p>
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => setNewStep(3)} className="text-xs text-indigo-600 font-medium hover:underline">Edit</button>
-                    </div>
-                    <div className="px-4 py-3 space-y-2">
-                      <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Amount</span><span className="text-gray-900 font-medium">${Number(newForm.amountUsd || 0).toFixed(2)}</span></div>
-                      {newForm.transactionDate && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Date</span><span className="text-gray-900 font-medium">{new Date(newForm.transactionDate + 'T12:00').toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span></div>}
-                      {newForm.merchantName && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Merchant</span><span className="text-gray-900 font-medium">{newForm.merchantName}</span></div>}
-                      {vehicleType && subCategory === 'CAR_RENTAL' && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Vehicle type</span><span className="text-gray-900 font-medium">{vehicleType}</span></div>}
-                      {newForm.description && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Description</span><span className="text-gray-900 font-medium">{newForm.description}</span></div>}
-                      {newForm.reason && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Reason</span><span className="text-gray-900 font-medium">{newForm.reason}</span></div>}
-                      {newForm.personName && <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Expense for</span><span className="text-gray-900 font-medium">{newForm.personName}</span></div>}
-                      <div className="flex gap-2 text-sm"><span className="text-gray-400 w-32 shrink-0">Receipt</span><span className="text-gray-900 font-medium">{pendingFile ? pendingFile.name : <span className="text-amber-600">None — required</span>}</span></div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Receipt */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Receipt</label>
+                <FileUpload
+                  label="Drag & drop or click to upload"
+                  hint="JPG, PNG, PDF, WebP — max 10 MB"
+                  file={pendingFile}
+                  onFile={setPendingFile}
+                  onClear={() => setPendingFile(null)}
+                />
+              </div>
 
               {newError && (
-                <p className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{newError}</p>
+                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{newError}</p>
               )}
 
-              {/* Navigation */}
-              <div className="flex gap-3 pt-1 justify-between">
-                {newStep > 1 ? (
-                  <button type="button"
-                    onClick={() => {
-                      setNewError('')
-                      if (newStep === 2 && mainCategory) { setMainCategory(''); setSubCategory('') }
-                      else setNewStep(s => s - 1)
-                    }}
-                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    ← Back
-                  </button>
-                ) : (
-                  <button type="button" onClick={closeNewExpense}
-                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    Cancel
-                  </button>
-                )}
-                {newStep !== 2 && (
-                  newStep < 4 ? (
-                    <button type="button" onClick={newExpNext}
-                      className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 text-sm font-semibold transition-colors">
-                      Next →
-                    </button>
-                  ) : (
-                    <button type="button" onClick={submitNewExpense} disabled={newSubmitting}
-                      className="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-6 py-2.5 text-sm font-semibold transition-colors">
-                      {newSubmitting ? 'Saving…' : 'Save expense'}
-                    </button>
-                  )
-                )}
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowNewExpense(false)}
+                  className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={newSubmitting}
+                  className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+                  {newSubmitting ? 'Saving…' : 'Save Expense'}
+                </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}

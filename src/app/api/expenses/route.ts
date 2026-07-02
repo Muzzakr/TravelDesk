@@ -21,6 +21,7 @@ const CreateSchema = z.object({
   service: z.string().optional(),
   reason: z.string().min(1),
   personName: z.string().optional(),
+  employeeId: z.string().optional(), // admin-only: create on behalf of employee
 })
 
 export async function GET() {
@@ -73,10 +74,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Policy violation', flags: blocked }, { status: 422 })
   }
 
+  const canSetEmployee = ['SYSTEM_ADMIN', 'TRAVEL_MANAGER', 'MANAGER'].includes(session.user.role ?? '')
+  const targetEmployeeId = (canSetEmployee && parsed.data.employeeId) ? parsed.data.employeeId : session.user.id
+
   const expense = await prisma.expense.create({
     data: {
       companyId: session.user.companyId,
-      employeeId: session.user.id,
+      employeeId: targetEmployeeId,
       eventId: parsed.data.eventId,
       travelRequestId: parsed.data.travelRequestId,
       category: parsed.data.category,

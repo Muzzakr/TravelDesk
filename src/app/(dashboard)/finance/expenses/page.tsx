@@ -1,11 +1,21 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { Pagination } from '@/components/ui/Pagination'
 import { ExpenseApproveActions } from '@/components/manager/ExpenseApproveActions'
+import { FileUpload } from '@/components/ui/FileUpload'
+import { compressImageFile } from '@/lib/compress'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
+const CATEGORIES = [
+  { value: 'TRANSPORT', label: 'Transport' },
+  { value: 'ACCOMMODATION', label: 'Accommodation' },
+  { value: 'MEALS', label: 'Meals' },
+  { value: 'SUPPLIES', label: 'Supplies' },
+  { value: 'OTHER', label: 'Other' },
+]
 
 type Expense = {
   id: string; description: string; merchantName: string | null; amountUsd: number
@@ -14,6 +24,8 @@ type Expense = {
   event: { eventCode: string; eventName: string }
   receipts: { id: string; fileName: string }[]
 }
+
+type TravelEvent = { id: string; eventName: string; eventCode: string }
 
 type PageData = {
   userRole: string
@@ -26,6 +38,13 @@ type PageData = {
     totalExpensesAmount: number; totalExpensesCount: number
   }
   employees: { id: string; name: string }[]
+}
+
+const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
+
+const EMPTY_FORM = {
+  employeeId: '', eventId: '', category: '', amountUsd: '', currency: 'USD',
+  description: '', merchantName: '', transactionDate: '', reason: '',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -49,6 +68,18 @@ export default function FinanceExpensesPage() {
   const [page, setPage] = useState(1)
   const [markingId, setMarkingId] = useState<string | null>(null)
 
+  // New expense modal
+  const [showNewExpense, setShowNewExpense] = useState(false)
+  const [newForm, setNewForm] = useState(EMPTY_FORM)
+  const [newError, setNewError] = useState('')
+  const [newSubmitting, setNewSubmitting] = useState(false)
+  const [newSuccess, setNewSuccess] = useState('')
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [events, setEvents] = useState<TravelEvent[]>([])
+  const [eventSearch, setEventSearch] = useState('')
+  const [eventDropOpen, setEventDropOpen] = useState(false)
+  const eventDropRef = useRef<HTMLDivElement>(null)
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     const p = new URLSearchParams({
@@ -64,6 +95,61 @@ export default function FinanceExpensesPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { setPage(1) }, [month, year, statusFilter, employeeFilter, search])
+
+  function openNewExpense() {
+    setNewForm(EMPTY_FORM)
+    setNewError('')
+    setNewSuccess('')
+    setPendingFile(null)
+    setEventSearch('')
+    if (events.length === 0) {
+      fetch('/api/events').then(r => r.json()).then((d: TravelEvent[]) =>
+        setEvents(d.filter(e => (e as unknown as { status: string }).status !== 'CLOSED'))
+      )
+    }
+    setShowNewExpense(true)
+  }
+
+  async function submitNewExpense(e: React.FormEvent) {
+    e.preventDefault()
+    setNewError('')
+    if (!newForm.employeeId) { setNewError('Please select an employee.'); return }
+    if (!newForm.eventId) { setNewError('Please select an event.'); return }
+    if (!newForm.category) { setNewError('Please select a category.'); return }
+    if (!newForm.amountUsd || Number(newForm.amountUsd) <= 0) { setNewError('Please enter a valid amount.'); return }
+    if (!newForm.description.trim()) { setNewError('Please enter a description.'); return }
+    if (!newForm.reason.trim()) { setNewError('Please enter a reason.'); return }
+    setNewSubmitting(true)
+    const res = await fetch('/api/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...newForm, amountUsd: Number(newForm.amountUsd) }),
+    })
+    const resData = await res.json()
+    if (!res.ok) {
+      setNewError(typeof resData.error === 'string' ? resData.error : JSON.stringify(resData.error))
+      setNewSubmitting(false)
+      return
+    }
+    if (pendingFile && resData.expense?.id) {
+      const compressed = await compressImageFile(pendingFile)
+      const fd = new FormData()
+      fd.append('file', compressed as File)
+      fd.append('expenseId', resData.expense.id)
+      await fetch('/api/receipts/upload', { method: 'POST', body: fd })
+    }
+    setNewSubmitting(false)
+    setShowNewExpense(false)
+    setNewSuccess('Expense created successfully.')
+    setTimeout(() => setNewSuccess(''), 4000)
+    fetchData()
+  }
+
+  const filteredEvents = events.filter(ev =>
+    !eventSearch ||
+    ev.eventName.toLowerCase().includes(eventSearch.toLowerCase()) ||
+    (ev.eventCode ?? '').toLowerCase().includes(eventSearch.toLowerCase())
+  )
 
   async function markAsPaid(expenseId: string) {
     setMarkingId(expenseId)
@@ -160,8 +246,26 @@ export default function FinanceExpensesPage() {
             </svg>
             Export CSV
           </button>
+          {isManager && (
+            <button type="button" onClick={openNewExpense}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3 py-2 text-sm font-semibold text-white transition-colors">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Expense
+            </button>
+          )}
         </div>
       </div>
+
+      {newSuccess && (
+        <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {newSuccess}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -348,6 +452,138 @@ export default function FinanceExpensesPage() {
           </div>
         )}
       </div>
+
+      {/* ── New Expense Modal ── */}
+      {showNewExpense && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowNewExpense(false)} />
+          <div className="relative w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
+              <h2 className="text-base font-semibold text-gray-900">New Expense</h2>
+              <button type="button" aria-label="Close" onClick={() => setShowNewExpense(false)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={submitNewExpense} className="px-5 py-5 space-y-4">
+              {/* Employee */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Employee<span className="text-red-500 ml-0.5">*</span></label>
+                <select title="Employee" value={newForm.employeeId}
+                  onChange={e => setNewForm(p => ({ ...p, employeeId: e.target.value }))}
+                  className={inputCls}>
+                  <option value="">Select employee…</option>
+                  {data?.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                </select>
+              </div>
+
+              {/* Event */}
+              <div className="flex flex-col gap-1 relative" ref={eventDropRef}>
+                <label className="text-sm font-medium text-gray-700">Event<span className="text-red-500 ml-0.5">*</span></label>
+                <input type="text" value={eventSearch}
+                  onChange={e => { setEventSearch(e.target.value); setNewForm(p => ({ ...p, eventId: '' })); setEventDropOpen(true) }}
+                  onFocus={() => setEventDropOpen(true)}
+                  onBlur={() => setTimeout(() => setEventDropOpen(false), 150)}
+                  placeholder="Search event…" autoComplete="off" className={inputCls} />
+                {eventDropOpen && filteredEvents.length > 0 && (
+                  <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-44 overflow-y-auto">
+                    {filteredEvents.map(ev => (
+                      <button key={ev.id} type="button" onMouseDown={() => {
+                        setNewForm(p => ({ ...p, eventId: ev.id }))
+                        setEventSearch(`${ev.eventName} (${ev.eventCode})`)
+                        setEventDropOpen(false)
+                      }} className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0">
+                        <span className="font-medium">{ev.eventName}</span>
+                        <span className="text-gray-400 ml-1 text-xs">· {ev.eventCode}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Category */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Category<span className="text-red-500 ml-0.5">*</span></label>
+                <select title="Category" value={newForm.category}
+                  onChange={e => setNewForm(p => ({ ...p, category: e.target.value }))}
+                  className={inputCls}>
+                  <option value="">Select category…</option>
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+
+              {/* Amount + Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Amount (USD)<span className="text-red-500 ml-0.5">*</span></label>
+                  <input type="number" inputMode="decimal" step="0.01" min="0" value={newForm.amountUsd}
+                    onChange={e => setNewForm(p => ({ ...p, amountUsd: e.target.value }))}
+                    placeholder="0.00" className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Date</label>
+                  <input type="date" title="Transaction date" value={newForm.transactionDate}
+                    onChange={e => setNewForm(p => ({ ...p, transactionDate: e.target.value }))}
+                    className={inputCls} />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Description<span className="text-red-500 ml-0.5">*</span></label>
+                <input type="text" value={newForm.description}
+                  onChange={e => setNewForm(p => ({ ...p, description: e.target.value }))}
+                  placeholder="E.g. Return flight to Stockholm" className={inputCls} />
+              </div>
+
+              {/* Reason */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Reason<span className="text-red-500 ml-0.5">*</span></label>
+                <input type="text" value={newForm.reason}
+                  onChange={e => setNewForm(p => ({ ...p, reason: e.target.value }))}
+                  placeholder="E.g. Business travel, client meeting" className={inputCls} />
+              </div>
+
+              {/* Merchant */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Merchant / Vendor</label>
+                <input type="text" value={newForm.merchantName}
+                  onChange={e => setNewForm(p => ({ ...p, merchantName: e.target.value }))}
+                  placeholder="E.g. SAS, Scandic Hotel" className={inputCls} />
+              </div>
+
+              {/* Receipt */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Receipt</label>
+                <FileUpload
+                  label="Drag & drop or click to upload"
+                  hint="JPG, PNG, PDF, WebP — max 10 MB"
+                  file={pendingFile}
+                  onFile={setPendingFile}
+                  onClear={() => setPendingFile(null)}
+                />
+              </div>
+
+              {newError && (
+                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{newError}</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowNewExpense(false)}
+                  className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={newSubmitting}
+                  className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+                  {newSubmitting ? 'Saving…' : 'Save Expense'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

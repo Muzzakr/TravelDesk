@@ -67,7 +67,7 @@ export default async function ManagerDashboard() {
 
   const urgentItems = [
     travelPending > 0 && { count: travelPending, label: 'Travel requests pending', href: '/manager/team-travel', color: 'amber' as const },
-    expensePending > 0 && { count: expensePending, label: 'Expenses pending', href: '/manager/team-expenses', color: 'orange' as const },
+    expensePending > 0 && { count: expensePending, label: 'Expenses pending', href: '/finance/expenses', color: 'orange' as const },
   ].filter(Boolean) as { count: number; label: string; href: string; color: 'amber' | 'orange' }[]
 
   const urgentColors = {
@@ -78,7 +78,7 @@ export default async function ManagerDashboard() {
   const kpis = [
     { label: 'Team Members',     value: teamCount,       sub: `${activeTeamCount} active`,    href: '/manager/users-roles',   urgent: false },
     { label: 'Open Requests',    value: travelPending,   sub: 'need review',                  href: '/manager/approvals',     urgent: travelPending > 0 },
-    { label: 'Pending Expenses', value: expensePending,  sub: 'need review',                  href: '/manager/team-expenses', urgent: expensePending > 0 },
+    { label: 'Pending Expenses', value: expensePending,  sub: 'need review',                  href: '/finance/expenses', urgent: expensePending > 0 },
     { label: 'Approved This Month', value: travelApprovedMonth, sub: 'travel requests',       href: '/manager/team-travel',   urgent: false },
     { label: 'Spend This Month', value: `$${totalSpendAmount.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, sub: 'approved expenses', href: '/manager/reports', urgent: false },
   ]
@@ -248,7 +248,7 @@ export default async function ManagerDashboard() {
           )}
 
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
-            <Link href="/manager/team-expenses" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
+            <Link href="/finance/expenses" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
             <Link href="/manager/approvals" className="text-xs text-gray-500 hover:underline">Pending approvals</Link>
           </div>
         </details>

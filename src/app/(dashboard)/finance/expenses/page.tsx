@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Pagination } from '@/components/ui/Pagination'
+import { ExpenseApproveActions } from '@/components/manager/ExpenseApproveActions'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -15,20 +16,29 @@ type Expense = {
 }
 
 type PageData = {
+  userRole: string
   expenses: Expense[]
   pagination: { page: number; pageSize: number; total: number; totalPages: number }
-  kpis: { awaitingPaymentAmount: number; awaitingPaymentCount: number; paidThisMonthAmount: number; paidThisMonthCount: number; totalExpensesAmount: number; totalExpensesCount: number }
+  kpis: {
+    awaitingPaymentAmount: number; awaitingPaymentCount: number
+    paidThisMonthAmount: number; paidThisMonthCount: number
+    pendingManagerReviewAmount: number; pendingManagerReviewCount: number
+    totalExpensesAmount: number; totalExpensesCount: number
+  }
   employees: { id: string; name: string }[]
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  SUBMITTED: 'Pending Manager Review', UNDER_REVIEW: 'Under Review',
+  SUBMITTED: 'Pending Review', UNDER_REVIEW: 'Under Review',
   APPROVED: 'Awaiting Payment', PAID: 'Paid', REJECTED: 'Rejected', DRAFT: 'Draft',
 }
 
+const isManagerRole = (role: string) => ['MANAGER', 'TRAVEL_MANAGER'].includes(role)
+const isFinanceRole = (role: string) => ['FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(role)
+
 export default function FinanceExpensesPage() {
   const now = new Date()
-  const [month, setMonth] = useState(-1) // -1 = all months
+  const [month, setMonth] = useState(-1)
   const [year, setYear] = useState(now.getFullYear())
   const [data, setData] = useState<PageData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -82,6 +92,47 @@ export default function FinanceExpensesPage() {
 
   const years = [now.getFullYear() - 1, now.getFullYear()]
   const kpis = data?.kpis
+  const role = data?.userRole ?? ''
+  const isManager = isManagerRole(role)
+  const isFinance = isFinanceRole(role)
+
+  const kpiCards = kpis ? [
+    {
+      label: 'Total expenses',
+      value: `$${kpis.totalExpensesAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,
+      sub: `${kpis.totalExpensesCount} expenses`,
+      color: 'text-gray-900',
+    },
+    isManager ? {
+      label: 'Pending your review',
+      value: `$${kpis.pendingManagerReviewAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,
+      sub: `${kpis.pendingManagerReviewCount} expenses`,
+      color: 'text-yellow-600',
+    } : {
+      label: 'Awaiting payment',
+      value: `$${kpis.awaitingPaymentAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,
+      sub: `${kpis.awaitingPaymentCount} expenses`,
+      color: 'text-blue-700',
+    },
+    {
+      label: 'Paid',
+      value: `$${kpis.paidThisMonthAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,
+      sub: `${kpis.paidThisMonthCount} paid`,
+      color: 'text-green-700',
+    },
+    isFinance ? {
+      label: 'Generate payout',
+      value: '→ Payout Reports',
+      sub: 'Create a new report',
+      color: 'text-indigo-600',
+      href: '/finance/payout-reports',
+    } : {
+      label: 'Approved (awaiting pay)',
+      value: `$${kpis.awaitingPaymentAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,
+      sub: `${kpis.awaitingPaymentCount} approved`,
+      color: 'text-blue-700',
+    },
+  ] : []
 
   return (
     <div className="space-y-5">
@@ -114,13 +165,8 @@ export default function FinanceExpensesPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Total this month', value: kpis ? `$${kpis.totalExpensesAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.totalExpensesCount} expenses` : '', color: 'text-gray-900' },
-          { label: 'Awaiting payment', value: kpis ? `$${kpis.awaitingPaymentAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.awaitingPaymentCount} expenses` : '', color: 'text-blue-700' },
-          { label: 'Paid this month', value: kpis ? `$${kpis.paidThisMonthAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—', sub: kpis ? `${kpis.paidThisMonthCount} expenses` : '', color: 'text-green-700' },
-          { label: 'Generate payout', value: '→ Payout Reports', sub: 'Create a new report', color: 'text-indigo-600', href: '/finance/payout-reports' },
-        ].map((card) => (
-          card.href ? (
+        {kpiCards.map((card) => (
+          'href' in card && card.href ? (
             <Link key={card.label} href={card.href} className="rounded-xl bg-white border border-gray-100 shadow-sm p-4 hover:border-indigo-200 transition-colors">
               <p className="text-xs text-gray-500">{card.label}</p>
               <p className={`mt-1 text-base font-bold ${card.color}`}>{card.value}</p>
@@ -141,7 +187,7 @@ export default function FinanceExpensesPage() {
         <select title="Filter by status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">All statuses</option>
-          <option value="SUBMITTED">Pending Manager Review</option>
+          <option value="SUBMITTED">Pending Review</option>
           <option value="APPROVED">Awaiting Payment</option>
           <option value="PAID">Paid</option>
           <option value="REJECTED">Rejected</option>
@@ -174,7 +220,7 @@ export default function FinanceExpensesPage() {
               <div key={i} className="p-4"><div className="h-4 bg-gray-100 rounded animate-pulse" /></div>
             ))
           ) : !data?.expenses.length ? (
-            <p className="p-8 text-center text-sm text-gray-400">No expenses found for this period.</p>
+            <p className="p-8 text-center text-sm text-gray-400">No expenses found.</p>
           ) : data.expenses.map((e) => (
             <div key={e.id} className="p-4 space-y-2.5">
               <div className="flex items-start justify-between gap-3">
@@ -183,23 +229,27 @@ export default function FinanceExpensesPage() {
                   <p className="text-sm text-gray-600 truncate" title={e.description}>{e.description}</p>
                   <p className="text-xs text-gray-400 truncate">{e.event.eventName}</p>
                 </div>
-                <span className="font-semibold text-gray-900 whitespace-nowrap">${Number(e.amountUsd).toFixed(2)}</span>
+                <span className="font-semibold text-gray-900 whitespace-nowrap shrink-0">${Number(e.amountUsd).toFixed(2)}</span>
               </div>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                   e.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
                   e.status === 'PAID' ? 'bg-green-100 text-green-700' :
                   e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                   'bg-yellow-100 text-yellow-700'
                 }`}>{STATUS_LABELS[e.status] ?? e.status}</span>
-                {e.status === 'APPROVED' ? (
-                  <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
-                    className="min-h-[2.5rem] rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                    {markingId === e.id ? '...' : 'Mark as Paid'}
-                  </button>
-                ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isManager && ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) && (
+                    <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
+                  )}
+                  {isFinance && e.status === 'APPROVED' && (
+                    <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
+                      className="min-h-[2.5rem] rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                      {markingId === e.id ? '...' : 'Mark as Paid'}
+                    </button>
+                  )}
                   <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View →</Link>
-                )}
+                </div>
               </div>
             </div>
           ))}
@@ -228,13 +278,13 @@ export default function FinanceExpensesPage() {
                   ))}</tr>
                 ))
               ) : !data?.expenses.length ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found for this period.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found.</td></tr>
               ) : data.expenses.map((e) => (
                 <tr key={e.id} className="hover:bg-gray-50">
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
-                        {e.employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                        {e.employee.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <span className="font-medium text-gray-900">{e.employee.name}</span>
                     </div>
@@ -270,14 +320,18 @@ export default function FinanceExpensesPage() {
                     ) : <span className="text-gray-300 text-xs">—</span>}
                   </td>
                   <td className="px-3 py-3">
-                    {e.status === 'APPROVED' ? (
-                      <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                        {markingId === e.id ? '...' : 'Mark as Paid'}
-                      </button>
-                    ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isManager && ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) && (
+                        <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
+                      )}
+                      {isFinance && e.status === 'APPROVED' && (
+                        <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
+                          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                          {markingId === e.id ? '...' : 'Mark as Paid'}
+                        </button>
+                      )}
                       <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View</Link>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}

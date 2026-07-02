@@ -106,6 +106,7 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({
+    userRole: session.user.role,
     expenses,
     pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     kpis: {

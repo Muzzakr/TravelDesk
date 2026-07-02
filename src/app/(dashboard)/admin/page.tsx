@@ -103,8 +103,8 @@ export default async function AdminDashboard() {
   const totalPendingPayout = Number(pendingPayoutTotal._sum.amountUsd ?? 0)
 
   const urgentItems = [
-    travelRequestPending > 0 && { count: travelRequestPending, label: 'Open requests', href: '/employee/travel-requests', color: 'amber' as const },
-    expenseMissingReceipts > 0 && { count: expenseMissingReceipts, label: 'Missing receipts', href: '/employee/expenses?view=admin', color: 'red' as const },
+    travelRequestPending > 0 && { count: travelRequestPending, label: 'Open requests', href: '/admin/travel-requests', color: 'amber' as const },
+    expenseMissingReceipts > 0 && { count: expenseMissingReceipts, label: 'Missing receipts', href: '/admin/expenses', color: 'red' as const },
     expensePendingPayout > 0 && { count: expensePendingPayout, label: 'Pending payout', href: '/finance/payout-reports', color: 'orange' as const },
   ].filter(Boolean) as { count: number; label: string; href: string; color: 'amber' | 'red' | 'orange' }[]
 
@@ -117,7 +117,7 @@ export default async function AdminDashboard() {
   const kpis = [
     { label: 'Total Users',    value: userCount,          sub: `${activeUserCount} active`,   href: '/admin/users',              urgent: false },
     { label: 'Events',         value: eventCount,         sub: `${activeEventCount} active`,  href: '/admin/events',             urgent: false },
-    { label: 'Open Requests',  value: travelRequestPending, sub: 'need action',              href: '/employee/travel-requests', urgent: travelRequestPending > 0 },
+    { label: 'Open Requests',  value: travelRequestPending, sub: 'need action',              href: '/admin/travel-requests', urgent: travelRequestPending > 0 },
     { label: 'Approved Spend', value: `$${totalApproved.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, sub: 'total approved', href: '/finance', urgent: false },
     { label: 'Pending Payout', value: `$${totalPendingPayout.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, sub: `${expensePendingPayout} expenses`, href: '/finance/payout-reports', urgent: totalPendingPayout > 0 },
   ]
@@ -162,14 +162,28 @@ export default async function AdminDashboard() {
         </section>
       )}
 
-      {/* ── KPI Cards ───────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {/* ── KPI Cards — Mobile list ─────────────────────────── */}
+      <div className="sm:hidden rounded-2xl border border-gray-100 bg-white overflow-hidden divide-y divide-gray-50">
+        {kpis.map((k) => (
+          <Link key={k.label} href={k.href}
+            className={`flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors ${k.urgent ? 'bg-amber-50' : ''}`}>
+            <div className="min-w-0">
+              <p className={`text-sm font-semibold ${k.urgent ? 'text-amber-700' : 'text-gray-800'}`}>{k.label}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{k.sub}</p>
+            </div>
+            <p className={`text-xl font-bold ml-4 shrink-0 ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── KPI Cards — Desktop grid ─────────────────────────── */}
+      <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href}
             className={`rounded-xl border bg-white px-4 py-3 hover:shadow-md transition-all group ${k.urgent ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
-            <p className={`text-xl sm:text-2xl font-bold truncate ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
-            <p className="text-xs font-semibold text-gray-700 mt-0.5 line-clamp-1">{k.label}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{k.sub}</p>
+            <p className={`text-2xl font-bold truncate ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
+            <p className="text-xs font-semibold text-gray-700 mt-0.5">{k.label}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{k.sub}</p>
           </Link>
         ))}
       </div>
@@ -230,7 +244,7 @@ export default async function AdminDashboard() {
 
           {/* Footer */}
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
-            <Link href="/employee/travel-requests" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
+            <Link href="/admin/travel-requests" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
             <Link href="/employee/travel-requests/new" className="inline-flex items-center text-xs text-gray-500 hover:underline px-1 py-2 min-h-[44px]">New request</Link>
           </div>
         </details>
@@ -326,7 +340,7 @@ export default async function AdminDashboard() {
           )}
 
           <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
-            <Link href="/employee/expenses?view=admin" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
+            <Link href="/admin/expenses" className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:underline px-1 py-2 -mx-1 min-h-[44px]">View all →</Link>
             <Link href="/finance/payout-reports" className="inline-flex items-center text-xs text-gray-500 hover:underline px-1 py-2 min-h-[44px]">Generate payout</Link>
           </div>
         </details>

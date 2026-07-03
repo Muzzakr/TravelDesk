@@ -17,6 +17,12 @@ const CATEGORIES = [
   { value: 'OTHER', label: 'Other' },
 ]
 
+// Same service field the employee form sends with POST /api/expenses
+const SERVICE_BY_CATEGORY: Record<string, string> = {
+  TRANSPORT: 'Transport', ACCOMMODATION: 'Accommodation',
+  MEALS: 'Meals', SUPPLIES: 'Supplies', OTHER: 'Other',
+}
+
 type Expense = {
   id: string; description: string; merchantName: string | null; amountUsd: number
   status: string; category: string; createdAt: string
@@ -121,10 +127,18 @@ export default function FinanceExpensesPage() {
     if (!newForm.reason.trim()) { setNewError('Please enter a reason.'); return }
     if (!pendingFile) { setNewError('A receipt is required — please attach a receipt before submitting.'); return }
     setNewSubmitting(true)
+
+    // Start compression in parallel with the API call — same flow as the employee form
+    const compressPromise = compressImageFile(pendingFile)
+
     const res = await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...newForm, amountUsd: Number(newForm.amountUsd) }),
+      body: JSON.stringify({
+        ...newForm,
+        service: SERVICE_BY_CATEGORY[newForm.category] ?? 'Other',
+        amountUsd: Number(newForm.amountUsd),
+      }),
     })
     const resData = await res.json()
     if (!res.ok) {
@@ -132,8 +146,8 @@ export default function FinanceExpensesPage() {
       setNewSubmitting(false)
       return
     }
-    if (pendingFile && resData.expense?.id) {
-      const compressed = await compressImageFile(pendingFile)
+    if (resData.expense?.id) {
+      const compressed = await compressPromise
       const fd = new FormData()
       fd.append('file', compressed as File)
       fd.append('expenseId', resData.expense.id)

@@ -109,12 +109,21 @@ export default function TeamTravelPage() {
           <h1 className="text-2xl font-bold text-gray-900">Travel Requests</h1>
           <p className="text-sm text-gray-500 mt-0.5">All travel requests across your team</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm text-gray-500">{data?.pagination.total ?? 0} total</span>
           <button type="button" onClick={exportCSV}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
             Export CSV
           </button>
+          <Link
+            href="/agent/book"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Travel Booking
+          </Link>
         </div>
       </div>
 

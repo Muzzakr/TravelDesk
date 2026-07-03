@@ -44,7 +44,7 @@ const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full f
 
 const EMPTY_FORM = {
   employeeId: '', eventId: '', category: '', amountUsd: '', currency: 'USD',
-  description: '', merchantName: '', transactionDate: '', reason: '',
+  description: '', merchantName: '', transactionDate: '', reason: '', personName: '',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -119,6 +119,7 @@ export default function FinanceExpensesPage() {
     if (!newForm.amountUsd || Number(newForm.amountUsd) <= 0) { setNewError('Please enter a valid amount.'); return }
     if (!newForm.description.trim()) { setNewError('Please enter a description.'); return }
     if (!newForm.reason.trim()) { setNewError('Please enter a reason.'); return }
+    if (!pendingFile) { setNewError('A receipt is required — please attach a receipt before submitting.'); return }
     setNewSubmitting(true)
     const res = await fetch('/api/expenses', {
       method: 'POST',
@@ -554,9 +555,17 @@ export default function FinanceExpensesPage() {
                   placeholder="E.g. SAS, Scandic Hotel" className={inputCls} />
               </div>
 
+              {/* Person */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Name of person (who it was for)</label>
+                <input type="text" value={newForm.personName}
+                  onChange={e => setNewForm(p => ({ ...p, personName: e.target.value }))}
+                  placeholder="E.g. Jane Doe (leave blank if same as employee)" className={inputCls} />
+              </div>
+
               {/* Receipt */}
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Receipt</label>
+                <label className="text-sm font-medium text-gray-700">Receipt<span className="text-red-500 ml-0.5">*</span></label>
                 <FileUpload
                   label="Drag & drop or click to upload"
                   hint="JPG, PNG, PDF, WebP — max 10 MB"

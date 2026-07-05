@@ -57,9 +57,6 @@ export default async function EmployeeDashboard() {
         <Link href="/employee/expenses?add=1" className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
           + Add expense
         </Link>
-        <Link href="/employee/expenses?add=1" className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-          + Upload receipt
-        </Link>
       </div>
 
       {/* Recent travel requests */}

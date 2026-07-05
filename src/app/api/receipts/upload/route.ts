@@ -34,6 +34,12 @@ export async function POST(req: NextRequest) {
   })
   if (!expense) return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
 
+  // Only the expense owner or a manager/finance/admin role may attach receipts
+  const isPrivileged = ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(session.user.role ?? '')
+  if (!isPrivileged && expense.employeeId !== session.user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer())
   const s3Key = buildReceiptKey(session.user.companyId, expenseId, file.name)
 

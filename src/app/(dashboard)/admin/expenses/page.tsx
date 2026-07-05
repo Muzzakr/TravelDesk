@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
+import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -58,6 +59,10 @@ export default function AdminExpensesPage() {
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectNote, setRejectNote] = useState('')
   const [rejectErr, setRejectErr] = useState('')
+
+  // New expense — same shared form component as employee/expenses
+  const [showNewExpense, setShowNewExpense] = useState(false)
+  const [newSuccess, setNewSuccess] = useState('')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -209,8 +214,24 @@ export default function AdminExpensesPage() {
             </svg>
             Export CSV
           </button>
+          <button type="button" onClick={() => { setNewSuccess(''); setShowNewExpense(true) }}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3 py-2 text-sm font-semibold text-white transition-colors">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Expense
+          </button>
         </div>
       </div>
+
+      {newSuccess && (
+        <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {newSuccess}
+        </div>
+      )}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -376,6 +397,34 @@ export default function AdminExpensesPage() {
           </div>
         )}
       </div>
+
+      {/* ── New Expense — full-screen, same shared form as employee/expenses ── */}
+      {showNewExpense && (
+        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4 sm:px-8">
+            <h2 className="text-lg font-semibold text-gray-900">New Expense</h2>
+            <button type="button" aria-label="Close" onClick={() => setShowNewExpense(false)}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="mx-auto max-w-2xl px-5 py-6 sm:px-8">
+            <NewExpenseForm
+              draftKey="expense_draft_admin_v1"
+              employees={data?.employees ?? []}
+              onCancel={() => setShowNewExpense(false)}
+              onSaved={() => {
+                setShowNewExpense(false)
+                setNewSuccess('Expense created successfully.')
+                setTimeout(() => setNewSuccess(''), 4000)
+                fetchData()
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

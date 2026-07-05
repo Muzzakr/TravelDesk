@@ -35,7 +35,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Brute-force protection: max 10 attempts per account per 15 minutes
         const rlKey = `login:${credentials.companySlug}:${(credentials.email as string).toLowerCase()}`
-        if (!rateLimit(rlKey, 10, 15 * 60_000)) return null
+        if (!(await rateLimit(rlKey, 10, 15 * 60_000))) return null
 
         const company = await prisma.company.findUnique({
           where: { slug: credentials.companySlug as string },

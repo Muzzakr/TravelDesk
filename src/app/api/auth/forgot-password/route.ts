@@ -6,7 +6,7 @@ import { rateLimit, clientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   // Email-bombing protection: 5 reset requests per IP per 15 minutes
-  if (!rateLimit(`forgot:${clientIp(req)}`, 5, 15 * 60_000)) {
+  if (!(await rateLimit(`forgot:${clientIp(req)}`, 5, 15 * 60_000))) {
     return NextResponse.json({ ok: true })
   }
 

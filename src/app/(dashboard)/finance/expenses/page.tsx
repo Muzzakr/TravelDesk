@@ -377,11 +377,19 @@ export default function FinanceExpensesPage() {
         )}
       </div>
 
-      {/* ── New Expense Modal — same shared form as employee/expenses ── */}
+      {/* ── New Expense — full-screen, same shared form as employee/expenses ── */}
       {showNewExpense && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowNewExpense(false)} />
-          <div className="relative w-full sm:max-w-2xl max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 sm:p-8">
+        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4 sm:px-8">
+            <h2 className="text-lg font-semibold text-gray-900">New Expense</h2>
+            <button type="button" aria-label="Close" onClick={() => setShowNewExpense(false)}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="mx-auto max-w-2xl px-5 py-6 sm:px-8">
             <NewExpenseForm
               draftKey="expense_draft_tm_v1"
               employees={data?.employees ?? []}

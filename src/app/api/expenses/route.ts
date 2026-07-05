@@ -10,7 +10,6 @@ import { z } from 'zod'
 
 const CreateSchema = z.object({
   eventId: z.string().min(1),
-  travelRequestId: z.string().optional(),
   category: z.enum(['MEALS', 'TRANSPORT', 'ACCOMMODATION', 'SUPPLIES', 'OTHER']),
   expenseType: z.enum(['OUT_OF_POCKET', 'CORPORATE_CARD']).optional(),
   amountUsd: z.number().positive(),
@@ -96,7 +95,6 @@ export async function POST(req: NextRequest) {
       companyId: session.user.companyId,
       employeeId: targetEmployeeId,
       eventId: parsed.data.eventId,
-      travelRequestId: parsed.data.travelRequestId,
       category: parsed.data.category,
       expenseType: parsed.data.expenseType ?? 'OUT_OF_POCKET',
       amountUsd: parsed.data.amountUsd,

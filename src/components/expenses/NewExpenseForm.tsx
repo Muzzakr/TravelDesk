@@ -103,8 +103,9 @@ function Field({ label, required, children }: { label: string; required?: boolea
   )
 }
 
+// currency intentionally omitted — the API defaults to USD and no selector exists yet
 const EMPTY_FORM = {
-  eventId: '', employeeId: '', amountUsd: '', currency: 'USD',
+  eventId: '', employeeId: '', amountUsd: '',
   description: '', merchantName: '', transactionDate: '',
   reason: '', personName: '',
 }

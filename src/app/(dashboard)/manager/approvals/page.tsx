@@ -29,7 +29,7 @@ export default function ApprovalsPage() {
     setLoading(true)
     const [trRes, expRes] = await Promise.all([
       fetch('/api/travel-requests'),
-      fetch('/api/expenses'),
+      fetch('/api/expenses?status=SUBMITTED,UNDER_REVIEW'),
     ])
     if (trRes.ok) {
       const all: TravelRequest[] = await trRes.json()

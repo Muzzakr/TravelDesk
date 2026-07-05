@@ -24,14 +24,27 @@ const CreateSchema = z.object({
   employeeId: z.string().optional(), // admin-only: create on behalf of employee
 })
 
-export async function GET() {
+const EXPENSE_STATUSES = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PAID'] as const
+type ExpenseStatusFilter = (typeof EXPENSE_STATUSES)[number]
+
+export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const where =
-    session.user.role === 'EMPLOYEE'
-      ? { companyId: session.user.companyId, employeeId: session.user.id }
-      : { companyId: session.user.companyId }
+  const { searchParams } = new URL(req.url)
+  // Optional comma-separated status filter, e.g. ?status=SUBMITTED,UNDER_REVIEW
+  const statuses = (searchParams.get('status') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s): s is ExpenseStatusFilter => (EXPENSE_STATUSES as readonly string[]).includes(s))
+  // Cap the result size — company-wide queries must not dump the whole table
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '') || 500, 1), 500)
+
+  const where = {
+    companyId: session.user.companyId,
+    ...(session.user.role === 'EMPLOYEE' && { employeeId: session.user.id }),
+    ...(statuses.length > 0 && { status: { in: statuses } }),
+  }
 
   const expenses = await prisma.expense.findMany({
     where,
@@ -41,6 +54,7 @@ export async function GET() {
       receipts: { select: { id: true, fileName: true } },
     },
     orderBy: { createdAt: 'desc' },
+    take: limit,
   })
   return NextResponse.json(expenses)
 }

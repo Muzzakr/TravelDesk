@@ -120,13 +120,15 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // Fire-and-forget all side effects — user doesn't wait for these
-  const employeeName = session.user.name ?? session.user.email ?? 'Employee';
+  // Fire-and-forget all side effects — user doesn't wait for these.
+  // Notifications go to the manager of the expense OWNER (targetEmployeeId),
+  // not the creator — they differ when a manager/TM/admin creates on behalf.
   (async () => {
     const emp = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { managerId: true, manager: { select: { name: true, email: true } } },
+      where: { id: targetEmployeeId },
+      select: { name: true, email: true, managerId: true, manager: { select: { name: true, email: true } } },
     })
+    const employeeName = emp?.name ?? emp?.email ?? 'Employee'
     await Promise.all([
       writeAuditLog({
         companyId: session.user.companyId,

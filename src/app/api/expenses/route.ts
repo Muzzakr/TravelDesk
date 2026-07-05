@@ -90,6 +90,17 @@ export async function POST(req: NextRequest) {
   const canSetEmployee = ['SYSTEM_ADMIN', 'TRAVEL_MANAGER', 'MANAGER'].includes(session.user.role ?? '')
   const targetEmployeeId = (canSetEmployee && parsed.data.employeeId) ? parsed.data.employeeId : session.user.id
 
+  // The target employee must belong to the caller's company
+  if (targetEmployeeId !== session.user.id) {
+    const target = await prisma.user.findFirst({
+      where: { id: targetEmployeeId, companyId: session.user.companyId, isActive: true },
+      select: { id: true },
+    })
+    if (!target) {
+      return NextResponse.json({ error: 'Invalid employeeId: user not found in this company' }, { status: 400 })
+    }
+  }
+
   const expense = await prisma.expense.create({
     data: {
       companyId: session.user.companyId,

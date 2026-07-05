@@ -39,16 +39,20 @@ export async function GET(req: NextRequest) {
   // Cap the result size — company-wide queries must not dump the whole table
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '') || 500, 1), 500)
 
+  // Company-wide reads are reserved for approval/finance roles;
+  // everyone else (EMPLOYEE, TRAVEL_AGENT) only sees their own expenses.
+  const canReadAll = ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(session.user.role ?? '')
+
   const where = {
     companyId: session.user.companyId,
-    ...(session.user.role === 'EMPLOYEE' && { employeeId: session.user.id }),
+    ...(!canReadAll && { employeeId: session.user.id }),
     ...(statuses.length > 0 && { status: { in: statuses } }),
   }
 
   const expenses = await prisma.expense.findMany({
     where,
     include: {
-      employee: { select: { name: true, email: true } },
+      employee: { select: { name: true } },
       event: { select: { eventCode: true, eventName: true } },
       receipts: { select: { id: true, fileName: true } },
     },

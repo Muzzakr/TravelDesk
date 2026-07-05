@@ -89,6 +89,7 @@ export default function FinanceDashboard() {
     const params = new URLSearchParams({
       month: String(month + 1), year: String(year),
       page: String(page),
+      include: 'charts',
       ...(statusFilter && { status: statusFilter }),
       ...(employeeFilter && { employeeId: employeeFilter }),
       ...(search && { search }),

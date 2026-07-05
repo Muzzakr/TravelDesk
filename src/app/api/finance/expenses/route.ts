@@ -38,7 +38,10 @@ export async function GET(req: NextRequest) {
     ]
   }
 
-  // KPI stats aggregated in the database instead of scanning every row in JS
+  // KPI stats aggregated in the database instead of scanning every row in JS.
+  // Chart/escalation data is only computed when the caller asks for it
+  // (?include=charts) — the expense list pages never use it.
+  const includeCharts = searchParams.get('include') === 'charts'
   const periodWhere = { companyId, ...(!allMonths && { createdAt: { gte: start, lte: end } }) }
 
   const [expenses, total, statusGroups, categoryGroups, processedExpenses] = await Promise.all([
@@ -60,16 +63,20 @@ export async function GET(req: NextRequest) {
       _sum: { amountUsd: true },
       _count: true,
     }),
-    prisma.expense.groupBy({
-      by: ['category'],
-      where: periodWhere,
-      _sum: { amountUsd: true },
-    }),
+    includeCharts
+      ? prisma.expense.groupBy({
+          by: ['category'],
+          where: periodWhere,
+          _sum: { amountUsd: true },
+        })
+      : Promise.resolve([] as { category: string | null; _sum: { amountUsd: unknown } }[]),
     // Only processed rows, only the two timestamps — for avg processing time
-    prisma.expense.findMany({
-      where: { ...periodWhere, status: { in: ['APPROVED', 'PAID'] } },
-      select: { createdAt: true, updatedAt: true },
-    }),
+    includeCharts
+      ? prisma.expense.findMany({
+          where: { ...periodWhere, status: { in: ['APPROVED', 'PAID'] } },
+          select: { createdAt: true, updatedAt: true },
+        })
+      : Promise.resolve([] as { createdAt: Date; updatedAt: Date }[]),
   ])
 
   const amountFor = (statuses: string[]) =>
@@ -93,15 +100,17 @@ export async function GET(req: NextRequest) {
     categoryCounts[cat] = (categoryCounts[cat] ?? 0) + Number(g._sum.amountUsd ?? 0)
   })
 
-  // 72h escalation: expenses pending > 72 hours
+  // 72h escalation: expenses pending > 72 hours (dashboard only)
   const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000)
-  const escalatedCount = await prisma.expense.count({
-    where: {
-      companyId,
-      status: { in: ['SUBMITTED', 'UNDER_REVIEW'] },
-      createdAt: { lte: cutoff },
-    },
-  })
+  const escalatedCount = includeCharts
+    ? await prisma.expense.count({
+        where: {
+          companyId,
+          status: { in: ['SUBMITTED', 'UNDER_REVIEW'] },
+          createdAt: { lte: cutoff },
+        },
+      })
+    : 0
 
   // Employees list for filter dropdown
   const employees = await prisma.user.findMany({
@@ -125,17 +134,19 @@ export async function GET(req: NextRequest) {
       totalExpensesCount: countFor(allStatuses),
       avgProcessingDays: Math.round(avgProcessingTime * 10) / 10,
     },
-    charts: {
-      statusDistribution: statusGroups.map((g) => ({
-        status: g.status,
-        count: g._count,
-        amount: Number(g._sum.amountUsd ?? 0),
-      })),
-      categoryBreakdown: Object.entries(categoryCounts)
-        .sort(([, a], [, b]) => b - a)
-        .map(([category, amount]) => ({ category, amount })),
-    },
-    escalatedCount,
+    ...(includeCharts && {
+      charts: {
+        statusDistribution: statusGroups.map((g) => ({
+          status: g.status,
+          count: g._count,
+          amount: Number(g._sum.amountUsd ?? 0),
+        })),
+        categoryBreakdown: Object.entries(categoryCounts)
+          .sort(([, a], [, b]) => b - a)
+          .map(([category, amount]) => ({ category, amount })),
+      },
+      escalatedCount,
+    }),
     employees,
   })
 }

@@ -105,6 +105,8 @@ export default function FinanceExpensesPage() {
   const role = data?.userRole ?? ''
   const isManager = isManagerRole(role)
   const isFinance = isFinanceRole(role)
+  // Travel Manager has the same payment rights as Finance
+  const canMarkPaid = isFinance || role === 'TRAVEL_MANAGER'
 
   const kpiCards = kpis ? [
     {
@@ -270,7 +272,7 @@ export default function FinanceExpensesPage() {
                   {isManager && ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) && (
                     <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
                   )}
-                  {isFinance && e.status === 'APPROVED' && (
+                  {canMarkPaid && e.status === 'APPROVED' && (
                     <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
                       className="min-h-[2.5rem] rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
                       {markingId === e.id ? '...' : 'Mark as Paid'}
@@ -352,7 +354,7 @@ export default function FinanceExpensesPage() {
                       {isManager && ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) && (
                         <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
                       )}
-                      {isFinance && e.status === 'APPROVED' && (
+                      {canMarkPaid && e.status === 'APPROVED' && (
                         <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
                           className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
                           {markingId === e.id ? '...' : 'Mark as Paid'}

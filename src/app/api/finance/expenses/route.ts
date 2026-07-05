@@ -38,7 +38,10 @@ export async function GET(req: NextRequest) {
     ]
   }
 
-  const [expenses, total, allExpenses] = await Promise.all([
+  // KPI stats aggregated in the database instead of scanning every row in JS
+  const periodWhere = { companyId, ...(!allMonths && { createdAt: { gte: start, lte: end } }) }
+
+  const [expenses, total, statusGroups, categoryGroups, processedExpenses] = await Promise.all([
     prisma.expense.findMany({
       where: where as never,
       include: {
@@ -51,21 +54,31 @@ export async function GET(req: NextRequest) {
       take: pageSize,
     }),
     prisma.expense.count({ where: where as never }),
-    // All expenses for period (unfiltered) for KPI stats
+    prisma.expense.groupBy({
+      by: ['status'],
+      where: periodWhere,
+      _sum: { amountUsd: true },
+      _count: true,
+    }),
+    prisma.expense.groupBy({
+      by: ['category'],
+      where: periodWhere,
+      _sum: { amountUsd: true },
+    }),
+    // Only processed rows, only the two timestamps — for avg processing time
     prisma.expense.findMany({
-      where: { companyId, ...(!allMonths && { createdAt: { gte: start, lte: end } }) },
-      select: { id: true, status: true, amountUsd: true, createdAt: true, updatedAt: true, category: true },
+      where: { ...periodWhere, status: { in: ['APPROVED', 'PAID'] } },
+      select: { createdAt: true, updatedAt: true },
     }),
   ])
 
-  // KPI calculations
-  const awaitingPayment = allExpenses.filter((e) => e.status === 'APPROVED')
-  const paidThisMonth = allExpenses.filter((e) => e.status === 'PAID')
-  const pendingManagerReview = allExpenses.filter((e) => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status))
-  const allThisMonth = allExpenses
+  const amountFor = (statuses: string[]) =>
+    statusGroups.filter((g) => statuses.includes(g.status)).reduce((s, g) => s + Number(g._sum.amountUsd ?? 0), 0)
+  const countFor = (statuses: string[]) =>
+    statusGroups.filter((g) => statuses.includes(g.status)).reduce((s, g) => s + g._count, 0)
+  const allStatuses = statusGroups.map((g) => g.status)
 
   // Average processing time (submitted → approved/paid, in days)
-  const processedExpenses = allExpenses.filter((e) => ['APPROVED', 'PAID'].includes(e.status))
   const avgProcessingTime = processedExpenses.length > 0
     ? processedExpenses.reduce((s, e) => {
         const diff = (e.updatedAt.getTime() - e.createdAt.getTime()) / (1000 * 60 * 60 * 24)
@@ -73,19 +86,11 @@ export async function GET(req: NextRequest) {
       }, 0) / processedExpenses.length
     : 0
 
-  // Expense status distribution for donut chart
-  const statusCounts: Record<string, { count: number; amount: number }> = {}
-  allExpenses.forEach((e) => {
-    if (!statusCounts[e.status]) statusCounts[e.status] = { count: 0, amount: 0 }
-    statusCounts[e.status].count++
-    statusCounts[e.status].amount += Number(e.amountUsd)
-  })
-
-  // Category breakdown for bar chart
+  // Category breakdown for bar chart (null categories fold into OTHER)
   const categoryCounts: Record<string, number> = {}
-  allExpenses.forEach((e) => {
-    const cat = e.category ?? 'OTHER'
-    categoryCounts[cat] = (categoryCounts[cat] ?? 0) + Number(e.amountUsd)
+  categoryGroups.forEach((g) => {
+    const cat = g.category ?? 'OTHER'
+    categoryCounts[cat] = (categoryCounts[cat] ?? 0) + Number(g._sum.amountUsd ?? 0)
   })
 
   // 72h escalation: expenses pending > 72 hours
@@ -110,21 +115,21 @@ export async function GET(req: NextRequest) {
     expenses,
     pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     kpis: {
-      awaitingPaymentAmount: awaitingPayment.reduce((s, e) => s + Number(e.amountUsd), 0),
-      awaitingPaymentCount: awaitingPayment.length,
-      paidThisMonthAmount: paidThisMonth.reduce((s, e) => s + Number(e.amountUsd), 0),
-      paidThisMonthCount: paidThisMonth.length,
-      pendingManagerReviewAmount: pendingManagerReview.reduce((s, e) => s + Number(e.amountUsd), 0),
-      pendingManagerReviewCount: pendingManagerReview.length,
-      totalExpensesAmount: allThisMonth.reduce((s, e) => s + Number(e.amountUsd), 0),
-      totalExpensesCount: allThisMonth.length,
+      awaitingPaymentAmount: amountFor(['APPROVED']),
+      awaitingPaymentCount: countFor(['APPROVED']),
+      paidThisMonthAmount: amountFor(['PAID']),
+      paidThisMonthCount: countFor(['PAID']),
+      pendingManagerReviewAmount: amountFor(['SUBMITTED', 'UNDER_REVIEW']),
+      pendingManagerReviewCount: countFor(['SUBMITTED', 'UNDER_REVIEW']),
+      totalExpensesAmount: amountFor(allStatuses),
+      totalExpensesCount: countFor(allStatuses),
       avgProcessingDays: Math.round(avgProcessingTime * 10) / 10,
     },
     charts: {
-      statusDistribution: Object.entries(statusCounts).map(([status, data]) => ({
-        status,
-        count: data.count,
-        amount: data.amount,
+      statusDistribution: statusGroups.map((g) => ({
+        status: g.status,
+        count: g._count,
+        amount: Number(g._sum.amountUsd ?? 0),
       })),
       categoryBreakdown: Object.entries(categoryCounts)
         .sort(([, a], [, b]) => b - a)

@@ -92,6 +92,15 @@ const SERVICE_DETAIL_CONFIG: Record<string, { merchantLabel: string; merchantPla
 
 // ─── Field helper ─────────────────────────────────────────────────────────────
 
+// Mobile keyboards in many locales (e.g. Swedish) only offer a comma on the
+// decimal keypad, which type="number" inputs silently reject. We use a text
+// input and normalise commas to dots instead.
+export function sanitizeAmountInput(v: string): string {
+  const normalized = v.replace(/,/g, '.').replace(/[^0-9.]/g, '')
+  const i = normalized.indexOf('.')
+  return i === -1 ? normalized : normalized.slice(0, i + 1) + normalized.slice(i + 1).replace(/\./g, '')
+}
+
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
@@ -444,8 +453,8 @@ export function NewExpenseForm({ draftKey, employees, manager, onCancel, onSaved
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Amount (USD)" required>
-                <input type="number" inputMode="decimal" step="0.01" min="0" value={form.amountUsd}
-                  onChange={e => setForm(p => ({ ...p, amountUsd: e.target.value }))}
+                <input type="text" inputMode="decimal" autoComplete="off" value={form.amountUsd}
+                  onChange={e => setForm(p => ({ ...p, amountUsd: sanitizeAmountInput(e.target.value) }))}
                   placeholder="45.00" className={inputCls} />
               </Field>
               <Field label="Date">

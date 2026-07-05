@@ -7,6 +7,7 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
 import Link from 'next/link'
 import { DateInput } from '@/components/ui/DateInput'
+import { sanitizeAmountInput } from '@/components/expenses/NewExpenseForm'
 
 interface Receipt {
   id: string
@@ -256,10 +257,10 @@ export default function ExpenseDetailPage() {
           <p className="text-xs font-medium text-gray-400 uppercase mb-1">Amount</p>
           {editMode ? (
             <input
-              type="number" step="0.01" min="0"
+              type="text" inputMode="decimal" autoComplete="off"
               title="Amount (USD)"
               value={editForm.amountUsd}
-              onChange={e => setEditForm(p => ({ ...p, amountUsd: e.target.value }))}
+              onChange={e => setEditForm(p => ({ ...p, amountUsd: sanitizeAmountInput(e.target.value) }))}
               className={`w-28 ${inputCls}`}
             />
           ) : (

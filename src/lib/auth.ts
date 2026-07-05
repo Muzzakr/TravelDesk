@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import { writeAuditLog } from './audit'
 import { createVerificationToken } from './tokens'
 import { sendGoogleVerificationEmail } from './mail'
+import { rateLimit } from './rate-limit'
 import type { Role } from '@/types/user'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -31,6 +32,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!credentials?.email || !credentials?.password || !credentials?.companySlug) {
           return null
         }
+
+        // Brute-force protection: max 10 attempts per account per 15 minutes
+        const rlKey = `login:${credentials.companySlug}:${(credentials.email as string).toLowerCase()}`
+        if (!rateLimit(rlKey, 10, 15 * 60_000)) return null
 
         const company = await prisma.company.findUnique({
           where: { slug: credentials.companySlug as string },

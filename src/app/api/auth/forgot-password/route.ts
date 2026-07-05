@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createVerificationToken } from '@/lib/tokens'
 import { sendPasswordResetEmail } from '@/lib/mail'
+import { rateLimit, clientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  // Email-bombing protection: 5 reset requests per IP per 15 minutes
+  if (!rateLimit(`forgot:${clientIp(req)}`, 5, 15 * 60_000)) {
+    return NextResponse.json({ ok: true })
+  }
+
   const body = await req.json()
   const email = (body.email ?? '').trim().toLowerCase()
 

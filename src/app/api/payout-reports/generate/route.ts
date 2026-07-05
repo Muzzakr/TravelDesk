@@ -23,14 +23,23 @@ export async function POST(req: NextRequest) {
   const periodStart = new Date(parsed.data.periodStart)
   const periodEnd = new Date(parsed.data.periodEnd)
 
+  // Pick up EVERY approved expense not yet in a payout report, regardless of
+  // when it was approved — otherwise expenses approved before the period
+  // start are never paid out. The period only labels the payout week.
   const approvedExpenses = await prisma.expense.findMany({
     where: {
       companyId: session.user.companyId,
       status: 'APPROVED',
       payoutReportId: null,
-      updatedAt: { gte: periodStart, lte: periodEnd },
     },
   })
+
+  if (approvedExpenses.length === 0) {
+    return NextResponse.json(
+      { error: 'No approved expenses awaiting payout. Approve expenses first, then generate the report.' },
+      { status: 400 }
+    )
+  }
 
   const totalUsd = approvedExpenses.reduce((sum, e) => sum + Number(e.amountUsd), 0)
 

@@ -23,12 +23,27 @@ const CreateEventSchema = z.object({
   budgetUsd: z.number().optional(),
 })
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Slim picker view for dropdowns (expense form, booking, travel request).
+  // Forced for employees — they never need budget/cost-center data.
+  const picker =
+    new URL(req.url).searchParams.get('view') === 'picker' ||
+    session.user.role === 'EMPLOYEE'
+
   const events = await prisma.event.findMany({
-    where: { companyId: session.user.companyId },
+    where: {
+      companyId: session.user.companyId,
+      ...(picker && { status: { not: 'CLOSED' as const } }),
+    },
+    ...(picker && {
+      select: {
+        id: true, eventName: true, eventCode: true, status: true,
+        eventDate: true, dateStart: true, dateEnd: true,
+      },
+    }),
     orderBy: [{ eventDate: 'asc' }, { eventCode: 'asc' }],
   })
   // Imports populate `eventDate` (single date) but not the dateStart/dateEnd

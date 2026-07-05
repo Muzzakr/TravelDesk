@@ -142,7 +142,7 @@ export function NewExpenseForm({ draftKey, employees, manager, onCancel, onSaved
   const [form, setForm] = useState(EMPTY_FORM)
 
   useEffect(() => {
-    fetch('/api/events').then(r => r.json()).then((data: TravelEvent[]) =>
+    fetch('/api/events?view=picker').then(r => r.json()).then((data: TravelEvent[]) =>
       setEvents(data.filter((e: TravelEvent) => e.status !== 'CLOSED'))
     )
   }, [])

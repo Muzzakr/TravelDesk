@@ -433,7 +433,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
   const [managers, setManagers]   = useState<{ id: string; name: string }[]>([])
 
   useEffect(() => {
-    fetch('/api/events')
+    fetch('/api/events?view=picker')
       .then(r => r.json())
       .then(data => setEvents(data.filter((e: TravelEvent) => e.status !== 'CLOSED')))
     fetch('/api/manager/list')

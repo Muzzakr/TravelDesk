@@ -373,7 +373,7 @@ export default function AgentBookPage() {
   useEffect(() => {
     Promise.all([
       fetch('/api/agent/employees').then(r => r.json()),
-      fetch('/api/events').then(r => r.json()),
+      fetch('/api/events?view=picker').then(r => r.json()),
     ]).then(([emps, evts]: [Employee[], TravelEvent[]]) => {
       setEmployees(emps)
       const active = evts.filter(e => e.status !== 'CLOSED')

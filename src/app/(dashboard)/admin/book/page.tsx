@@ -238,7 +238,7 @@ export default function AdminBookPage() {
 
   useEffect(() => {
     fetch('/api/agent/employees').then(r => r.json()).then(setEmployees)
-    fetch('/api/events').then(r => r.json()).then((data: TravelEvent[]) =>
+    fetch('/api/events?view=picker').then(r => r.json()).then((data: TravelEvent[]) =>
       setEvents(data.filter(e => e.status !== 'CLOSED'))
     )
   }, [])

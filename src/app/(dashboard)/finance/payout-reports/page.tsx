@@ -188,22 +188,31 @@ export default function PayoutReportsPage() {
                       </td>
                     </tr>
                     {r.expenses.map((e) => (
-                      <tr key={e.id} className="bg-gray-50/60">
-                        <td className="pl-8 pr-4 py-2 text-xs text-gray-500">
-                          <span className="font-mono text-gray-400 mr-1">{e.event.eventCode}</span>
-                          {e.event.eventName}
-                        </td>
-                        <td className="px-4 py-2 text-xs text-gray-700">${Number(e.amountUsd).toFixed(2)}</td>
-                        <td className="px-4 py-2 text-xs text-gray-500">{e.category.replace(/_/g, ' ')}</td>
-                        <td className="px-4 py-2 text-xs text-gray-500">{e.employee.name}</td>
-                        <td className="px-4 py-2 text-xs text-gray-400">{e.merchantName ?? '—'}</td>
-                        <td className="px-4 py-2 text-xs text-gray-400">
-                          {e.transactionDate ? new Date(e.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
-                        </td>
-                        <td className="px-4 py-2">
-                          <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs font-medium text-indigo-600 hover:underline">
-                            View receipt
-                          </Link>
+                      <tr key={e.id} className="bg-gray-50/60 border-t border-gray-100">
+                        <td colSpan={6} className="pl-8 pr-4 py-2.5">
+                          <div className="flex items-center gap-4">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs text-gray-700 truncate" title={e.event.eventName}>
+                                <span className="font-mono text-gray-400 mr-1.5">{e.event.eventCode}</span>
+                                {e.event.eventName}
+                              </p>
+                              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                                {e.employee.name}
+                                {e.merchantName ? ` · ${e.merchantName}` : ''}
+                                {e.transactionDate ? ` · ${new Date(e.transactionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-500">
+                              {e.category.replace(/_/g, ' ')}
+                            </span>
+                            <span className="shrink-0 w-20 text-right text-xs font-semibold text-gray-800">
+                              ${Number(e.amountUsd).toFixed(2)}
+                            </span>
+                            <Link href={`/manager/approvals/expense/${e.id}`}
+                              className="shrink-0 text-xs font-medium text-indigo-600 hover:underline whitespace-nowrap">
+                              View receipt
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}

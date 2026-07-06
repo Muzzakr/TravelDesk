@@ -89,11 +89,11 @@ export default async function ApproveExpensePage({ params }: { params: { id: str
     <div className="space-y-5">
       {/* Back */}
       <Link
-        href="/manager/team-expenses"
+        href="/finance/expenses"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        Team Expenses
+        All Expenses
       </Link>
 
       <div className="lg:grid lg:grid-cols-3 lg:gap-8 space-y-5 lg:space-y-0 items-start">

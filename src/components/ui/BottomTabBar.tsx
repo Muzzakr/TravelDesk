@@ -59,7 +59,7 @@ const ROLE_LABEL: Record<string, string> = {
 const PRIORITY_TABS: Record<string, string[]> = {
   SYSTEM_ADMIN: ['/admin', '/admin/expenses', '/admin/users', '/admin/events'],
   FINANCE_ADMIN: ['/finance', '/finance/expenses', '/finance/payout-reports', '/finance/cards'],
-  MANAGER: ['/manager', '/manager/inbox', '/manager/team-expenses', '/finance/expenses'],
+  MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/finance/expenses'],
   TRAVEL_MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/agent/book'],
 }
 

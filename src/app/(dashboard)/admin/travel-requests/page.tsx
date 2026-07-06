@@ -67,7 +67,7 @@ export default function AdminTravelRequestsPage() {
     if (managerId)  p.set('managerId', managerId)
     if (search)     p.set('search', search)
     p.set('page', String(page))
-    const res = await fetch(`/api/admin/travel-requests?${p}`)
+    const res = await fetch(`/api/manager/travel-requests?${p}`)
     if (res.ok) setData(await res.json())
     setLoading(false)
   }, [status, employeeId, managerId, search, page])

@@ -47,7 +47,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { heading: 'My Work' },
     { label: 'Travel Inbox', href: '/manager/inbox' },
     { label: 'Team Travel', href: '/manager/team-travel' },
-    { label: 'Team Expenses', href: '/manager/team-expenses' },
     { heading: 'Finance' },
     { label: 'All Expenses', href: '/finance/expenses' },
     { label: 'Payout Reports', href: '/finance/payout-reports' },

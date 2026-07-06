@@ -77,7 +77,7 @@ export function ExpenseReviewPanel({
           throw new Error(typeof d.error === 'string' ? d.error : 'Failed to save decision')
         }
       }
-      router.push('/manager/team-expenses')
+      router.push('/finance/expenses')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
       setBusy(false)

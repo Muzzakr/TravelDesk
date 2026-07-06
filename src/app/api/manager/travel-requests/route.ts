@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status     = searchParams.get('status') ?? ''
   const employeeId = searchParams.get('employeeId') ?? ''
+  const managerId  = searchParams.get('managerId') ?? ''
   const search     = searchParams.get('search') ?? ''
   const page       = parseInt(searchParams.get('page') ?? '1')
   const pageSize   = 15
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
   const where: Record<string, unknown> = { companyId }
   if (status)     where.status = status
   if (employeeId) where.employeeId = employeeId
+  if (managerId)  where.managerId = managerId
   if (search) {
     where.OR = [
       { employee: { name:  { contains: search, mode: 'insensitive' } } },
@@ -52,11 +54,18 @@ export async function GET(req: NextRequest) {
   const countMap: Record<string, number> = {}
   counts.forEach(c => { countMap[c.status] = c._count.id })
 
-  const employees = await prisma.user.findMany({
-    where: { companyId, role: 'EMPLOYEE' },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  })
+  const [employees, managers] = await Promise.all([
+    prisma.user.findMany({
+      where: { companyId, role: 'EMPLOYEE' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.user.findMany({
+      where: { companyId, role: { in: ['MANAGER', 'TRAVEL_MANAGER'] }, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ])
 
   return NextResponse.json({
     requests,
@@ -69,5 +78,6 @@ export async function GET(req: NextRequest) {
       confirmed: countMap['BOOKING_CONFIRMED'] ?? 0,
     },
     employees,
+    managers,
   })
 }

@@ -216,23 +216,25 @@ export function ExpenseReviewPanel({
         </div>
       )}
 
-      {/* Submit */}
-      <div className="border-t border-gray-100 bg-gray-50/40 px-5 py-4">
-        <button
-          type="button"
-          onClick={submit}
-          disabled={busy || !hasAnyDecision || pendingExpenses.length === 0}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {busy ? 'Saving…' : 'Submit decisions'}
-        </button>
-        {!hasAnyDecision && pendingExpenses.length > 0 && (
-          <p className="mt-2 text-center text-xs text-gray-400">
-            Select approve or reject for at least one expense
-          </p>
-        )}
-      </div>
+      {/* Submit — hidden when nothing is pending (already approved/paid) */}
+      {pendingExpenses.length > 0 && (
+        <div className="border-t border-gray-100 bg-gray-50/40 px-5 py-4">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy || !hasAnyDecision}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy ? 'Saving…' : 'Submit decisions'}
+          </button>
+          {!hasAnyDecision && (
+            <p className="mt-2 text-center text-xs text-gray-400">
+              Select approve or reject for at least one expense
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

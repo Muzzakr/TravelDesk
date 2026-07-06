@@ -24,7 +24,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   const hash = await bcrypt.hash(parsed.data.newPassword, 12)
-  await prisma.user.update({ where: { id: params.id }, data: { passwordHash: hash } })
+  await prisma.user.update({
+    where: { id: params.id },
+    data: { passwordHash: hash, passwordChangedAt: new Date() },
+  })
 
   // Invalidate any pending invite/reset tokens for this user
   await prisma.verificationToken.deleteMany({ where: { userId: params.id } })

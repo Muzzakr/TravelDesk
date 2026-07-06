@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { signOut } from 'next-auth/react'
 import { Lock, Eye, EyeOff, ShieldCheck, ShieldOff } from 'lucide-react'
 
 const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
@@ -66,8 +67,15 @@ export default function SecuritySettingsPage() {
       body: JSON.stringify({ currentPassword: current, newPassword: next }),
     })
     const data = await res.json()
-    if (res.ok) { setPwSuccess('Password updated successfully.'); setCurrent(''); setNext(''); setConfirm('') }
-    else setPwError(data.error ?? 'Failed to update password.')
+    if (res.ok) {
+      // All sessions (including this one) are invalidated after a password
+      // change — sign out cleanly and let the user log in with the new password.
+      setPwSuccess('Password updated. Signing you out — log in with your new password.')
+      setCurrent(''); setNext(''); setConfirm('')
+      setTimeout(() => signOut({ callbackUrl: '/login?message=password-set' }), 1500)
+      return
+    }
+    setPwError(data.error ?? 'Failed to update password.')
     setPwSaving(false)
   }
 

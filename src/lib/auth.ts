@@ -127,6 +127,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.role       = dbUser.role
           token.mfaEnabled = dbUser.mfaEnabled
           token.mfaVerified = false
+          token.authTime   = Math.floor(Date.now() / 1000)
         }
       } else if (user) {
         token.id         = user.id
@@ -134,6 +135,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role       = (user as { role: Role }).role
         token.mfaEnabled = (user as { mfaEnabled: boolean }).mfaEnabled
         token.mfaVerified = false
+        token.authTime   = Math.floor(Date.now() / 1000)
+      }
+
+      // Kill sessions whose password changed after sign-in (or whose user was
+      // deactivated). Checked against the DB at most every 5 minutes so a
+      // stolen session survives a password reset for a few minutes at most.
+      const now = Math.floor(Date.now() / 1000)
+      const lastCheck = (token.revalidatedAt as number | undefined) ?? 0
+      if (token.id && now - lastCheck > 300) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { isActive: true, passwordChangedAt: true },
+        })
+        if (!dbUser?.isActive) return null
+        const authTime = (token.authTime as number | undefined) ?? 0
+        if (dbUser.passwordChangedAt && Math.floor(dbUser.passwordChangedAt.getTime() / 1000) > authTime) {
+          return null
+        }
+        token.revalidatedAt = now
       }
       return token
     },

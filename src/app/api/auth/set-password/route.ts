@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.user.update({
     where: { id: record.userId },
-    data: { passwordHash },
+    data: { passwordHash, passwordChangedAt: new Date() },
   })
 
   await prisma.verificationToken.delete({ where: { id: record.id } })

@@ -17,14 +17,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const user = await prisma.user.findFirst({
+  // The same email can exist in several companies — send one reset email per
+  // account (named per company) so every account can be recovered.
+  const users = await prisma.user.findMany({
     where: { email, isActive: true },
+    include: { company: { select: { name: true } } },
   })
 
-  if (user) {
+  for (const user of users) {
     try {
       const rawToken = await createVerificationToken(user.id, 'PASSWORD_RESET')
-      await sendPasswordResetEmail(user.email, user.name, rawToken)
+      await sendPasswordResetEmail(user.email, user.name, rawToken, user.company.name)
     } catch (err) {
       console.error('Failed to send password reset email:', err)
     }

@@ -47,6 +47,7 @@ enum TokenType {
   INVITE
   PASSWORD_RESET
   GOOGLE_VERIFY
+  EMAIL_VERIFY
 }
 
 model User {
@@ -61,6 +62,7 @@ model User {
   googleVerified Boolean   @default(false)
   managerId      String?
   isActive      Boolean   @default(true)
+  passwordChangedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

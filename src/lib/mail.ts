@@ -77,17 +77,34 @@ export async function sendInviteEmail(to: string, name: string, rawToken: string
   })
 }
 
-export async function sendPasswordResetEmail(to: string, name: string, rawToken: string) {
+export async function sendPasswordResetEmail(to: string, name: string, rawToken: string, companyName?: string) {
   const link = `${APP}/set-password?token=${rawToken}`
+  const accountLabel = companyName ? ` for your account at <strong>${companyName}</strong>` : ''
   await transporter.sendMail({
     from: FROM,
     to,
     subject: 'Reset your M4U Travel password',
     html: baseTemplate(`
       <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Password reset request</h2>
-      <p style="color:#374151;margin:0">Hi ${name}, we received a request to reset your M4U Travel password.</p>
+      <p style="color:#374151;margin:0">Hi ${name}, we received a request to reset your M4U Travel password${accountLabel}.</p>
       ${btn(link, 'Reset your password')}
       <p style="color:#9ca3af;font-size:12px;margin-top:20px">This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>
+    `),
+  })
+}
+
+export async function sendSignupVerificationEmail(to: string, name: string, rawToken: string, companyName: string) {
+  const link = `${APP}/api/auth/verify-email?token=${rawToken}`
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: 'Verify your email — M4U Travel',
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Verify your email address</h2>
+      <p style="color:#374151;margin:0">Hi ${name}, thanks for registering <strong>${companyName}</strong> on M4U Travel.</p>
+      <p style="color:#374151;margin-top:8px">Click the button below to verify your email address and activate your account.</p>
+      ${btn(link, 'Verify my email')}
+      <p style="color:#9ca3af;font-size:12px;margin-top:20px">This link expires in 24 hours. If you did not create this account, you can safely ignore this email.</p>
     `),
   })
 }

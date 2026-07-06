@@ -93,6 +93,21 @@ function LoginForm() {
             Account created! Please sign in.
           </div>
         )}
+        {params.get('verify') === 'sent' && (
+          <div className="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">
+            Account created! Check your email and click the verification link to activate your account before signing in.
+          </div>
+        )}
+        {params.get('verify') === 'success' && (
+          <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+            Email verified! You can now sign in.
+          </div>
+        )}
+        {params.get('verify') === 'expired' && (
+          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+            The verification link is invalid or has expired. Please register again or contact support.
+          </div>
+        )}
         {params.get('message') === 'password-set' && (
           <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
             Password set successfully. You can now sign in.

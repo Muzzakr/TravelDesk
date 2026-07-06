@@ -64,7 +64,7 @@ export default function SignupPage() {
         setError(message)
         return
       }
-      router.push(`/login?company=${form.companySlug}&registered=1`)
+      router.push(`/login?company=${form.companySlug}&verify=sent`)
     } catch {
       setError('Could not reach the server. Please check your connection and try again.')
     } finally {

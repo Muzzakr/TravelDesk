@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { createVerificationToken } from '@/lib/tokens'
+import { sendSignupVerificationEmail } from '@/lib/mail'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 
@@ -39,6 +41,8 @@ export async function POST(req: NextRequest) {
           name: parsed.data.adminName,
           role: 'SYSTEM_ADMIN',
           passwordHash,
+          // Activated when the verification email link is clicked
+          isActive: false,
         },
       })
       return { company, user }
@@ -46,6 +50,20 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Database error'
     return NextResponse.json({ error: msg }, { status: 500 })
+  }
+
+  // Email verification is mandatory — if we cannot send it the account would
+  // be permanently locked, so roll back and let the user retry.
+  try {
+    const rawToken = await createVerificationToken(user.id, 'EMAIL_VERIFY')
+    await sendSignupVerificationEmail(user.email, user.name, rawToken, company.name)
+  } catch (err) {
+    console.error('Signup verification email failed:', err)
+    await prisma.company.delete({ where: { id: company.id } }).catch(() => {})
+    return NextResponse.json(
+      { error: 'Could not send the verification email. Please try again in a moment.' },
+      { status: 500 }
+    )
   }
 
   try {
@@ -63,7 +81,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(
-    { companyId: company.id, slug: company.slug, userId: user.id },
+    { companyId: company.id, slug: company.slug, userId: user.id, verificationEmailSent: true },
     { status: 201 }
   )
 }

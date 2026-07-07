@@ -43,9 +43,13 @@ export default function SecuritySettingsPage() {
   const [setupSaving, setSetupSaving] = useState(false)
   const [setupError,  setSetupError]  = useState('')
 
+  // One-time backup codes shown right after enabling
+  const [backupCodes, setBackupCodes] = useState<string[]>([])
+
   // Disable flow
   const [disableOpen, setDisableOpen] = useState(false)
   const [disableCode, setDisableCode] = useState('')
+  const [disablePassword, setDisablePassword] = useState('')
   const [disableSaving, setDisableSaving] = useState(false)
   const [disableError,  setDisableError]  = useState('')
 
@@ -96,21 +100,25 @@ export default function SecuritySettingsPage() {
       body: JSON.stringify({ code: setupCode }),
     })
     const d = await res.json()
-    if (res.ok) { setMfaEnabled(true); setSetupStep('idle'); setSetupCode('') }
+    if (res.ok) {
+      setMfaEnabled(true); setSetupStep('idle'); setSetupCode('')
+      setBackupCodes(d.backupCodes ?? [])
+    }
     else setSetupError(d.error ?? 'Invalid code. Try again.')
     setSetupSaving(false)
   }
 
   async function disableMfa() {
-    if (!disableCode) { setDisableError('Enter your authenticator code.'); return }
+    if (!disableCode) { setDisableError('Enter your authenticator or backup code.'); return }
+    if (!disablePassword) { setDisableError('Enter your password.'); return }
     setDisableSaving(true); setDisableError('')
     const res = await fetch('/api/auth/mfa/disable', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: disableCode }),
+      body: JSON.stringify({ code: disableCode, password: disablePassword }),
     })
     const d = await res.json()
-    if (res.ok) { setMfaEnabled(false); setDisableOpen(false); setDisableCode('') }
+    if (res.ok) { setMfaEnabled(false); setDisableOpen(false); setDisableCode(''); setDisablePassword(''); setBackupCodes([]) }
     else setDisableError(d.error ?? 'Invalid code.')
     setDisableSaving(false)
   }
@@ -171,6 +179,31 @@ export default function SecuritySettingsPage() {
           <p className="text-sm text-gray-400">Loading…</p>
         ) : mfaEnabled ? (
           <div className="space-y-4">
+            {/* One-time backup codes — shown only right after enabling */}
+            {backupCodes.length > 0 && (
+              <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3">
+                <p className="text-sm font-semibold text-amber-800">Save your backup codes now</p>
+                <p className="text-xs text-amber-700">
+                  Each code can be used <strong>once</strong> instead of an authenticator code if you lose your phone.
+                  They will <strong>not</strong> be shown again.
+                </p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-lg bg-white border border-amber-200 p-3 font-mono text-sm text-gray-800 select-all">
+                  {backupCodes.map((c) => <span key={c}>{c}</span>)}
+                </div>
+                <div className="flex gap-3">
+                  <button type="button"
+                    onClick={() => navigator.clipboard?.writeText(backupCodes.join('\n')).catch(() => {})}
+                    className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100">
+                    Copy all
+                  </button>
+                  <button type="button" onClick={() => setBackupCodes([])}
+                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">
+                    I have saved these codes
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Enabled state */}
             <div className="flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-4 py-3">
               <ShieldCheck className="w-5 h-5 text-green-600 shrink-0" />
@@ -188,10 +221,13 @@ export default function SecuritySettingsPage() {
               </button>
             ) : (
               <div className="space-y-3 rounded-xl border border-red-100 bg-red-50 p-4">
-                <p className="text-sm font-medium text-red-800">Enter your authenticator code to confirm</p>
-                <input className={inputCls + ' font-mono tracking-widest text-center text-lg'} maxLength={6}
-                  value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="000000" />
+                <p className="text-sm font-medium text-red-800">Confirm with your password and an authenticator or backup code</p>
+                <input type="password" className={inputCls}
+                  value={disablePassword} onChange={e => setDisablePassword(e.target.value)}
+                  placeholder="Your password" autoComplete="current-password" />
+                <input className={inputCls + ' font-mono tracking-widest text-center text-lg'} maxLength={9}
+                  value={disableCode} onChange={e => setDisableCode(e.target.value.toUpperCase().replace(/[^0-9A-Z-]/g, ''))}
+                  placeholder="000000 or XXXX-XXXX" />
                 {disableError && <p className="text-sm text-red-600">{disableError}</p>}
                 <div className="flex gap-3">
                   <button type="button" onClick={disableMfa} disabled={disableSaving}

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { authenticator } from 'otplib'
 import { toDataURL } from 'qrcode'
 import { NextRequest, NextResponse } from 'next/server'
+import { generateBackupCodes } from '@/lib/mfa-backup'
 
 export async function GET() {
   const session = await auth()
@@ -57,5 +58,8 @@ export async function POST(req: NextRequest) {
     data: { mfaEnabled: true },
   })
 
-  return NextResponse.json({ ok: true })
+  // One-time recovery codes — returned exactly once, only hashes are stored
+  const backupCodes = await generateBackupCodes(session.user.id)
+
+  return NextResponse.json({ ok: true, backupCodes })
 }

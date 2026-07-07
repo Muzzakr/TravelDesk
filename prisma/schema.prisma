@@ -79,6 +79,7 @@ model User {
   delegationsReceived  Delegation[]          @relation("DelegateDelegations")
   travelerProfile      TravelerProfile?
   verificationTokens   VerificationToken[]
+  mfaBackupCodes       MfaBackupCode[]
   eventDocuments       EventDocument[]
   assignedInboxMessages TravelInboxMessage[] @relation("InboxAssignee")
   notifications        Notification[]
@@ -118,6 +119,18 @@ model Subscriber {
   email          String    @unique
   createdAt      DateTime  @default(now())
   unsubscribedAt DateTime?
+}
+
+// One-time MFA recovery codes (SHA-256 hashed, marked used on consumption)
+model MfaBackupCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Delegation {

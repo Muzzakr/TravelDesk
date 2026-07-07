@@ -112,6 +112,14 @@ model VerificationToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// Landing-page newsletter signups (not tied to a company)
+model Subscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  createdAt      DateTime  @default(now())
+  unsubscribedAt DateTime?
+}
+
 model Delegation {
   id          String   @id @default(cuid())
   companyId   String

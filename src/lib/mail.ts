@@ -413,6 +413,20 @@ export async function emailFinanceDigest(
 
 // ─── Marketing / sales emails ─────────────────────────────────────────────────
 
+export async function sendNewsletterWelcomeEmail(to: string) {
+  const unsubscribeLink = `${APP}/api/unsubscribe?email=${encodeURIComponent(to)}`
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: 'Welcome to the M4U Travel newsletter',
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Thanks for subscribing!</h2>
+      <p style="color:#374151;margin:0">You'll now receive occasional updates about M4U Travel — new features, travel management tips and product news.</p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:20px">Didn't sign up, or changed your mind? <a href="${unsubscribeLink}" style="color:#6b7280">Unsubscribe here</a>.</p>
+    `),
+  })
+}
+
 export async function sendDemoRequest(
   p: { name: string; workEmail: string; company: string; message?: string | null }
 ) {

@@ -11,6 +11,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   })
   if (!expense) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // Only the expense owner or approval/finance roles may comment
+  const isApprover = ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(session.user.role ?? '')
+  if (!isApprover && expense.employeeId !== session.user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { body } = await req.json()
   if (!body || typeof body !== 'string' || !body.trim()) {
     return NextResponse.json({ error: 'body is required' }, { status: 400 })

@@ -26,6 +26,18 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Scope to the caller's company (and to the owner for plain employees)
+  // before exposing any booking options.
+  const travelRequest = await prisma.travelRequest.findFirst({
+    where: {
+      id: params.id,
+      companyId: session.user.companyId,
+      ...(session.user.role === 'EMPLOYEE' ? { employeeId: session.user.id } : {}),
+    },
+    select: { id: true },
+  })
+  if (!travelRequest) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
   const options = await prisma.bookingOption.findMany({
     where: { travelRequestId: params.id },
     orderBy: { createdAt: 'asc' },

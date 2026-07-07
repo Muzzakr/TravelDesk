@@ -4,7 +4,10 @@ import { getToken } from 'next-auth/jwt'
 import type { Role } from '@/types/user'
 import { verifyMfaCookie } from '@/lib/mfa-cookie'
 
-const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/companies/signup', '/set-password', '/forgot-password', '/api/contact', '/api/subscribe', '/api/unsubscribe']
+// /api/cron and /api/webhooks authenticate themselves (CRON_SECRET / HMAC
+// signatures) — they must bypass the session redirect or Vercel cron and
+// Slack/card-feed webhooks can never reach them.
+const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/companies/signup', '/set-password', '/forgot-password', '/api/contact', '/api/subscribe', '/api/unsubscribe', '/api/cron', '/api/webhooks']
 
 const ROLE_PATHS: Record<string, Role[]> = {
   '/employee': ['EMPLOYEE', 'MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],

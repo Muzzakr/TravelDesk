@@ -44,10 +44,11 @@ function trendArrow(current: number, previous: number) {
 function fmtUsd(n: number) { return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret
+  // Verify cron secret — fail closed: without CRON_SECRET configured the
+  // endpoint must not be callable at all (it emails every company).
   const auth = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && auth !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

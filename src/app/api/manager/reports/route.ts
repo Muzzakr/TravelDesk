@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma'
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Company-wide spend data — approval/finance roles only
+  if (!['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(session.user.role ?? ''))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const companyId = session.user.companyId
   const { searchParams } = new URL(req.url)

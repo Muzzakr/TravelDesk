@@ -5,10 +5,11 @@ import { emailFinanceDigest } from '@/lib/mail'
 // Daily digest: emails each company's finance admins a summary of all expenses
 // approved in the last 24 hours that are still awaiting payout.
 export async function GET(req: NextRequest) {
-  // Verify cron secret (same scheme as monthly-report)
+  // Verify cron secret — fail closed: without CRON_SECRET configured the
+  // endpoint must not be callable at all (it emails every company).
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

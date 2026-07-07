@@ -28,7 +28,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   try {
     const request = await prisma.travelRequest.findFirst({
-      where: { id: params.id, companyId: session.user.companyId },
+      where: {
+        id: params.id,
+        companyId: session.user.companyId,
+        // Plain employees may only read their own requests
+        ...(session.user.role === 'EMPLOYEE' ? { employeeId: session.user.id } : {}),
+      },
       include: {
         employee: { select: { id: true, name: true, email: true } },
         event: true,
@@ -65,7 +70,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const role = session.user.role ?? ''
-  const approverRoles = ['MANAGER', 'TRAVEL_MANAGER', 'TRAVEL_AGENT', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']
+  // Travel approval belongs to managers/agents — finance handles payouts, not travel
+  const approverRoles = ['MANAGER', 'TRAVEL_MANAGER', 'TRAVEL_AGENT', 'SYSTEM_ADMIN']
 
   if (parsed.data.status === 'CANCELLED') {
     if (request.employeeId !== session.user.id && !approverRoles.includes(role)) {

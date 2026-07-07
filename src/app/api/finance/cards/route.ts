@@ -45,6 +45,19 @@ const ManualSchema = z.object({
   eventId:         z.string().optional(),
 })
 
+/** Both ids are caller-supplied — verify they belong to the caller's company. */
+async function validateRefs(companyId: string, eventId?: string, employeeId?: string): Promise<string | null> {
+  if (eventId) {
+    const event = await prisma.event.findFirst({ where: { id: eventId, companyId }, select: { id: true } })
+    if (!event) return 'Invalid eventId: event not found in this company'
+  }
+  if (employeeId) {
+    const employee = await prisma.user.findFirst({ where: { id: employeeId, companyId }, select: { id: true } })
+    if (!employee) return 'Invalid employeeId: user not found in this company'
+  }
+  return null
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -54,6 +67,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const parsed = ManualSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+
+  const refError = await validateRefs(session.user.companyId, parsed.data.eventId, parsed.data.employeeId)
+  if (refError) return NextResponse.json({ error: refError }, { status: 400 })
 
   const tx = await prisma.cardTransaction.create({
     data: {
@@ -97,6 +113,16 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
   const parsed = TagSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+
+  // The transaction must belong to the caller's company before it can be tagged
+  const existing = await prisma.cardTransaction.findFirst({
+    where: { id, companyId: session.user.companyId },
+    select: { id: true },
+  })
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const refError = await validateRefs(session.user.companyId, parsed.data.eventId, parsed.data.employeeId)
+  if (refError) return NextResponse.json({ error: refError }, { status: 400 })
 
   const updated = await prisma.cardTransaction.update({
     where: { id },

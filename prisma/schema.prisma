@@ -75,8 +75,6 @@ model User {
   expenses             Expense[]
   approvalActions      ApprovalAction[]
   auditLogs            AuditLog[]
-  delegationsGiven     Delegation[]          @relation("DelegatorDelegations")
-  delegationsReceived  Delegation[]          @relation("DelegateDelegations")
   travelerProfile      TravelerProfile?
   verificationTokens   VerificationToken[]
   mfaBackupCodes       MfaBackupCode[]
@@ -131,19 +129,6 @@ model MfaBackupCode {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-}
-
-model Delegation {
-  id          String   @id @default(cuid())
-  companyId   String
-  delegatorId String
-  delegateId  String
-  startDate   DateTime
-  endDate     DateTime
-  createdAt   DateTime @default(now())
-
-  delegator User @relation("DelegatorDelegations", fields: [delegatorId], references: [id])
-  delegate  User @relation("DelegateDelegations", fields: [delegateId], references: [id])
 }
 
 // ─── Events (cost center tagging) ────────────────────────────────────────────

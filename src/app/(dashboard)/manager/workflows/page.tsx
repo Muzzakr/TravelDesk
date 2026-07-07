@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 
+// Requests are created directly in PENDING_MANAGER (or PENDING_AGENT) —
+// there is no SUBMITTED state at runtime.
 const TRAVEL_STEPS = [
-  { status: 'SUBMITTED', label: 'Submitted', description: 'Employee submits request', actor: 'Employee', color: 'border-blue-200 bg-blue-50' },
   { status: 'PENDING_MANAGER', label: 'Pending Manager Review', description: 'Awaiting manager decision', actor: 'Manager', color: 'border-yellow-200 bg-yellow-50' },
   { status: 'APPROVED', label: 'Reviewed by Manager', description: 'Manager approved', actor: 'Manager', color: 'border-green-200 bg-green-50' },
   { status: 'PENDING_AGENT', label: 'Assigned to Agent', description: 'Travel agent working on booking', actor: 'Agent', color: 'border-purple-200 bg-purple-50' },
@@ -18,8 +19,7 @@ const TRAVEL_STEPS = [
 const EXPENSE_STEPS = [
   { status: 'SUBMITTED', label: 'Submitted', description: 'Employee submits expense', actor: 'Employee', color: 'border-blue-200 bg-blue-50' },
   { status: 'UNDER_REVIEW', label: 'Pending Manager Review', description: 'Awaiting manager decision', actor: 'Manager', color: 'border-yellow-200 bg-yellow-50' },
-  { status: 'APPROVED', label: 'Reviewed by Manager', description: 'Manager approved', actor: 'Manager', color: 'border-green-200 bg-green-50' },
-  { status: 'APPROVED', label: 'Sent to Finance', description: 'Forwarded to finance team', actor: 'Finance', color: 'border-orange-200 bg-orange-50' },
+  { status: 'APPROVED', label: 'Approved — Awaiting Payout', description: 'Included in the next payout report', actor: 'Finance', color: 'border-green-200 bg-green-50' },
   { status: 'PAID', label: 'Paid', description: 'Payment processed', actor: 'Finance', color: 'border-gray-200 bg-gray-50' },
 ]
 

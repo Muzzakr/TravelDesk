@@ -5,6 +5,7 @@ import { writeAuditLog } from '@/lib/audit'
 import { notifyExpenseStatusChanged } from '@/lib/notify'
 import { createNotification } from '@/lib/notifications'
 import { emailExpenseApproved, emailExpenseRejected, emailExpenseToFinance } from '@/lib/mail'
+import { clientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 
 const UpdateSchema = z.object({
@@ -180,6 +181,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       expenseId: params.id,
       actionType,
       note: parsed.data.rejectionNote,
+      ipAddress: clientIp(req),
     },
   })
 

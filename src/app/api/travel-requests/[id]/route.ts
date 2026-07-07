@@ -5,6 +5,7 @@ import { writeAuditLog } from '@/lib/audit'
 import { notifyTravelRequestStatusChanged } from '@/lib/notify'
 import { createNotification } from '@/lib/notifications'
 import { emailRequestApproved, emailRequestRejected, emailAgentActionRequired } from '@/lib/mail'
+import { clientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 import type { TravelRequestStatus } from '@prisma/client'
 
@@ -152,6 +153,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       travelRequestId: params.id,
       actionType,
       note: parsed.data.rejectionNote,
+      ipAddress: clientIp(req),
     },
   })
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { Check, XCircle } from 'lucide-react'
+import { LoadError } from '@/components/ui/LoadError'
 
 interface TravelRequest {
   id: string; status: string; origin: string; destination: string; createdAt: string
@@ -25,24 +26,40 @@ export default function ApprovalsPage() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
 
+  const [loadError, setLoadError] = useState(false)
+
   async function load() {
     setLoading(true)
-    const [trRes, expRes] = await Promise.all([
-      fetch('/api/travel-requests'),
-      fetch('/api/expenses?status=SUBMITTED,UNDER_REVIEW'),
-    ])
-    if (trRes.ok) {
-      const all: TravelRequest[] = await trRes.json()
-      setTravelRequests(all.filter(r => r.status === 'PENDING_MANAGER'))
+    setLoadError(false)
+    try {
+      const [trRes, expRes] = await Promise.all([
+        fetch('/api/travel-requests'),
+        fetch('/api/expenses?status=SUBMITTED,UNDER_REVIEW'),
+      ])
+      if (!trRes.ok || !expRes.ok) throw new Error('load failed')
+      const allTr: TravelRequest[] = await trRes.json()
+      setTravelRequests(allTr.filter(r => r.status === 'PENDING_MANAGER'))
+      const allExp: Expense[] = await expRes.json()
+      setExpenses(allExp.filter(e => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)))
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
     }
-    if (expRes.ok) {
-      const all: Expense[] = await expRes.json()
-      setExpenses(all.filter(e => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)))
-    }
-    setLoading(false)
   }
 
   useEffect(() => { load() }, [])
+
+  /** Run bulk PATCHes and surface how many failed instead of ignoring errors. */
+  async function runBulk(requests: Promise<Response>[]) {
+    const results = await Promise.allSettled(requests)
+    const failed = results.filter(
+      (r) => r.status === 'rejected' || !(r as PromiseFulfilledResult<Response>).value.ok
+    ).length
+    if (failed > 0) {
+      setError(`${failed} of ${results.length} action${results.length > 1 ? 's' : ''} failed — the lists below have been refreshed, please try again.`)
+    }
+  }
 
   function toggleTR(id: string) {
     setSelectedTR(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
@@ -59,7 +76,7 @@ export default function ApprovalsPage() {
 
   async function bulkApproveTR() {
     setProcessing(true); setError('')
-    await Promise.all([...selectedTR].map(id =>
+    await runBulk([...selectedTR].map(id =>
       fetch(`/api/travel-requests/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'APPROVED' }),
@@ -71,7 +88,7 @@ export default function ApprovalsPage() {
   async function bulkRejectTR() {
     if (!bulkNote.trim()) { setError('Please enter a rejection reason.'); return }
     setProcessing(true); setError('')
-    await Promise.all([...selectedTR].map(id =>
+    await runBulk([...selectedTR].map(id =>
       fetch(`/api/travel-requests/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'REJECTED', rejectionNote: bulkNote }),
@@ -82,7 +99,7 @@ export default function ApprovalsPage() {
 
   async function bulkApproveExp() {
     setProcessing(true); setError('')
-    await Promise.all([...selectedExp].map(id =>
+    await runBulk([...selectedExp].map(id =>
       fetch(`/api/expenses/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'APPROVED' }),
@@ -94,7 +111,7 @@ export default function ApprovalsPage() {
   async function bulkRejectExp() {
     if (!bulkNote.trim()) { setError('Please enter a rejection reason.'); return }
     setProcessing(true); setError('')
-    await Promise.all([...selectedExp].map(id =>
+    await runBulk([...selectedExp].map(id =>
       fetch(`/api/expenses/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'REJECTED', rejectionNote: bulkNote }),
@@ -104,6 +121,12 @@ export default function ApprovalsPage() {
   }
 
   if (loading) return <div className="p-8 text-gray-400">Loading…</div>
+  if (loadError) return (
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-gray-900">Approvals</h1>
+      <LoadError onRetry={load} />
+    </div>
+  )
 
   return (
     <div className="space-y-8">
@@ -163,7 +186,36 @@ export default function ApprovalsPage() {
         {travelRequests.length === 0 ? (
           <div className="rounded-xl border bg-white p-6 text-sm text-gray-400">No pending travel requests.</div>
         ) : (
-          <div className="rounded-xl border bg-white overflow-hidden">
+          <>
+          {/* Mobile cards — checkbox keeps bulk actions available on phones */}
+          <div className="sm:hidden space-y-2">
+            {travelRequests.map((r) => (
+              <div key={r.id} className={`rounded-xl border bg-white px-4 py-3 ${selectedTR.has(r.id) ? 'border-indigo-300 bg-indigo-50/40' : 'border-gray-200'}`}>
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" title={`Select ${r.employee.name}`}
+                    checked={selectedTR.has(r.id)} onChange={() => toggleTR(r.id)}
+                    className="mt-0.5 h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-gray-900 truncate">{r.employee.name}</p>
+                      <span className="shrink-0 text-sm font-semibold text-gray-700">
+                        {r.estimatedCostUsd ? `$${Number(r.estimatedCostUsd).toFixed(0)}` : '—'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 truncate">{r.origin} → {r.destination}</p>
+                    <p className="text-xs text-gray-400 truncate">{r.event.eventName}</p>
+                  </div>
+                </div>
+                <div className="mt-1 flex items-center justify-between pl-8">
+                  <span className="text-xs text-gray-400">{new Date(r.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
+                  <Link href={`/manager/approvals/travel/${r.id}`} className="inline-flex min-h-[44px] items-center text-sm font-medium text-indigo-600 hover:underline">Review →</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block rounded-xl border bg-white overflow-x-auto">
             <table className="w-full divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
                 <tr>
@@ -202,6 +254,7 @@ export default function ApprovalsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
@@ -213,7 +266,34 @@ export default function ApprovalsPage() {
         {expenses.length === 0 ? (
           <div className="rounded-xl border bg-white p-6 text-sm text-gray-400">No pending expenses.</div>
         ) : (
-          <div className="rounded-xl border bg-white overflow-hidden">
+          <>
+          {/* Mobile cards — checkbox keeps bulk actions available on phones */}
+          <div className="sm:hidden space-y-2">
+            {expenses.map((ex) => (
+              <div key={ex.id} className={`rounded-xl border bg-white px-4 py-3 ${selectedExp.has(ex.id) ? 'border-indigo-300 bg-indigo-50/40' : 'border-gray-200'}`}>
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" title={`Select ${ex.employee.name} expense`}
+                    checked={selectedExp.has(ex.id)} onChange={() => toggleExp(ex.id)}
+                    className="mt-0.5 h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-gray-900 truncate">{ex.employee.name}</p>
+                      <span className="shrink-0 text-sm font-semibold text-gray-800">${Number(ex.amountUsd).toFixed(2)}</span>
+                    </div>
+                    <p className="text-sm text-gray-600 truncate">{ex.description}</p>
+                    <p className="text-xs text-gray-400 truncate">{ex.event.eventName}</p>
+                  </div>
+                </div>
+                <div className="mt-1 flex items-center justify-between pl-8">
+                  <Badge variant={statusToBadgeVariant(ex.status)}>{ex.status}</Badge>
+                  <Link href={`/manager/approvals/expense/${ex.id}`} className="inline-flex min-h-[44px] items-center text-sm font-medium text-indigo-600 hover:underline">Review →</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block rounded-xl border bg-white overflow-x-auto">
             <table className="w-full divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
                 <tr>
@@ -252,6 +332,7 @@ export default function ApprovalsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import type { ExtractedUser } from '@/app/api/users/extract/route'
 import { Check, XCircle, Copy, CheckCheck } from 'lucide-react'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 type UserRow = {
   id: string
@@ -98,6 +99,11 @@ export default function AdminUsersPage() {
   // Import state
   const fileRef = useRef<HTMLInputElement>(null)
   const drawerRef = useRef<HTMLDivElement>(null)
+
+  // Escape-to-close + focus management for the overlays
+  useModalDismiss<HTMLDivElement>(!!selected, () => setSelected(null))
+  const inviteDismissRef = useModalDismiss<HTMLDivElement>(!!inviteLink, () => setInviteLink(null))
+  const resetDismissRef = useModalDismiss<HTMLFormElement>(!!resetPassUser, () => setResetPassUser(null))
   const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState('')
   const [preview, setPreview] = useState<ExtractedUser[] | null>(null)
@@ -357,7 +363,7 @@ export default function AdminUsersPage() {
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setInviteLink(null)} />
           <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <div ref={inviteDismissRef} className="pointer-events-auto w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Email could not be sent</h2>
@@ -391,7 +397,7 @@ export default function AdminUsersPage() {
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setResetPassUser(null)} />
           <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
-            <form onSubmit={submitResetPass}
+            <form onSubmit={submitResetPass} ref={resetDismissRef}
               className="pointer-events-auto w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
               onClick={e => e.stopPropagation()}>
               <h2 className="text-base font-semibold text-gray-900">Set new password</h2>

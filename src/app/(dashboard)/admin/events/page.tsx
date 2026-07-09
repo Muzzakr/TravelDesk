@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
 import type { ExtractedEvent } from '@/app/api/events/extract/route'
 import { Check, MapPin, Calendar, Headphones, Mic, User } from 'lucide-react'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 type EventRow = {
   id: string
@@ -122,6 +123,10 @@ export default function AdminEventsPage() {
   const [createResult, setCreateResult] = useState<{ created: number; errors: string[] } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const drawerRef = useRef<HTMLDivElement>(null)
+
+  // Escape-to-close + focus management for the drawer and edit modal
+  useModalDismiss<HTMLDivElement>(!!selected, () => setSelected(null))
+  const editDismissRef = useModalDismiss<HTMLDivElement>(!!editModal, () => setEditModal(null))
 
   function f(key: string, value: string) { setForm((p) => ({ ...p, [key]: value })) }
 
@@ -359,11 +364,11 @@ export default function AdminEventsPage() {
                 <div className="flex items-center gap-2">
                   <Badge variant={statusBadge[selected.status] ?? 'gray'}>{selected.status}</Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DetailRow label="Venue" value={selected.venue} />
                   <DetailRow label="Address" value={selected.address} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DetailRow
                     label="Date"
                     value={selected.eventDate ? new Date(selected.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : null}
@@ -371,7 +376,7 @@ export default function AdminEventsPage() {
                   <DetailRow label="Timing" value={selected.timing} />
                 </div>
                 <div className="h-px bg-gray-100" />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DetailRow label="Assigned DJ" value={selected.assignedDj} />
                   <DetailRow label="Assigned MC" value={selected.assignedMc} />
                 </div>
@@ -379,7 +384,7 @@ export default function AdminEventsPage() {
                 {(selected.costCenter || selected.budgetUsd > 0) && (
                   <>
                     <div className="h-px bg-gray-100" />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {selected.costCenter && <DetailRow label="Cost Center" value={selected.costCenter} />}
                       {selected.budgetUsd > 0 && <DetailRow label="Budget" value={`$${Number(selected.budgetUsd).toLocaleString()}`} />}
                     </div>
@@ -423,7 +428,7 @@ export default function AdminEventsPage() {
           onMouseDown={(e) => { if (e.target === e.currentTarget) setEditModal(null) }}
         >
           <div className="absolute inset-0 bg-black/50" onMouseDown={() => setEditModal(null)} />
-          <div className="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl bg-white shadow-2xl flex flex-col max-h-[90dvh]">
+          <div ref={editDismissRef} className="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl bg-white shadow-2xl flex flex-col max-h-[90dvh]">
             <form onSubmit={saveEdit} className="flex flex-col max-h-[90vh]">
               {/* Modal header */}
               <div className="flex items-start justify-between border-b px-6 py-4">
@@ -441,7 +446,7 @@ export default function AdminEventsPage() {
 
               {/* Modal body */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Event Code</label>
                     <input title="Event Code" value={editForm.eventCode} readOnly
@@ -462,7 +467,7 @@ export default function AdminEventsPage() {
                   <input required title="Event Name" placeholder="Event Name" value={editForm.eventName} onChange={(e) => ef('eventName', e.target.value)}
                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Venue</label>
                     <input title="Venue" placeholder="Venue" value={editForm.venue} onChange={(e) => ef('venue', e.target.value)}
@@ -474,7 +479,7 @@ export default function AdminEventsPage() {
                       className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <DateInput label="Date" title="Date" value={editForm.eventDate} onChange={(v) => ef('eventDate', v)}
                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
                   <div className="flex flex-col gap-1">
@@ -483,7 +488,7 @@ export default function AdminEventsPage() {
                       className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Assigned DJ</label>
                     <input title="Assigned DJ" placeholder="Assigned DJ" value={editForm.assignedDj} onChange={(e) => ef('assignedDj', e.target.value)}
@@ -495,7 +500,7 @@ export default function AdminEventsPage() {
                       className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Sales Person</label>
                     <input title="Sales Person" placeholder="Sales Person" value={editForm.salesPerson} onChange={(e) => ef('salesPerson', e.target.value)}

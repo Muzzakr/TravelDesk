@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -63,6 +64,10 @@ export default function AdminExpensesPage() {
   // New expense — same shared form component as employee/expenses
   const [showNewExpense, setShowNewExpense] = useState(false)
   const [newSuccess, setNewSuccess] = useState('')
+
+  // Escape-to-close + focus management for the overlays
+  const rejectDismissRef = useModalDismiss<HTMLDivElement>(!!rejectId, () => { setRejectId(null); setRejectNote(''); setRejectErr('') })
+  const newExpenseDismissRef = useModalDismiss<HTMLDivElement>(showNewExpense, () => setShowNewExpense(false))
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -166,7 +171,7 @@ export default function AdminExpensesPage() {
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setRejectId(null); setRejectNote(''); setRejectErr('') }} />
           <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <div ref={rejectDismissRef} className="pointer-events-auto w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4">
               <h2 className="text-base font-semibold text-gray-900">Reject expense</h2>
               <textarea rows={3} placeholder="Reason for rejection (required)"
                 value={rejectNote} onChange={e => setRejectNote(e.target.value)}
@@ -400,7 +405,7 @@ export default function AdminExpensesPage() {
 
       {/* ── New Expense — full-screen, same shared form as employee/expenses ── */}
       {showNewExpense && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+        <div ref={newExpenseDismissRef} className="fixed inset-0 z-50 bg-white overflow-y-auto">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4 sm:px-8">
             <h2 className="text-lg font-semibold text-gray-900">New Expense</h2>
             <button type="button" aria-label="Close" onClick={() => setShowNewExpense(false)}

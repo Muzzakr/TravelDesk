@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { Pagination } from '@/components/ui/Pagination'
 import { ExpenseApproveActions } from '@/components/manager/ExpenseApproveActions'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
+import { LoadError } from '@/components/ui/LoadError'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -53,18 +55,30 @@ export default function FinanceExpensesPage() {
   // New expense modal — same shared form component as employee/expenses
   const [showNewExpense, setShowNewExpense] = useState(false)
   const [newSuccess, setNewSuccess] = useState('')
+  const [loadError, setLoadError] = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  // Escape-to-close + focus management for the full-screen form
+  const newExpenseDismissRef = useModalDismiss<HTMLDivElement>(showNewExpense, () => setShowNewExpense(false))
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const p = new URLSearchParams({
-      ...(month >= 0 && { month: String(month + 1) }), year: String(year), page: String(page),
-      ...(statusFilter && { status: statusFilter }),
-      ...(employeeFilter && { employeeId: employeeFilter }),
-      ...(search && { search }),
-    })
-    const res = await fetch(`/api/finance/expenses?${p}`)
-    if (res.ok) setData(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const p = new URLSearchParams({
+        ...(month >= 0 && { month: String(month + 1) }), year: String(year), page: String(page),
+        ...(statusFilter && { status: statusFilter }),
+        ...(employeeFilter && { employeeId: employeeFilter }),
+        ...(search && { search }),
+      })
+      const res = await fetch(`/api/finance/expenses?${p}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setData(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [month, year, page, statusFilter, employeeFilter, search])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -77,10 +91,19 @@ export default function FinanceExpensesPage() {
 
   async function markAsPaid(expenseId: string) {
     setMarkingId(expenseId)
-    await fetch('/api/finance/expenses/mark-paid', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expenseId }),
-    })
+    setActionError('')
+    try {
+      const res = await fetch('/api/finance/expenses/mark-paid', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expenseId }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setActionError(typeof d.error === 'string' ? d.error : 'Could not mark the expense as paid. Try again.')
+      }
+    } catch {
+      setActionError('Could not mark the expense as paid. Check your connection and try again.')
+    }
     setMarkingId(null)
     fetchData()
   }
@@ -241,8 +264,13 @@ export default function FinanceExpensesPage() {
         )}
       </div>
 
+      {actionError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
+      )}
+      {loadError && <LoadError onRetry={fetchData} />}
+
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+      {!loadError && <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
         {/* Mobile cards */}
         <div className="sm:hidden divide-y divide-gray-100">
           {loading ? (
@@ -356,7 +384,7 @@ export default function FinanceExpensesPage() {
                       )}
                       {canMarkPaid && e.status === 'APPROVED' && (
                         <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
-                          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                          className="rounded-lg bg-indigo-600 px-3 py-2.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
                           {markingId === e.id ? '...' : 'Mark as Paid'}
                         </button>
                       )}
@@ -377,11 +405,11 @@ export default function FinanceExpensesPage() {
             <Pagination page={page} totalPages={data.pagination.totalPages} onPageChange={setPage} />
           </div>
         )}
-      </div>
+      </div>}
 
       {/* ── New Expense — full-screen, same shared form as employee/expenses ── */}
       {showNewExpense && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+        <div ref={newExpenseDismissRef} className="fixed inset-0 z-50 bg-white overflow-y-auto">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4 sm:px-8">
             <h2 className="text-lg font-semibold text-gray-900">New Expense</h2>
             <button type="button" aria-label="Close" onClick={() => setShowNewExpense(false)}

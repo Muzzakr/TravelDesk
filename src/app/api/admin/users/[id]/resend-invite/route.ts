@@ -20,7 +20,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     select: { slug: true },
   })
   const rawToken = await createVerificationToken(user.id, 'INVITE')
-  const setPasswordUrl = `${process.env.APP_URL ?? ''}/set-password?token=${rawToken}`
+  const appBase = (process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? '').replace(/\/+$/, '')
+  const setPasswordUrl = `${appBase}/set-password?token=${rawToken}`
 
   let emailSent = false
   try {

@@ -9,7 +9,10 @@ const transporter = createTransport({
 })
 
 const FROM = `"M4U Travel" <${process.env.GMAIL_USER}>`
-const APP = process.env.APP_URL ?? ''
+// Base URL for all email links. Falls back to NEXTAUTH_URL (always set for
+// auth to work) so links never render without a host; trailing slash stripped
+// to avoid double slashes.
+const APP = (process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? '').replace(/\/+$/, '')
 
 function baseTemplate(content: string) {
   return `

@@ -6,6 +6,7 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
 import { FinanceCharts } from '@/components/finance/FinanceCharts'
 import { CheckCircle, Wallet, Clock3, BarChart3, Zap, Send, XCircle, Check } from 'lucide-react'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -76,6 +77,7 @@ export default function FinanceDashboard() {
   const [markingId, setMarkingId] = useState<string | null>(null)
   const [escalating, setEscalating] = useState(false)
   const [showEscalated, setShowEscalated] = useState(false)
+  const escalatedDismissRef = useModalDismiss<HTMLDivElement>(showEscalated, () => setShowEscalated(false))
 
   const fetch72h = useCallback(async () => {
     setEscalating(true)
@@ -486,7 +488,7 @@ export default function FinanceDashboard() {
       {/* Escalated modal */}
       {showEscalated && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl mx-4">
+          <div ref={escalatedDismissRef} className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl mx-4">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">72h Escalation</h2>
             <p className="text-sm text-gray-600 mb-4">
               {data && data.escalatedCount > 0

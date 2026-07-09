@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 type Event = {
   id: string
@@ -101,6 +102,8 @@ export default function FinanceEventsPage() {
     setDocCounts((prev) => ({ ...prev, [docsModal!.id]: docs.length }))
     setDocsModal(null)
   }
+
+  const docsDismissRef = useModalDismiss<HTMLDivElement>(!!docsModal, closeDocsModal)
 
   async function loadDocUrl(docId: string) {
     if (docUrls[docId]) {
@@ -268,6 +271,7 @@ export default function FinanceEventsPage() {
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={closeDocsModal} />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
             <div
+              ref={docsDismissRef}
               className="pointer-events-auto w-full max-w-lg rounded-2xl bg-white shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >

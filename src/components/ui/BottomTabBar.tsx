@@ -36,6 +36,7 @@ const SHORT: Record<string, string> = {
   'Travel Requests': 'Trips',
   'Team Travel': 'Travel',
   'Team Expenses': 'Expenses',
+  'All Expenses': 'Expenses',
   'Payout Reports': 'Payouts',
   'Monthly Reports': 'Reports',
   'Create Travel Booking': 'Book',
@@ -60,7 +61,7 @@ const PRIORITY_TABS: Record<string, string[]> = {
   SYSTEM_ADMIN: ['/admin', '/admin/expenses', '/admin/users', '/admin/events'],
   FINANCE_ADMIN: ['/finance', '/finance/expenses', '/finance/payout-reports', '/finance/cards'],
   MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/finance/expenses'],
-  TRAVEL_MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/agent/book'],
+  TRAVEL_MANAGER: ['/manager', '/finance/expenses', '/manager/team-travel', '/agent/book'],
 }
 
 export function BottomTabBar({

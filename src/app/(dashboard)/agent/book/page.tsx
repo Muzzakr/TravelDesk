@@ -409,6 +409,10 @@ export default function AgentBookPage() {
         const match = emps.find(e => e.name.toLowerCase().includes(inboxEmployee.toLowerCase()))
         if (match) setEmployeeId(match.id)
       }
+    }).catch(() => {
+      // Without employees/events the wizard is unusable — say so instead of
+      // silently rendering empty dropdowns.
+      setError('Could not load employees and events. Check your connection and reload the page.')
     })
   }, [])
 
@@ -727,7 +731,7 @@ export default function AgentBookPage() {
                   <div className="flex flex-wrap gap-2">
                     {['City Center', 'Near Airport', 'Near Venue'].map(chip => (
                       <button key={chip} type="button" onClick={() => setHotel(h => ({ ...h, area: chip }))}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${hotel.area === chip ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}>
+                        className={`px-4 py-2 rounded-full text-xs font-medium border transition-colors ${hotel.area === chip ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}>
                         {chip}
                       </button>
                     ))}
@@ -989,7 +993,7 @@ export default function AgentBookPage() {
                 <button
                   type="button"
                   onClick={() => setShowCustomForm(v => !v)}
-                  className="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  className="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-2.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
                 >
                   {showCustomForm ? '− Cancel' : '+ Add option'}
                 </button>
@@ -1010,7 +1014,7 @@ export default function AgentBookPage() {
                       ))}
                     </select>
                   </Field>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label="Vendor / Provider" required>
                       <input type="text" value={customDraft.vendor} onChange={e => setCustomDraft(d => ({ ...d, vendor: e.target.value }))} placeholder="E.g. SAS, Radisson…" className={inputCls} />
                     </Field>

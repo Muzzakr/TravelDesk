@@ -31,6 +31,11 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
+  // Magic link ("email me a sign-in link")
+  const [magicOpen, setMagicOpen] = useState(false)
+  const [magicEmail, setMagicEmail] = useState('')
+  const [magicSending, setMagicSending] = useState(false)
+  const [magicSent, setMagicSent] = useState(false)
   const [form, setForm] = useState({
     companySlug: params.get('company') ?? '',
     email: '',
@@ -80,6 +85,19 @@ function LoginForm() {
     await signIn('google', { callbackUrl: '/login' })
   }
 
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault()
+    setMagicSending(true)
+    await fetch('/api/auth/magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: magicEmail }),
+    }).catch(() => {})
+    // Always the same confirmation — the API never reveals whether the email exists
+    setMagicSending(false)
+    setMagicSent(true)
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md">
@@ -111,6 +129,11 @@ function LoginForm() {
         {params.get('message') === 'password-set' && (
           <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
             Password set successfully. You can now sign in.
+          </div>
+        )}
+        {params.get('magic') === 'expired' && (
+          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+            The sign-in link is invalid or has expired. Request a new one below.
           </div>
         )}
         {googleBanner && (
@@ -173,6 +196,46 @@ function LoginForm() {
             <GoogleIcon />
             {googleLoading ? 'Redirecting…' : 'Sign in with Google'}
           </button>
+
+          {/* Magic link — passwordless sign-in via emailed one-time link */}
+          {!magicOpen ? (
+            <button
+              type="button"
+              onClick={() => { setMagicOpen(true); setMagicEmail(form.email); setMagicSent(false) }}
+              className="mt-3 flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Email me a sign-in link
+            </button>
+          ) : magicSent ? (
+            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              Check your email — if an account exists, a sign-in link is on its way. It expires in 15 minutes.
+            </div>
+          ) : (
+            <form onSubmit={handleMagicLink} className="mt-3 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <label className="block text-xs font-medium text-gray-600">We&apos;ll email you a one-time sign-in link</label>
+              <input
+                type="email"
+                required
+                value={magicEmail}
+                onChange={(e) => setMagicEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+              />
+              <div className="flex gap-2">
+                <button type="submit" disabled={magicSending}
+                  className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors">
+                  {magicSending ? 'Sending…' : 'Send link'}
+                </button>
+                <button type="button" onClick={() => setMagicOpen(false)}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
 
           <p className="mt-6 text-center text-sm text-gray-500">
             New company?{' '}

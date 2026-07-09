@@ -11,10 +11,14 @@ export function hashToken(raw: string): string {
 
 export async function createVerificationToken(
   userId: string,
-  type: 'INVITE' | 'PASSWORD_RESET' | 'GOOGLE_VERIFY' | 'EMAIL_VERIFY'
+  type: 'INVITE' | 'PASSWORD_RESET' | 'GOOGLE_VERIFY' | 'EMAIL_VERIFY' | 'MAGIC_LINK'
 ): Promise<string> {
   const raw = generateRawToken()
-  const hoursValid = type === 'INVITE' ? 48 : type === 'GOOGLE_VERIFY' || type === 'EMAIL_VERIFY' ? 24 : 1
+  const hoursValid =
+    type === 'INVITE' ? 48 :
+    type === 'GOOGLE_VERIFY' || type === 'EMAIL_VERIFY' ? 24 :
+    type === 'MAGIC_LINK' ? 0.25 :
+    1
   const expiresAt = new Date(Date.now() + hoursValid * 60 * 60 * 1000)
 
   // Remove any existing token of the same type for this user

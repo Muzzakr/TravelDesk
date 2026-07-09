@@ -4,7 +4,7 @@ import Google from 'next-auth/providers/google'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { writeAuditLog } from './audit'
-import { createVerificationToken } from './tokens'
+import { createVerificationToken, hashToken } from './tokens'
 import { sendGoogleVerificationEmail } from './mail'
 import { rateLimit } from './rate-limit'
 import type { Role } from '@/types/user'
@@ -77,6 +77,51 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           companyId: company.id,
+          role: user.role as Role,
+          mfaEnabled: user.mfaEnabled,
+        }
+      },
+    }),
+    // Passwordless sign-in via emailed one-time link. Token security:
+    // 256-bit random, SHA-256 hashed at rest, 15 min expiry, single use.
+    // MFA still applies — the jwt callback sets mfaVerified=false as usual.
+    Credentials({
+      id: 'magic-link',
+      name: 'magic-link',
+      credentials: { token: { label: 'Token', type: 'text' } },
+      async authorize(credentials) {
+        const raw = credentials?.token
+        if (!raw || typeof raw !== 'string') return null
+
+        const record = await prisma.verificationToken.findUnique({
+          where: { token: hashToken(raw) },
+        })
+        if (!record || record.type !== 'MAGIC_LINK' || record.expiresAt < new Date()) return null
+
+        // Single use — consume before signing in
+        await prisma.verificationToken.delete({ where: { id: record.id } })
+
+        const user = await prisma.user.findUnique({ where: { id: record.userId } })
+        if (!user || !user.isActive) return null
+
+        try {
+          await writeAuditLog({
+            companyId: user.companyId,
+            actorId: user.id,
+            action: 'LOGIN_MAGIC_LINK',
+            entityType: 'User',
+            entityId: user.id,
+            payload: { email: user.email, role: user.role },
+          })
+        } catch (err) {
+          console.error('Audit log failed:', err)
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          companyId: user.companyId,
           role: user.role as Role,
           mfaEnabled: user.mfaEnabled,
         }

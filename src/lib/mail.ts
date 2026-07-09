@@ -413,6 +413,21 @@ export async function emailFinanceDigest(
 
 // ─── Marketing / sales emails ─────────────────────────────────────────────────
 
+export async function sendMagicLinkEmail(to: string, name: string, rawToken: string, companyName: string) {
+  const link = `${APP}/magic-link?token=${rawToken}`
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: 'Your sign-in link — M4U Travel',
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Sign in to M4U Travel</h2>
+      <p style="color:#374151;margin:0">Hi ${name}, click the button below to sign in to your account at <strong>${companyName}</strong> — no password needed.</p>
+      ${btn(link, 'Sign in to M4U Travel')}
+      <p style="color:#9ca3af;font-size:12px;margin-top:20px">This link expires in 15 minutes and can only be used once. If you didn't request it, you can safely ignore this email.</p>
+    `),
+  })
+}
+
 export async function sendNewsletterWelcomeEmail(to: string) {
   const unsubscribeLink = `${APP}/api/unsubscribe?email=${encodeURIComponent(to)}`
   await transporter.sendMail({

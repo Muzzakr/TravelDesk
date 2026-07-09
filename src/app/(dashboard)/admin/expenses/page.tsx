@@ -383,11 +383,11 @@ export default function AdminExpensesPage() {
                       {e.status === 'SUBMITTED' && (
                         <>
                           <button type="button" disabled={acting === e.id} onClick={() => approve(e.id)}
-                            className="rounded-lg bg-green-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
+                            className="rounded-lg bg-green-600 text-white px-3 py-2.5 text-xs font-medium hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
                             {acting === e.id ? '…' : 'Approve'}
                           </button>
                           <button type="button" onClick={() => { setRejectId(e.id); setRejectNote(''); setRejectErr('') }}
-                            className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-3 py-1.5 text-xs font-medium hover:bg-red-100 whitespace-nowrap">
+                            className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-3 py-2.5 text-xs font-medium hover:bg-red-100 whitespace-nowrap">
                             Reject
                           </button>
                         </>

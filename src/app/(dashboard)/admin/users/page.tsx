@@ -381,7 +381,7 @@ export default function AdminUsersPage() {
               <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 flex items-center gap-2">
                 <span className="flex-1 text-xs text-gray-700 font-mono truncate">{inviteLink.url}</span>
                 <button type="button" onClick={() => copyInviteLink(inviteLink.url)}
-                  className="shrink-0 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-medium flex items-center gap-1.5">
+                  className="shrink-0 min-h-[44px] rounded-md bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 text-xs font-medium flex items-center gap-1.5">
                   {copied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   {copied ? 'Copied!' : 'Copy'}
                 </button>

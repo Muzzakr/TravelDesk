@@ -48,7 +48,7 @@ function Field({
   type?: string
   isSelect?: boolean
 }) {
-  const base = `w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 ${
+  const base = `w-full rounded-lg border px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 ${
     invalid ? 'border-red-400 bg-red-50' : 'border-gray-300'
   }`
   if (isSelect)
@@ -399,11 +399,11 @@ export default function AdminEventsPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-red-600 font-medium">Delete {selected.eventName}?</span>
                   <button type="button" onClick={deleteEvent} disabled={deleting}
-                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                    className="min-h-[44px] rounded-lg bg-red-600 px-4 py-2.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">
                     {deleting ? '…' : 'Yes, delete'}
                   </button>
                   <button type="button" onClick={() => setConfirmDelete(false)}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                    className="min-h-[44px] rounded-lg border border-gray-300 px-4 py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>

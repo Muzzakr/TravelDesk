@@ -130,7 +130,7 @@ export default async function ManagerDashboard() {
             className={`rounded-xl border bg-white px-5 py-4 hover:shadow-md transition-all group ${k.urgent ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
             <p className={`text-2xl font-bold ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
             <p className="text-xs font-semibold text-gray-700 mt-0.5">{k.label}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">{k.sub}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{k.sub}</p>
           </Link>
         ))}
       </div>
@@ -158,18 +158,18 @@ export default async function ManagerDashboard() {
             </div>
           </summary>
 
-          <div className="px-5 pb-3 grid grid-cols-3 gap-3 border-t border-gray-50 pt-3">
+          <div className="px-5 pb-3 grid grid-cols-3 gap-2 sm:gap-3 border-t border-gray-50 pt-3">
             <div className="text-center">
-              <p className="text-lg font-bold text-gray-900">{travelTotal}</p>
-              <p className="text-[11px] text-gray-400">Total</p>
+              <p className="text-base sm:text-lg font-bold text-gray-900">{travelTotal}</p>
+              <p className="text-xs text-gray-400">Total</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-amber-600">{travelPending}</p>
-              <p className="text-[11px] text-gray-400">Pending</p>
+              <p className="text-base sm:text-lg font-bold text-amber-600">{travelPending}</p>
+              <p className="text-xs text-gray-400">Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-red-500">{travelRejected}</p>
-              <p className="text-[11px] text-gray-400">Rejected</p>
+              <p className="text-base sm:text-lg font-bold text-red-500">{travelRejected}</p>
+              <p className="text-xs text-gray-400">Rejected</p>
             </div>
           </div>
 
@@ -180,7 +180,7 @@ export default async function ManagerDashboard() {
                   className="px-5 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-gray-900 truncate">{r.employee.name}</p>
-                    <p className="text-[11px] text-gray-400 truncate">{r.origin} → {r.destination}</p>
+                    <p className="text-xs text-gray-400 truncate">{r.origin} → {r.destination}</p>
                   </div>
                   <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
                 </Link>
@@ -214,18 +214,18 @@ export default async function ManagerDashboard() {
             </div>
           </summary>
 
-          <div className="px-5 pb-3 grid grid-cols-3 gap-3 border-t border-gray-50 pt-3">
+          <div className="px-5 pb-3 grid grid-cols-3 gap-2 sm:gap-3 border-t border-gray-50 pt-3">
             <div className="text-center">
-              <p className="text-lg font-bold text-gray-900">{expenseTotal}</p>
-              <p className="text-[11px] text-gray-400">Total</p>
+              <p className="text-base sm:text-lg font-bold text-gray-900">{expenseTotal}</p>
+              <p className="text-xs text-gray-400">Total</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-orange-600">{expensePending}</p>
-              <p className="text-[11px] text-gray-400">Pending</p>
+              <p className="text-base sm:text-lg font-bold text-orange-600">{expensePending}</p>
+              <p className="text-xs text-gray-400">Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-green-600">{expenseApprovedMonth}</p>
-              <p className="text-[11px] text-gray-400">Approved (month)</p>
+              <p className="text-base sm:text-lg font-bold text-green-600">{expenseApprovedMonth}</p>
+              <p className="text-xs text-gray-400">Approved (month)</p>
             </div>
           </div>
 
@@ -236,7 +236,7 @@ export default async function ManagerDashboard() {
                   className="px-5 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-gray-900 truncate">{e.employee.name}</p>
-                    <p className="text-[11px] text-gray-400 truncate">{(e.category ?? '').replace(/_/g, ' ')} · {e.description}</p>
+                    <p className="text-xs text-gray-400 truncate">{(e.category ?? '').replace(/_/g, ' ')} · {e.description}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-semibold text-gray-700">${Number(e.amountUsd).toFixed(0)}</span>

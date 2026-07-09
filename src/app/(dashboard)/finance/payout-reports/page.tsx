@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { LoadError } from '@/components/ui/LoadError'
 
 type ReportExpense = {
   id: string
@@ -33,11 +34,19 @@ export default function PayoutReportsPage() {
   const [generating, setGenerating] = useState(false)
   const [markingId, setMarkingId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState(false)
 
   async function load() {
-    const res = await fetch('/api/payout-reports')
-    if (res.ok) setReports(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const res = await fetch('/api/payout-reports')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setReports(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -93,6 +102,8 @@ export default function PayoutReportsPage() {
 
       {loading ? (
         <p className="text-sm text-gray-400">Loading…</p>
+      ) : loadError ? (
+        <LoadError onRetry={load} />
       ) : reports.length === 0 ? (
         <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">
           No payout reports yet. Click &quot;Generate this week&quot; to create one.
@@ -122,7 +133,7 @@ export default function PayoutReportsPage() {
                       >
                         <div className="min-w-0">
                           <p className="text-xs text-gray-700">{e.employee.name} · {e.category.replace(/_/g, ' ')}</p>
-                          <p className="text-[11px] text-gray-400 truncate" title={e.event.eventName}>{e.event.eventName}</p>
+                          <p className="text-xs text-gray-400 truncate" title={e.event.eventName}>{e.event.eventName}</p>
                         </div>
                         <span className="flex shrink-0 items-center gap-1.5">
                           <span className="text-xs font-semibold text-gray-800">${Number(e.amountUsd).toFixed(2)}</span>
@@ -208,13 +219,13 @@ export default function PayoutReportsPage() {
                                 <span className="font-mono text-gray-400 mr-1.5">{e.event.eventCode}</span>
                                 {e.event.eventName}
                               </p>
-                              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                              <p className="text-xs text-gray-400 mt-0.5 truncate">
                                 {e.employee.name}
                                 {e.merchantName ? ` · ${e.merchantName}` : ''}
                                 {e.transactionDate ? ` · ${new Date(e.transactionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                               </p>
                             </div>
-                            <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-500">
+                            <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
                               {e.category.replace(/_/g, ' ')}
                             </span>
                             <span className="shrink-0 w-20 text-right text-xs font-semibold text-gray-800">

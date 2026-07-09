@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Plane, Clock, CheckCircle, Calendar } from 'lucide-react'
 import { Pagination } from '@/components/ui/Pagination'
+import { LoadError } from '@/components/ui/LoadError'
 
 type TravelRequest = {
   id: string
@@ -52,17 +53,25 @@ export default function TeamTravelPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch]           = useState('')
   const [page, setPage]               = useState(1)
+  const [loadError, setLoadError]     = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const p = new URLSearchParams()
-    if (status)     p.set('status', status)
-    if (employeeId) p.set('employeeId', employeeId)
-    if (search)     p.set('search', search)
-    p.set('page', String(page))
-    const res = await fetch(`/api/manager/travel-requests?${p}`)
-    if (res.ok) setData(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const p = new URLSearchParams()
+      if (status)     p.set('status', status)
+      if (employeeId) p.set('employeeId', employeeId)
+      if (search)     p.set('search', search)
+      p.set('page', String(page))
+      const res = await fetch(`/api/manager/travel-requests?${p}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setData(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [status, employeeId, search, page])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -187,13 +196,15 @@ export default function TeamTravelPage() {
         </div>
       </div>
 
+      {loadError && !loading && <LoadError onRetry={fetchData} />}
+
       {/* Mobile cards */}
       <div className="sm:hidden space-y-3">
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="rounded-xl border bg-white p-4"><div className="h-4 bg-gray-100 rounded animate-pulse" /></div>
           ))
-        ) : (data?.requests.length ?? 0) === 0 ? (
+        ) : loadError ? null : (data?.requests.length ?? 0) === 0 ? (
           <p className="text-center text-sm text-gray-400 py-8">No requests found.</p>
         ) : data?.requests.map(r => {
           const dates = r.travelDates as Record<string, string>
@@ -220,6 +231,8 @@ export default function TeamTravelPage() {
       <div className="hidden sm:block overflow-x-auto rounded-2xl border bg-white shadow-sm">
         {loading ? (
           <p className="p-8 text-center text-gray-400">Loading…</p>
+        ) : loadError ? (
+          <p className="p-8 text-center text-gray-400">—</p>
         ) : (data?.requests.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-gray-400">No requests found.</p>
         ) : (

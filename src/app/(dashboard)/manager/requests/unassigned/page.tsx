@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Plane, Hotel, Car, Bus, PlusCircle, Users } from 'lucide-react'
+import { LoadError } from '@/components/ui/LoadError'
 
 const SERVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   FLIGHT: Plane, HOTEL: Hotel, CAR_RENTAL: Car, TRAIN: Bus,
@@ -31,14 +32,22 @@ export default function UnassignedRequestsPage() {
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
-    const r = await fetch('/api/manager/unassigned-requests')
-    if (r.ok) setRequests(await r.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const r = await fetch('/api/manager/unassigned-requests')
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      setRequests(await r.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function claim(id: string) {
@@ -66,7 +75,9 @@ export default function UnassignedRequestsPage() {
 
       {loading && <p className="text-sm text-gray-400 py-8 text-center">Loading…</p>}
 
-      {!loading && requests.length === 0 && (
+      {!loading && loadError && <LoadError onRetry={load} />}
+
+      {!loading && !loadError && requests.length === 0 && (
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-16 text-center">
           <Users className="mx-auto h-8 w-8 text-gray-300 mb-3" />
           <p className="text-sm font-medium text-gray-500">No unassigned requests</p>

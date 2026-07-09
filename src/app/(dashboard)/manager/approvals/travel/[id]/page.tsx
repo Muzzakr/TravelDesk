@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { LoadError } from '@/components/ui/LoadError'
 
 type BookingOption = {
   id: string
@@ -70,20 +71,24 @@ export default function ApproveTravelPage() {
   const [escalationNote, setEscalationNote] = useState('')
   const [approvedServices, setApprovedServices] = useState<string[]>([])
   const [rejectedServices, setRejectedServices] = useState<string[]>([])
+  const [loadError, setLoadError] = useState(false)
 
-  useEffect(() => {
-    async function load() {
+  async function load() {
+    setLoadError(false)
+    try {
       const r = await fetch(`/api/travel-requests/${id}`)
-      if (r.ok) {
-        const d = await r.json()
-        setRequest(d)
-        // Pre-select all services as approved
-        const services = (d.servicesRequested as string[]) ?? []
-        setApprovedServices(services)
-      }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const d = await r.json()
+      setRequest(d)
+      // Pre-select all services as approved
+      const services = (d.servicesRequested as string[]) ?? []
+      setApprovedServices(services)
+    } catch {
+      setLoadError(true)
     }
-    load()
-  }, [id])
+  }
+
+  useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleService(svc: string, list: 'approved' | 'rejected') {
     if (list === 'approved') {
@@ -134,7 +139,16 @@ export default function ApproveTravelPage() {
     else { const d = await res.json(); setError(d.error ?? 'Failed'); setLoading(false) }
   }
 
-  if (!request) return <div className="p-8 text-gray-400">Loading…</div>
+  if (!request) {
+    if (loadError) {
+      return (
+        <div className="mx-auto max-w-xl">
+          <LoadError onRetry={load} />
+        </div>
+      )
+    }
+    return <div className="p-8 text-gray-400">Loading…</div>
+  }
 
   type ApprovalAction = { actionType: string; note?: string; createdAt: string; actor: { name: string } }
 
@@ -169,7 +183,7 @@ export default function ApproveTravelPage() {
       <h1 className="text-2xl font-bold text-gray-900">Review travel request</h1>
 
       <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-500">Employee</span>
             <p className="font-medium text-gray-900">{emp.name}</p>
@@ -276,12 +290,12 @@ export default function ApproveTravelPage() {
                           <button
                             type="button"
                             onClick={() => toggleService(svcKey, 'approved')}
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${isApproved ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-green-400 hover:text-green-600'}`}
+                            className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${isApproved ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-green-400 hover:text-green-600'}`}
                           >✓</button>
                           <button
                             type="button"
                             onClick={() => toggleService(svcKey, 'rejected')}
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${isRejected ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-red-400 hover:text-red-600'}`}
+                            className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${isRejected ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-red-400 hover:text-red-600'}`}
                           >✗</button>
                         </div>
                       )}

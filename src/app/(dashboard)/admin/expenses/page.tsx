@@ -6,6 +6,7 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
+import { LoadError } from '@/components/ui/LoadError'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -49,6 +50,7 @@ export default function AdminExpensesPage() {
   const [year, setYear] = useState(now.getFullYear())
   const [data, setData] = useState<PageData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [statusFilter, setStatusFilter] = useState('SUBMITTED')
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -71,17 +73,24 @@ export default function AdminExpensesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const p = new URLSearchParams({
-      ...(month >= 0 && { month: String(month + 1) }),
-      year: String(year),
-      page: String(page),
-      ...(statusFilter && { status: statusFilter }),
-      ...(employeeFilter && { employeeId: employeeFilter }),
-      ...(search && { search }),
-    })
-    const res = await fetch(`/api/finance/expenses?${p}`)
-    if (res.ok) setData(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const p = new URLSearchParams({
+        ...(month >= 0 && { month: String(month + 1) }),
+        year: String(year),
+        page: String(page),
+        ...(statusFilter && { status: statusFilter }),
+        ...(employeeFilter && { employeeId: employeeFilter }),
+        ...(search && { search }),
+      })
+      const res = await fetch(`/api/finance/expenses?${p}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setData(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [month, year, page, statusFilter, employeeFilter, search])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -276,8 +285,10 @@ export default function AdminExpensesPage() {
         )}
       </div>
 
+      {loadError && <LoadError onRetry={fetchData} />}
+
       {/* Mobile cards */}
-      <div className="sm:hidden space-y-3">
+      {!loadError && <div className="sm:hidden space-y-3">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="rounded-xl border bg-white p-4"><div className="h-4 bg-gray-100 rounded animate-pulse" /></div>
@@ -317,10 +328,10 @@ export default function AdminExpensesPage() {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Desktop table */}
-      <div className="hidden sm:block overflow-hidden rounded-xl border bg-white shadow-sm">
+      {!loadError && <div className="hidden sm:block overflow-hidden rounded-xl border bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
             <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
@@ -401,7 +412,7 @@ export default function AdminExpensesPage() {
             <Pagination page={page} totalPages={data.pagination.totalPages} onPageChange={setPage} />
           </div>
         )}
-      </div>
+      </div>}
 
       {/* ── New Expense — full-screen, same shared form as employee/expenses ── */}
       {showNewExpense && (

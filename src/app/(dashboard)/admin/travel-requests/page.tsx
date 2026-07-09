@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Plane, Clock, CheckCircle, Calendar } from 'lucide-react'
 import { Pagination } from '@/components/ui/Pagination'
+import { LoadError } from '@/components/ui/LoadError'
 
 type TravelRequest = {
   id: string
@@ -52,6 +53,7 @@ const STATUS_OPTIONS = [
 export default function AdminTravelRequestsPage() {
   const [data, setData]           = useState<PageData | null>(null)
   const [loading, setLoading]     = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [status, setStatus]       = useState('')
   const [employeeId, setEmployee] = useState('')
   const [managerId, setManagerId] = useState('')
@@ -61,15 +63,22 @@ export default function AdminTravelRequestsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const p = new URLSearchParams()
-    if (status)     p.set('status', status)
-    if (employeeId) p.set('employeeId', employeeId)
-    if (managerId)  p.set('managerId', managerId)
-    if (search)     p.set('search', search)
-    p.set('page', String(page))
-    const res = await fetch(`/api/manager/travel-requests?${p}`)
-    if (res.ok) setData(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const p = new URLSearchParams()
+      if (status)     p.set('status', status)
+      if (employeeId) p.set('employeeId', employeeId)
+      if (managerId)  p.set('managerId', managerId)
+      if (search)     p.set('search', search)
+      p.set('page', String(page))
+      const res = await fetch(`/api/manager/travel-requests?${p}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setData(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [status, employeeId, managerId, search, page])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -199,8 +208,10 @@ export default function AdminTravelRequestsPage() {
         </div>
       </div>
 
+      {loadError && <LoadError onRetry={fetchData} />}
+
       {/* Mobile cards */}
-      <div className="sm:hidden space-y-3">
+      {!loadError && <div className="sm:hidden space-y-3">
         {loading ? (
           <p className="text-center text-sm text-gray-400 py-8">Loading…</p>
         ) : (data?.requests.length ?? 0) === 0 ? (
@@ -221,10 +232,10 @@ export default function AdminTravelRequestsPage() {
             </div>
           </Link>
         ))}
-      </div>
+      </div>}
 
       {/* Desktop table */}
-      <div className="hidden sm:block overflow-x-auto rounded-2xl border bg-white shadow-sm">
+      {!loadError && <div className="hidden sm:block overflow-x-auto rounded-2xl border bg-white shadow-sm">
         {loading ? (
           <p className="p-8 text-center text-gray-400">Loading…</p>
         ) : (data?.requests.length ?? 0) === 0 ? (
@@ -279,7 +290,7 @@ export default function AdminTravelRequestsPage() {
             </tbody>
           </table>
         )}
-      </div>
+      </div>}
 
       {/* Pagination */}
       {data && data.pagination.totalPages > 1 && (

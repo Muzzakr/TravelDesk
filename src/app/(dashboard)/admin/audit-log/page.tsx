@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Pagination } from '@/components/ui/Pagination'
+import { LoadError } from '@/components/ui/LoadError'
 
 type LogEntry = {
   id: string
@@ -18,14 +19,24 @@ const PAGE_SIZE = 25
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [page, setPage] = useState(1)
 
-  useEffect(() => {
-    fetch('/api/admin/audit-log')
-      .then(r => r.ok ? r.json() : [])
-      .then(setLogs)
-      .finally(() => setLoading(false))
+  const load = useCallback(async () => {
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const res = await fetch('/api/admin/audit-log')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setLogs(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   const totalPages = Math.ceil(logs.length / PAGE_SIZE)
   const pagedLogs = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -60,6 +71,8 @@ export default function AuditLogPage() {
 
       {loading ? (
         <p className="text-sm text-gray-400 py-8 text-center">Loading…</p>
+      ) : loadError ? (
+        <LoadError onRetry={load} />
       ) : (
         <>
           {/* Mobile cards */}

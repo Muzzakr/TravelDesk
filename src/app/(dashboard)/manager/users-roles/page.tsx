@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 type UserRow = {
   id: string
@@ -57,6 +58,10 @@ export default function ManagerUsersPage() {
   const [editForm, setEditForm] = useState({ name: '', role: '', isActive: true })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+
+  // Escape-to-close + focus management for the overlays
+  useModalDismiss<HTMLDivElement>(!!selected, () => setSelected(null))
+  const editDismissRef = useModalDismiss<HTMLFormElement>(!!editModal, () => { setEditModal(null); setEditError('') })
 
   async function loadUsers() {
     const res = await fetch('/api/users')
@@ -156,7 +161,7 @@ export default function ManagerUsersPage() {
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setEditModal(null); setEditError('') }} />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
             <form
-              onSubmit={saveEdit}
+              onSubmit={saveEdit} ref={editDismissRef}
               className="pointer-events-auto w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4"
               onClick={(e) => e.stopPropagation()}
             >
@@ -226,7 +231,7 @@ export default function ManagerUsersPage() {
                   <Badge variant={selected.isActive ? 'green' : 'gray'}>{selected.isActive ? 'Active' : 'Inactive'}</Badge>
                 </div>
                 <div className="h-px bg-gray-100" />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DetailRow label="Email" value={selected.email} />
                   <DetailRow label="Reports to" value={selected.manager?.name ?? null} />
                 </div>
@@ -255,7 +260,7 @@ export default function ManagerUsersPage() {
       {showForm && (
         <div className="rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="mb-5 text-lg font-semibold text-gray-800">New user</h2>
-          <form onSubmit={createUser} className="grid grid-cols-2 gap-4">
+          <form onSubmit={createUser} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">Full name</label>
               <input required title="Full name" placeholder="Full name" value={form.name}

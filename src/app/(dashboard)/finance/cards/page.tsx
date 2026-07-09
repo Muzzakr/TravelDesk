@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { PlusIcon } from '@heroicons/react/24/outline'
+import { LoadError } from '@/components/ui/LoadError'
 
 type CardTransaction = {
   id: string
@@ -44,20 +45,33 @@ export default function CardTransactionsPage() {
   const [saving,   setSaving]   = useState(false)
   const [formErr,  setFormErr]  = useState('')
 
+  const [loadError, setLoadError] = useState(false)
+
   async function load(status?: string) {
     setLoading(true)
-    const url = status ? `/api/finance/cards?status=${status}` : '/api/finance/cards'
-    const res = await fetch(url)
-    if (res.ok) setTransactions(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const url = status ? `/api/finance/cards?status=${status}` : '/api/finance/cards'
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setTransactions(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function loadMeta() {
-    const [evRes, usRes] = await Promise.all([fetch('/api/events'), fetch('/api/users')])
-    if (evRes.ok) setEvents(await evRes.json())
-    if (usRes.ok) {
-      const users: Employee[] = await usRes.json()
-      setEmployees(users.filter((u: any) => u.role === 'EMPLOYEE'))
+    try {
+      const [evRes, usRes] = await Promise.all([fetch('/api/events'), fetch('/api/users')])
+      if (evRes.ok) setEvents(await evRes.json())
+      if (usRes.ok) {
+        const users: Employee[] = await usRes.json()
+        setEmployees(users.filter((u: any) => u.role === 'EMPLOYEE'))
+      }
+    } catch {
+      // Tag dropdowns stay empty; the visible list error state covers the failure
     }
   }
 
@@ -189,6 +203,8 @@ export default function CardTransactionsPage() {
 
       {error && <p className="rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</p>}
 
+      {loadError && !loading && <LoadError onRetry={() => load(filter || undefined)} />}
+
       {loading ? (
         <p className="text-sm text-gray-400">Loading…</p>
       ) : transactions.length === 0 ? (
@@ -218,19 +234,19 @@ export default function CardTransactionsPage() {
                   <div className="space-y-2 pt-1">
                     <select title="Assign employee" value={selectedEmployee[t.id] ?? ''}
                       onChange={e => setSelectedEmployee(p => ({ ...p, [t.id]: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
+                      className="w-full rounded-lg border border-gray-200 px-2 py-2.5 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
                       <option value="">Employee…</option>
                       {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                     </select>
                     <div className="flex items-center gap-2">
                       <select title="Tag to event" value={selectedEvent[t.id] ?? ''}
                         onChange={e => setSelectedEvent(p => ({ ...p, [t.id]: e.target.value }))}
-                        className="flex-1 min-w-0 rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
+                        className="flex-1 min-w-0 rounded-lg border border-gray-200 px-2 py-2.5 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
                         <option value="">Select event…</option>
                         {events.map(ev => <option key={ev.id} value={ev.id}>{ev.eventCode} – {ev.eventName}</option>)}
                       </select>
                       <button type="button" onClick={() => tagTransaction(t.id)} disabled={!selectedEvent[t.id] || tagging === t.id}
-                        className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40">
+                        className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40">
                         {tagging === t.id ? 'Saving…' : 'Tag'}
                       </button>
                     </div>
@@ -269,7 +285,7 @@ export default function CardTransactionsPage() {
                       {t.status === 'PENDING_TAG' && !t.employeeName ? (
                         <select title="Assign employee" value={selectedEmployee[t.id] ?? ''}
                           onChange={e => setSelectedEmployee(p => ({ ...p, [t.id]: e.target.value }))}
-                          className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
+                          className="rounded-lg border border-gray-200 px-2 py-2 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
                           <option value="">— assign —</option>
                           {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                         </select>
@@ -281,12 +297,12 @@ export default function CardTransactionsPage() {
                         <div className="flex items-center gap-2">
                           <select title="Tag to event" value={selectedEvent[t.id] ?? ''}
                             onChange={e => setSelectedEvent(p => ({ ...p, [t.id]: e.target.value }))}
-                            className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
+                            className="rounded-lg border border-gray-200 px-2 py-2 text-xs text-gray-700 focus:border-indigo-500 focus:outline-none">
                             <option value="">Select event…</option>
                             {events.map(ev => <option key={ev.id} value={ev.id}>{ev.eventCode} – {ev.eventName}</option>)}
                           </select>
                           <button type="button" onClick={() => tagTransaction(t.id)} disabled={!selectedEvent[t.id] || tagging === t.id}
-                            className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40">
+                            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40">
                             {tagging === t.id ? 'Saving…' : 'Tag'}
                           </button>
                         </div>

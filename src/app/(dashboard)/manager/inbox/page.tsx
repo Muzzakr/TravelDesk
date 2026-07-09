@@ -2,6 +2,7 @@
 
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, PlusCircleIcon, InboxIcon } from '@heroicons/react/24/outline'
 import { MapPin, Calendar, User, X, Inbox } from 'lucide-react'
+import { LoadError } from '@/components/ui/LoadError'
 import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -71,21 +72,30 @@ export default function ManagerInboxPage() {
   const [profileData,  setProfileData]  = useState<EmployeeProfile | null>(null)
   const [profileMsgId, setProfileMsgId] = useState<string | null>(null)
   const [newCount,     setNewCount]     = useState(0)
+  const [loadError,    setLoadError]    = useState(false)
+  const [replyError,   setReplyError]   = useState('')
+  const [profileError, setProfileError] = useState('')
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = useCallback(async () => {
-    const params = new URLSearchParams()
-    if (activeTab !== 'ALL') params.set('channel', activeTab)
-    if (statusFilter !== 'ALL') params.set('status', statusFilter)
-    if (search) params.set('search', search)
+    try {
+      const params = new URLSearchParams()
+      if (activeTab !== 'ALL') params.set('channel', activeTab)
+      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (search) params.set('search', search)
 
-    const [msgs, newMsgs] = await Promise.all([
-      fetch(`/api/inbox?${params}`).then(r => r.json()),
-      fetch('/api/inbox?status=NEW&take=100').then(r => r.json()),
-    ])
-    setMessages(Array.isArray(msgs) ? msgs : [])
-    setNewCount(Array.isArray(newMsgs) ? newMsgs.length : 0)
-    setLoading(false)
+      const [msgs, newMsgs] = await Promise.all([
+        fetch(`/api/inbox?${params}`).then(r => r.json()),
+        fetch('/api/inbox?status=NEW&take=100').then(r => r.json()),
+      ])
+      setMessages(Array.isArray(msgs) ? msgs : [])
+      setNewCount(Array.isArray(newMsgs) ? newMsgs.length : 0)
+      setLoadError(false)
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [activeTab, statusFilter, search])
 
   useEffect(() => {
@@ -115,20 +125,36 @@ export default function ManagerInboxPage() {
   async function handleSendReply(id: string) {
     if (!clarifyText.trim()) return
     setSendingReply(true)
-    const res = await fetch(`/api/inbox/${id}/reply`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: clarifyText }),
-    })
+    setReplyError('')
+    try {
+      const res = await fetch(`/api/inbox/${id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clarifyText }),
+      })
+      if (res.ok) {
+        setClarifyId(null); setClarifyText('')
+      } else {
+        const d = await res.json().catch(() => ({}))
+        setReplyError(typeof d.error === 'string' ? d.error : 'Could not send the reply. Try again.')
+      }
+    } catch {
+      setReplyError('Could not send the reply. Check your connection and try again.')
+    }
     setSendingReply(false)
-    if (res.ok) { setClarifyId(null); setClarifyText('') }
   }
 
   async function handleViewProfile(msg: InboxMessage) {
     setProfileMsgId(msg.id)
     setProfileData(null)
-    const res = await fetch(`/api/inbox/${msg.id}/employee-profile`)
-    if (res.ok) setProfileData(await res.json())
+    setProfileError('')
+    try {
+      const res = await fetch(`/api/inbox/${msg.id}/employee-profile`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setProfileData(await res.json())
+    } catch {
+      setProfileError('Could not load the employee profile.')
+    }
   }
 
   const tabs: { key: 'ALL' | InboxChannel; label: string; Icon: HeroIcon }[] = [
@@ -209,6 +235,8 @@ export default function ManagerInboxPage() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
         </div>
+      ) : loadError ? (
+        <LoadError onRetry={() => { setLoading(true); load() }} />
       ) : messages.length === 0 ? (
         <div className="rounded-2xl border bg-white p-16 text-center">
           <Inbox className="w-10 h-10 mx-auto mb-3 text-gray-300" />
@@ -286,26 +314,26 @@ export default function ManagerInboxPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => handleDone(msg)}
-                      className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 transition-colors"
+                      className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-xs font-medium text-green-700 hover:bg-green-100 transition-colors"
                     >
                       Mark Done
                     </button>
                     <button
                       onClick={() => setClarifyId(isClarifying ? null : msg.id)}
-                      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+                      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
                     >
                       Ask Clarification
                     </button>
                     <button
                       onClick={() => { handleViewProfile(msg) }}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                       title="View employee profile"
                     >
                       <User className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Profile
                     </button>
                     <button
                       onClick={() => handleIgnore(msg)}
-                      className="ml-auto rounded-lg border border-gray-100 bg-white px-3 py-1.5 text-xs font-medium text-gray-400 hover:bg-gray-50 transition-colors"
+                      className="ml-auto rounded-lg border border-gray-100 bg-white px-3 py-2.5 text-xs font-medium text-gray-400 hover:bg-gray-50 transition-colors"
                     >
                       Ignore
                     </button>
@@ -314,33 +342,41 @@ export default function ManagerInboxPage() {
 
                 {/* Clarify input */}
                 {isClarifying && (
-                  <div className="mt-3 flex gap-2">
-                    <textarea
-                      value={clarifyText}
-                      onChange={e => setClarifyText(e.target.value)}
-                      placeholder="Type your clarification message… (will be sent as a reply in Slack)"
-                      rows={2}
-                      className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
-                    />
-                    <div className="flex flex-col gap-1.5">
-                      <button
-                        onClick={() => handleSendReply(msg.id)}
-                        disabled={sendingReply || !clarifyText.trim()}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {sendingReply ? 'Sending…' : 'Send'}
-                      </button>
-                      <button
-                        onClick={() => { setClarifyId(null); setClarifyText('') }}
-                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex gap-2">
+                      <textarea
+                        value={clarifyText}
+                        onChange={e => setClarifyText(e.target.value)}
+                        placeholder="Type your clarification message… (will be sent as a reply in Slack)"
+                        rows={2}
+                        className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
+                      />
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          onClick={() => handleSendReply(msg.id)}
+                          disabled={sendingReply || !clarifyText.trim()}
+                          className="rounded-lg bg-indigo-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {sendingReply ? 'Sending…' : 'Send'}
+                        </button>
+                        <button
+                          onClick={() => { setClarifyId(null); setClarifyText(''); setReplyError('') }}
+                          className="rounded-lg border border-gray-200 px-3 py-2.5 text-xs text-gray-500 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
+                    {replyError && (
+                      <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">{replyError}</p>
+                    )}
                   </div>
                 )}
 
                 {/* Profile panel */}
+                {isViewingProfile && profileError && (
+                  <p className="mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">{profileError}</p>
+                )}
                 {isViewingProfile && profileData !== null && (
                   <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
                     {!profileData.user ? (

@@ -185,13 +185,13 @@ export async function GET(req: NextRequest) {
     ...pendingRequestsRaw.map(r => ({
       id: r.id, employee: r.employee.name, type: 'Travel Request',
       amount: Number(r.estimatedCostUsd ?? 0), date: r.createdAt.toISOString(),
-      status: r.status.replace(/_/g, ' '), href: `/employee/travel-requests/${r.id}`,
+      status: r.status.replace(/_/g, ' '), href: `/manager/approvals/travel/${r.id}`,
       event: r.event.eventName,
     })),
     ...pendingExpensesRaw.map(e => ({
       id: e.id, employee: e.employee.name, type: 'Expense',
       amount: Number(e.amountUsd), date: e.createdAt.toISOString(),
-      status: e.status.replace(/_/g, ' '), href: `/employee/expenses`,
+      status: e.status.replace(/_/g, ' '), href: `/manager/approvals/expense/${e.id}`,
       event: e.event.eventName,
     })),
   ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())

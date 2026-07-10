@@ -248,7 +248,11 @@ export async function GET(req: NextRequest) {
   // Employee analytics (if employeeId provided)
   let employeeAnalytics = null
   if (employeeIdFilter) {
-    const [empRequests, empExpenses, empUser] = await Promise.all([
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+    sixMonthsAgo.setDate(1)
+    sixMonthsAgo.setHours(0, 0, 0, 0)
+    const [empRequests, empExpenses, empUser, empRequestCount, empExpenseAgg, empSpendRows] = await Promise.all([
       prisma.travelRequest.findMany({
         where: { companyId, employeeId: employeeIdFilter },
         select: { id: true, status: true, origin: true, destination: true, createdAt: true, estimatedCostUsd: true, event: { select: { eventName: true } } },
@@ -259,20 +263,29 @@ export async function GET(req: NextRequest) {
         select: { id: true, status: true, amountUsd: true, category: true, createdAt: true, event: { select: { eventName: true } } },
         orderBy: { createdAt: 'desc' }, take: 10,
       }),
-      prisma.user.findUnique({ where: { id: employeeIdFilter }, select: { name: true } }),
+      prisma.user.findFirst({ where: { id: employeeIdFilter, companyId }, select: { name: true } }),
+      prisma.travelRequest.count({ where: { companyId, employeeId: employeeIdFilter } }),
+      prisma.expense.aggregate({
+        where: { companyId, employeeId: employeeIdFilter },
+        _count: true,
+        _sum: { amountUsd: true },
+      }),
+      prisma.expense.findMany({
+        where: { companyId, employeeId: employeeIdFilter, createdAt: { gte: sixMonthsAgo } },
+        select: { amountUsd: true, createdAt: true },
+      }),
     ])
-    const empTotalAmount = empExpenses.reduce((s, e) => s + Number(e.amountUsd), 0)
     const monthlySpend: Record<string, number> = {}
-    for (const e of empExpenses) {
+    for (const e of empSpendRows) {
       const month = new Date(e.createdAt).toISOString().slice(0, 7)
       monthlySpend[month] = (monthlySpend[month] ?? 0) + Number(e.amountUsd)
     }
     employeeAnalytics = {
       employeeName: empUser?.name,
-      totalRequests: empRequests.length,
-      totalExpenses: empExpenses.length,
-      totalAmount: Math.round(empTotalAmount * 100) / 100,
-      monthlySpend: Object.entries(monthlySpend).map(([month, amount]) => ({ month, amount: Math.round(amount * 100) / 100 })).sort((a, b) => a.month.localeCompare(b.month)).slice(-6),
+      totalRequests: empRequestCount,
+      totalExpenses: empExpenseAgg._count,
+      totalAmount: Math.round(Number(empExpenseAgg._sum.amountUsd ?? 0) * 100) / 100,
+      monthlySpend: Object.entries(monthlySpend).map(([month, amount]) => ({ month, amount: Math.round(amount * 100) / 100 })).sort((a, b) => a.month.localeCompare(b.month)),
       recentRequests: empRequests,
       recentExpenses: empExpenses,
     }

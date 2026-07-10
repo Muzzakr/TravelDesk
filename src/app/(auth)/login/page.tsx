@@ -37,6 +37,7 @@ function LoginForm() {
   const [magicEmail, setMagicEmail] = useState('')
   const [magicSending, setMagicSending] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
+  const [magicError, setMagicError] = useState('')
   const [form, setForm] = useState({
     companySlug: params.get('company') ?? '',
     email: '',
@@ -80,14 +81,21 @@ function LoginForm() {
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault()
     setMagicSending(true)
-    await fetch('/api/auth/magic-link', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: magicEmail }),
-    }).catch(() => {})
-    // Always the same confirmation — the API never reveals whether the email exists
-    setMagicSending(false)
-    setMagicSent(true)
+    setMagicError('')
+    try {
+      const res = await fetch('/api/auth/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: magicEmail }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      // Same confirmation whether or not the email exists — the API never reveals it
+      setMagicSent(true)
+    } catch {
+      setMagicError('Could not send the email right now. Please try again in a moment.')
+    } finally {
+      setMagicSending(false)
+    }
   }
 
   return (
@@ -204,6 +212,13 @@ function LoginForm() {
           ) : magicSent ? (
             <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
               Check your email — if an account exists, a sign-in link is on its way. It expires in 15 minutes.
+              <button
+                type="button"
+                onClick={() => setMagicSent(false)}
+                className="mt-2 block text-xs font-semibold text-blue-700 underline hover:text-blue-900"
+              >
+                Wrong email or no link? Send a new one
+              </button>
             </div>
           ) : (
             <form onSubmit={handleMagicLink} className="mt-3 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
@@ -216,6 +231,7 @@ function LoginForm() {
                 placeholder="you@company.com"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
               />
+              {magicError && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{magicError}</p>}
               <div className="flex gap-2">
                 <button type="submit" disabled={magicSending}
                   className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors">

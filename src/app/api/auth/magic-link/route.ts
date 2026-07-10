@@ -25,13 +25,22 @@ export async function POST(req: NextRequest) {
     include: { company: { select: { name: true } } },
   })
 
+  let failed = 0
   for (const user of users) {
     try {
       const rawToken = await createVerificationToken(user.id, 'MAGIC_LINK')
       await sendMagicLinkEmail(user.email, user.name, rawToken, user.company.name)
     } catch (err) {
       console.error('Magic link email failed:', err)
+      failed++
     }
+  }
+
+  // A server-side send failure must not masquerade as success — the user
+  // would wait for an email that never comes. (Unknown emails still get
+  // the ok response below, so account existence is never revealed.)
+  if (users.length > 0 && failed === users.length) {
+    return NextResponse.json({ error: 'Could not send the email right now. Please try again in a moment.' }, { status: 500 })
   }
 
   // Always the same response — never reveal whether the email exists

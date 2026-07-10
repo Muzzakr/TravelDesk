@@ -534,46 +534,31 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
     setStep(s => s - 1)
   }
 
-  async function submit() {
-    // Already created (e.g. user went Back from the options step) — don't create a duplicate
-    if (createdRequestId) { setStep(5); return }
-    setLoading(true)
-    setError('')
-    setWarning('')
+  function daysBetween(a: string, b: string) {
+    if (!a || !b) return undefined
+    const d = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)
+    return d > 0 ? d : undefined
+  }
 
+  function buildRequestBody() {
     if (services.includes('AGENT_CHOOSES')) {
-      const res = await fetch('/api/travel-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId,
-          origin:      'TBD',
-          destination: 'TBD',
-          travelDates: { departureDate: '', returnDate: '' },
-          servicesRequested: ['AGENT_CHOOSES'],
-          purpose,
-          estimatedCostUsd: estimatedCostUsd ? Number(estimatedCostUsd) : undefined,
-          preferredClass: 'ECONOMY',
-          specialInstructions: [
-            'AGENT_CHOOSES: Agent will select appropriate services for this trip',
-            `Payment: ${paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'}`,
-          ].join('\n'),
-          managerId: managerId || undefined,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Submission failed. Please try again.')
-        setLoading(false)
-        return
+      return {
+        eventId,
+        origin:      'TBD',
+        destination: 'TBD',
+        travelDates: { departureDate: '', returnDate: '' },
+        servicesRequested: ['AGENT_CHOOSES'],
+        purpose,
+        estimatedCostUsd: estimatedCostUsd ? Number(estimatedCostUsd) : undefined,
+        preferredClass: 'ECONOMY',
+        hotelNights: undefined as number | undefined,
+        carRentalDays: undefined as number | undefined,
+        specialInstructions: [
+          'AGENT_CHOOSES: Agent will select appropriate services for this trip',
+          `Payment: ${paymentResponsibility === 'client' ? 'Client is paying' : 'M4U is paying'}`,
+        ].join('\n'),
+        managerId: managerId || undefined,
       }
-      if (data.budgetWarning) setWarning('Note: this request is approaching the event budget cap.')
-      setCreatedRequestId(data.id)
-      setLoading(false)
-      localStorage.removeItem(DRAFT_KEY)
-      setStep(5)
-      fetchAiOptions(data.id)
-      return
     }
 
     const parts: string[] = []
@@ -600,29 +585,65 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
     const depDate     = flight.departureDate || taxi.date || hotel.checkIn || car.pickupDate || ''
     const retDate     = flight.tripType === 'one-way' ? '' : (flight.returnDate || hotel.checkOut || car.returnDate || '')
 
-    function daysBetween(a: string, b: string) {
-      if (!a || !b) return undefined
-      const d = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)
-      return d > 0 ? d : undefined
+    return {
+      eventId,
+      origin,
+      destination,
+      travelDates:         { departureDate: depDate, returnDate: retDate },
+      servicesRequested:   services,
+      purpose,
+      estimatedCostUsd:    estimatedCostUsd ? Number(estimatedCostUsd) : undefined,
+      preferredClass:      'ECONOMY',
+      hotelNights:         services.includes('HOTEL')      ? daysBetween(hotel.checkIn, hotel.checkOut) : undefined,
+      carRentalDays:       services.includes('CAR_RENTAL') ? daysBetween(car.pickupDate, car.returnDate) : undefined,
+      specialInstructions: parts.join('\n'),
+      managerId: managerId || undefined,
+    }
+  }
+
+  async function submit() {
+    setLoading(true)
+    setError('')
+    setWarning('')
+    const body = buildRequestBody()
+
+    // Already created (user went Back from the options step) — save the
+    // edits to the existing request instead of creating a duplicate, then
+    // refresh the options so they match the new details.
+    if (createdRequestId) {
+      const res = await fetch(`/api/travel-requests/${createdRequestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          purpose:             body.purpose,
+          estimatedCostUsd:    body.estimatedCostUsd ?? null,
+          specialInstructions: body.specialInstructions,
+          travelDates:         body.travelDates,
+          origin:              body.origin,
+          destination:         body.destination,
+          servicesRequested:   body.servicesRequested,
+          hotelNights:         body.hotelNights ?? null,
+          carRentalDays:       body.carRentalDays ?? null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setError(typeof data.error === 'string' ? data.error : 'Could not save your changes. Please try again.')
+        setLoading(false)
+        return
+      }
+      setLoading(false)
+      // Previous picks pointed at options generated for the old details
+      setSelectedOptionKeys(new Set())
+      setStep(5)
+      fetchAiOptions(createdRequestId)
+      return
     }
 
     const res = await fetch('/api/travel-requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventId,
-        origin,
-        destination,
-        travelDates:         { departureDate: depDate, returnDate: retDate },
-        servicesRequested:   services,
-        purpose,
-        estimatedCostUsd:    estimatedCostUsd ? Number(estimatedCostUsd) : undefined,
-        preferredClass:      'ECONOMY',
-        hotelNights:         services.includes('HOTEL')      ? daysBetween(hotel.checkIn, hotel.checkOut) : undefined,
-        carRentalDays:       services.includes('CAR_RENTAL') ? daysBetween(car.pickupDate, car.returnDate) : undefined,
-        specialInstructions: parts.join('\n'),
-        managerId: managerId || undefined,
-      }),
+      body: JSON.stringify(body),
     })
 
     const data = await res.json()
@@ -634,6 +655,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
     if (data.budgetWarning) setWarning('Note: this request is approaching the event budget cap.')
     setCreatedRequestId(data.id)
     setLoading(false)
+    localStorage.removeItem(DRAFT_KEY)
     setStep(5)
     fetchAiOptions(data.id)
   }

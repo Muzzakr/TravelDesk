@@ -19,8 +19,14 @@ const UpdateSchema = z.object({
   rejectedServices: z.array(z.string()).optional(),
   // Edit fields (allowed before first approval)
   purpose: z.string().optional(),
-  estimatedCostUsd: z.number().optional(),
+  estimatedCostUsd: z.number().nullable().optional(),
   specialInstructions: z.string().optional(),
+  travelDates: z.object({ departureDate: z.string(), returnDate: z.string() }).optional(),
+  origin: z.string().optional(),
+  destination: z.string().optional(),
+  servicesRequested: z.array(z.string()).min(1).optional(),
+  hotelNights: z.number().nullable().optional(),
+  carRentalDays: z.number().nullable().optional(),
 })
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -84,8 +90,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
-  // Allow employee to edit purpose/notes/cost before first approval
-  const editableFields = parsed.data.purpose !== undefined || parsed.data.estimatedCostUsd !== undefined || parsed.data.specialInstructions !== undefined
+  // Allow employee to edit trip details before first approval
+  const editableFields =
+    parsed.data.purpose !== undefined ||
+    parsed.data.estimatedCostUsd !== undefined ||
+    parsed.data.specialInstructions !== undefined ||
+    parsed.data.travelDates !== undefined ||
+    parsed.data.origin !== undefined ||
+    parsed.data.destination !== undefined ||
+    parsed.data.servicesRequested !== undefined ||
+    parsed.data.hotelNights !== undefined ||
+    parsed.data.carRentalDays !== undefined
   if (editableFields && !parsed.data.status) {
     const editableStatuses = ['SUBMITTED', 'PENDING_MANAGER', 'DRAFT']
     if (!editableStatuses.includes(request.status)) {
@@ -100,12 +115,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         ...(parsed.data.purpose !== undefined && { purpose: parsed.data.purpose }),
         ...(parsed.data.estimatedCostUsd !== undefined && { estimatedCostUsd: parsed.data.estimatedCostUsd }),
         ...(parsed.data.specialInstructions !== undefined && { specialInstructions: parsed.data.specialInstructions }),
+        ...(parsed.data.travelDates !== undefined && { travelDates: parsed.data.travelDates }),
+        ...(parsed.data.origin !== undefined && { origin: parsed.data.origin }),
+        ...(parsed.data.destination !== undefined && { destination: parsed.data.destination }),
+        ...(parsed.data.servicesRequested !== undefined && { servicesRequested: parsed.data.servicesRequested }),
+        ...(parsed.data.hotelNights !== undefined && { hotelNights: parsed.data.hotelNights }),
+        ...(parsed.data.carRentalDays !== undefined && { carRentalDays: parsed.data.carRentalDays }),
       },
     })
     await writeAuditLog({
       companyId: session.user.companyId, actorId: session.user.id,
       action: 'TRAVEL_REQUEST_EDITED', entityType: 'TravelRequest', entityId: params.id,
-      payload: { purpose: parsed.data.purpose, estimatedCostUsd: parsed.data.estimatedCostUsd },
+      payload: {
+        purpose: parsed.data.purpose, estimatedCostUsd: parsed.data.estimatedCostUsd,
+        travelDates: parsed.data.travelDates, origin: parsed.data.origin, destination: parsed.data.destination,
+      },
     })
     return NextResponse.json(edited)
   }

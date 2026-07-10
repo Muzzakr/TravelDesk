@@ -129,8 +129,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider !== 'google') return true
+
+      // Only trust addresses Google itself has verified — an unverified
+      // Google account must not be able to claim someone else's email.
+      if ((profile as { email_verified?: boolean } | undefined)?.email_verified !== true) {
+        return '/login?google=notfound'
+      }
 
       // The same email can exist in several companies. Google gives us no
       // company context, so an ambiguous match must not sign in to a
@@ -144,11 +150,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const dbUser = matches[0]
 
       if (!dbUser.googleVerified) {
-        try {
-          const raw = await createVerificationToken(dbUser.id, 'GOOGLE_VERIFY')
-          await sendGoogleVerificationEmail(dbUser.email, dbUser.name, raw)
-        } catch (err) {
-          console.error('Google verification email failed:', err)
+        // Max 3 verification emails per account per 15 minutes — repeated
+        // clicks reuse the banner without sending yet another email
+        if (await rateLimit(`gverify:${dbUser.id}`, 3, 15 * 60_000)) {
+          try {
+            const raw = await createVerificationToken(dbUser.id, 'GOOGLE_VERIFY')
+            await sendGoogleVerificationEmail(dbUser.email, dbUser.name, raw)
+          } catch (err) {
+            console.error('Google verification email failed:', err)
+          }
         }
         return '/login?google=pending'
       }

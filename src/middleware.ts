@@ -49,8 +49,8 @@ export async function middleware(req: NextRequest) {
     const mfaCookie = req.cookies.get('mfa_verified')?.value
     const cookieValid = mfaCookie ? await verifyMfaCookie(mfaCookie, userId) : false
     const mfaOk = mfaVerified || cookieValid
-    if (!mfaOk && pathname !== '/auth/mfa') {
-      return NextResponse.redirect(new URL('/auth/mfa', req.url))
+    if (!mfaOk && pathname !== '/mfa') {
+      return NextResponse.redirect(new URL('/mfa', req.url))
     }
   }
 

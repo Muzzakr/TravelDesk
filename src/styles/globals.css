@@ -76,6 +76,17 @@
   }
 }
 
+/* iOS Safari auto-zooms into any focused input whose font-size is below
+   16px. Force 16px on phones so tapping search/text fields keeps the
+   page at its normal zoom; desktop keeps the Tailwind sizes. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;

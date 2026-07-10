@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
   const expPending = allExpenses.filter(e => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)).length
   const expRejected = allExpenses.filter(e => e.status === 'REJECTED').length
   const expTotalAmount = allExpenses.reduce((s, e) => s + Number(e.amountUsd), 0)
+  const expApprovedAmount = allExpenses.filter(e => ['APPROVED', 'PAID'].includes(e.status)).reduce((s, e) => s + Number(e.amountUsd), 0)
   const travelCosts = allRequests.reduce((s, r) => s + Number(r.estimatedCostUsd ?? 0), 0)
 
   const catMap: Record<string, number> = {}
@@ -109,8 +110,9 @@ export async function GET(req: NextRequest) {
     startY: y,
     body: [
       ['Travel Costs (estimated)', fmtUsd(travelCosts)],
-      ['Expense Costs (total)', fmtUsd(expTotalAmount)],
-      ['Combined Total', fmtUsd(travelCosts + expTotalAmount)],
+      ['Expense Costs (approved + paid)', fmtUsd(expApprovedAmount)],
+      ['Combined Total', fmtUsd(travelCosts + expApprovedAmount)],
+      ['All Expenses (any status)', fmtUsd(expTotalAmount)],
     ],
     styles: { fontSize: 9 },
   })

@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { LoadError } from '@/components/ui/LoadError'
@@ -72,6 +73,14 @@ export default function ApproveTravelPage() {
   const [approvedServices, setApprovedServices] = useState<string[]>([])
   const [rejectedServices, setRejectedServices] = useState<string[]>([])
   const [loadError, setLoadError] = useState(false)
+  const [viewerRole, setViewerRole] = useState('')
+
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => setViewerRole(s?.user?.role ?? ''))
+      .catch(() => {})
+  }, [])
 
   async function load() {
     setLoadError(false)
@@ -400,6 +409,16 @@ export default function ApproveTravelPage() {
       )}
 
       <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
+        {['TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(viewerRole) && !['REJECTED', 'CANCELLED'].includes(reqStatus) && (
+          <Link
+            href={`/agent/requests/${id}`}
+            className="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+          >
+            <span>Send booking info to employee — options & confirmations</span>
+            <span aria-hidden>→</span>
+          </Link>
+        )}
+
         {reqStatus === 'PENDING_ADMIN' && (
           <p className="rounded-lg bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-800">
             This request has been escalated to an Admin for a second opinion. Awaiting admin response.

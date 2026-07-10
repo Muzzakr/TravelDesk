@@ -48,11 +48,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN', 'EMPLOYEE'].includes(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'EMPLOYEE'].includes(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  // Provider roles flip the status and notify the employee; employees saving
-  // their own wizard picks do neither.
-  const isAgent = ['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(session.user.role)
+  const isAgent = ['TRAVEL_AGENT', 'TRAVEL_MANAGER'].includes(session.user.role)
   const travelRequest = await prisma.travelRequest.findFirst({
     where: {
       id: params.id,

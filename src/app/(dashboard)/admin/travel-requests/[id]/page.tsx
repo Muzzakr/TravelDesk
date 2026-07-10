@@ -275,16 +275,6 @@ export default function AdminTravelRequestDetailPage() {
               <p className="text-sm text-red-600 rounded-xl bg-red-50 px-3 py-2 mb-4">{actionError}</p>
             )}
 
-            {!['REJECTED', 'CANCELLED'].includes(request.status) && (
-              <Link
-                href={`/agent/requests/${request.id}`}
-                className="mb-4 flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-              >
-                <span>Send booking info to employee</span>
-                <span aria-hidden>→</span>
-              </Link>
-            )}
-
             {canAction && !action && (
               <div className="space-y-2">
                 <button type="button" onClick={() => setAction('approve')}

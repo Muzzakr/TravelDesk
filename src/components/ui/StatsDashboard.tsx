@@ -384,21 +384,21 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
                   ))}
                 </tbody>
               </table>
-              {/* Pagination */}
-              {data.records.total > data.records.pageSize && (
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">
-                    Page {data.records.page} of {Math.ceil(data.records.total / data.records.pageSize)}
-                  </span>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => { setPage(p => Math.max(1, p - 1)); load(page - 1) }} disabled={data.records.page <= 1}
-                      className="rounded-lg border border-gray-200 px-3 py-2.5 min-h-[44px] text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">← Prev</button>
-                    <button type="button" onClick={() => { setPage(p => p + 1); load(page + 1) }} disabled={data.records.page * data.records.pageSize >= data.records.total}
-                      className="rounded-lg border border-gray-200 px-3 py-2.5 min-h-[44px] text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">Next →</button>
-                  </div>
-                </div>
-              )}
             </div>
+            {/* Pagination (mobile + desktop) */}
+            {data.records.total > data.records.pageSize && (
+              <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 flex items-center justify-between">
+                <span className="text-xs text-gray-400">
+                  Page {data.records.page} of {Math.ceil(data.records.total / data.records.pageSize)}
+                </span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={data.records.page <= 1}
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 min-h-[44px] text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">← Prev</button>
+                  <button type="button" onClick={() => setPage(p => p + 1)} disabled={data.records.page * data.records.pageSize >= data.records.total}
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 min-h-[44px] text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40">Next →</button>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* ── Analytics ── */}

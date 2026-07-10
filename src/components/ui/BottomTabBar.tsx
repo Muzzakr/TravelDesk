@@ -8,6 +8,7 @@ import {
   Users, Calendar, User, Workflow, Settings, MoreHorizontal, X, Circle,
   LogOut, type LucideIcon,
 } from 'lucide-react'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 type NavLink = { label: string; href: string }
 type NavItem = NavLink | { heading: string }
@@ -77,8 +78,20 @@ export function BottomTabBar({
 }) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+  const sheetRef = useModalDismiss<HTMLDivElement>(moreOpen, () => setMoreOpen(false))
 
   const links = nav.filter((i): i is NavLink => !('heading' in i))
+
+  // Group flat nav (headings interleaved with links) into sections for the grid
+  const sections: { heading: string | null; links: NavLink[] }[] = []
+  for (const item of nav) {
+    if ('heading' in item) {
+      sections.push({ heading: item.heading, links: [] })
+    } else {
+      if (sections.length === 0) sections.push({ heading: null, links: [] })
+      sections[sections.length - 1].links.push(item)
+    }
+  }
   const priorityHrefs = PRIORITY_TABS[role]
   const tabs = priorityHrefs
     ? priorityHrefs.map(h => links.find(l => l.href === h)).filter((l): l is NavLink => !!l)
@@ -143,101 +156,93 @@ export function BottomTabBar({
         </div>
       </nav>
 
-      {/* ── Drawer (slides from left) ── */}
+      {/* ── Full-screen "More" menu (slides up) ── */}
       {moreOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            onClick={() => setMoreOpen(false)}
-          />
-
-          {/* Panel */}
-          <aside className="animate-slide-in-left relative flex h-full w-72 max-w-[85vw] flex-col bg-white pt-[env(safe-area-inset-top)] shadow-2xl">
-
-            {/* Header */}
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 px-4">
-              <span className="text-sm font-bold tracking-tight text-gray-900">M4U Travel</span>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(false)}
-                aria-label="Close menu"
-                className="rounded-lg p-2.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* User card */}
-            <div className="shrink-0 border-b border-gray-100 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                  {initials}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold leading-tight text-gray-900">{userName}</p>
-                  <p className="mt-0.5 text-xs leading-tight text-gray-400">
-                    {ROLE_LABEL[role] ?? role.replace(/_/g, ' ')}
-                  </p>
-                </div>
+        <div
+          ref={sheetRef}
+          className="animate-slide-up md:hidden fixed inset-0 z-50 flex flex-col bg-white pt-[env(safe-area-inset-top)]"
+        >
+          {/* Header */}
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 px-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold leading-tight text-gray-900">{userName}</p>
+                <p className="text-[11px] leading-tight text-gray-400">
+                  {ROLE_LABEL[role] ?? role.replace(/_/g, ' ')}
+                </p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setMoreOpen(false)}
+              aria-label="Close menu"
+              className="rounded-lg p-2.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-            {/* Nav items */}
-            <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-              {nav.map((item, i) =>
-                'heading' in item ? (
-                  <p
-                    key={i}
-                    className="px-3 pb-1 pt-5 text-[10px] font-semibold uppercase tracking-widest text-gray-400"
-                  >
-                    {item.heading}
+          {/* Grid of destinations, grouped by section */}
+          <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+            {sections.map((section, si) => (
+              <div key={si}>
+                {section.heading && (
+                  <p className="pb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                    {section.heading}
                   </p>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMoreOpen(false)}
-                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-100 ${
-                      isActive(item.href)
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    {(() => {
-                      const Icon = iconFor(item.label)
-                      return (
-                        <Icon
-                          className={`h-4 w-4 shrink-0 transition-colors ${
-                            isActive(item.href)
-                              ? 'text-indigo-600'
-                              : 'text-gray-400 group-hover:text-gray-600'
+                )}
+                <div className="grid grid-cols-3 gap-2">
+                  {section.links.map((item) => {
+                    const Icon = iconFor(item.label)
+                    const active = isActive(item.href)
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMoreOpen(false)}
+                        className={`flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 transition-colors ${
+                          active
+                            ? 'border-indigo-200 bg-indigo-50'
+                            : 'border-gray-100 bg-gray-50/50 active:bg-gray-100'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                            active ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'
                           }`}
-                        />
-                      )
-                    })()}
-                    <span className="flex-1">{item.label}</span>
-                    {isActive(item.href) && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                    )}
-                  </Link>
-                )
-              )}
-            </nav>
+                        >
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span
+                          className={`text-center text-xs font-medium leading-tight ${
+                            active ? 'text-indigo-700' : 'text-gray-600'
+                          }`}
+                        >
+                          {shortLabel(item.label)}
+                        </span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
 
-            {/* Logout */}
-            <div className="shrink-0 border-t border-gray-100 px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-500 transition-colors duration-100 hover:bg-red-50 hover:text-red-600"
-                >
-                  <LogOut className="h-4 w-4 text-gray-400 transition-colors group-hover:text-red-500" />
-                  Log out
-                </button>
-              </form>
-            </div>
-          </aside>
+          {/* Logout */}
+          <div className="shrink-0 border-t border-gray-100 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="group flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-3 text-sm font-medium text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+              >
+                <LogOut className="h-4 w-4 text-gray-400 transition-colors group-hover:text-red-500" />
+                Log out
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>

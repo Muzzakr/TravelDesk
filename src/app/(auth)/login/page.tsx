@@ -67,22 +67,13 @@ function LoginForm() {
       return
     }
 
-    const sessionRes = await fetch('/api/auth/session')
-    const session = await sessionRes.json()
-    const role = session?.user?.role
-    const home: Record<string, string> = {
-      SYSTEM_ADMIN: '/admin',
-      MANAGER: '/manager',
-      TRAVEL_MANAGER: '/manager',
-      TRAVEL_AGENT: '/agent',
-      FINANCE_ADMIN: '/finance',
-    }
-    router.push(home[role] ?? '/employee')
+    // Server-side role → home redirect (shared with Google and magic link)
+    router.push('/auth/redirect')
   }
 
   async function handleGoogle() {
     setGoogleLoading(true)
-    await signIn('google', { callbackUrl: '/login' })
+    await signIn('google', { callbackUrl: '/auth/redirect' })
   }
 
   async function handleMagicLink(e: React.FormEvent) {

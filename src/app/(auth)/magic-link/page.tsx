@@ -22,18 +22,8 @@ function MagicLinkContent() {
         router.replace('/login?magic=expired')
         return
       }
-      // Same role → home map as the login page
-      const sessionRes = await fetch('/api/auth/session')
-      const session = await sessionRes.json()
-      const role = session?.user?.role
-      const home: Record<string, string> = {
-        SYSTEM_ADMIN: '/admin',
-        MANAGER: '/manager',
-        TRAVEL_MANAGER: '/manager',
-        TRAVEL_AGENT: '/agent',
-        FINANCE_ADMIN: '/finance',
-      }
-      router.replace(home[role] ?? '/employee')
+      // Server-side role → home redirect (shared with the login page)
+      router.replace('/auth/redirect')
     })()
   }, [token, router])
 

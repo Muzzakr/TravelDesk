@@ -7,6 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { LoadError } from '@/components/ui/LoadError'
 
 interface Event { id: string; eventName: string; eventCode: string }
 interface Employee { id: string; name: string }
@@ -72,28 +73,39 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
   const [selectedEventId, setSelectedEventId] = useState('')
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [exportError, setExportError] = useState(false)
 
   const load = useCallback(async (p = page, evId = selectedEventId, empId = selectedEmployeeId) => {
     setLoading(true)
-    const params = new URLSearchParams({ period, page: String(p) })
-    if (period === 'custom' && startDate) params.set('startDate', startDate)
-    if (period === 'custom' && endDate) params.set('endDate', endDate)
-    if (evId) params.set('eventId', evId)
-    if (empId) params.set('employeeId', empId)
-    const res = await fetch(`/api/admin/stats?${params}`)
-    if (res.ok) setData(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const params = new URLSearchParams({ period, page: String(p) })
+      if (period === 'custom' && startDate) params.set('startDate', startDate)
+      if (period === 'custom' && endDate) params.set('endDate', endDate)
+      if (evId) params.set('eventId', evId)
+      if (empId) params.set('employeeId', empId)
+      const res = await fetch(`/api/admin/stats?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setData(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [period, startDate, endDate, page, selectedEventId, selectedEmployeeId])
 
   useEffect(() => { load() }, [load])
 
   async function exportPdf() {
     setExporting(true)
-    const params = new URLSearchParams({ period })
-    if (period === 'custom' && startDate) params.set('startDate', startDate)
-    if (period === 'custom' && endDate) params.set('endDate', endDate)
-    const res = await fetch(`/api/admin/stats/pdf?${params}`)
-    if (res.ok) {
+    setExportError(false)
+    try {
+      const params = new URLSearchParams({ period })
+      if (period === 'custom' && startDate) params.set('startDate', startDate)
+      if (period === 'custom' && endDate) params.set('endDate', endDate)
+      const res = await fetch(`/api/admin/stats/pdf?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -101,8 +113,11 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
       a.download = `statistics-report-${new Date().toISOString().slice(0, 10)}.pdf`
       a.click()
       URL.revokeObjectURL(url)
+    } catch {
+      setExportError(true)
+    } finally {
+      setExporting(false)
     }
-    setExporting(false)
   }
 
   const filteredRecords = data?.records.items.filter(r =>
@@ -153,7 +168,13 @@ export default function StatsDashboard({ events, employees }: { events: Event[];
         {loading && <span className="text-xs text-gray-400">Loading…</span>}
       </div>
 
-      {data && (
+      {exportError && (
+        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">Could not generate the PDF. Please try again.</p>
+      )}
+
+      {loadError && !loading && <LoadError onRetry={() => load()} />}
+
+      {data && !loadError && (
         <>
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

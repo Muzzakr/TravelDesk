@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { FileText, Image as ImageIcon } from 'lucide-react'
+import { ReceiptViewer } from '@/components/ui/ReceiptViewer'
 
 export function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
   const [url, setUrl] = useState<string | null>(null)
+  const [viewing, setViewing] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -26,12 +28,15 @@ export function ReceiptRow({ id, fileName }: { id: string; fileName: string }) {
         <span className="truncate text-gray-700">{fileName}</span>
       </div>
       {url ? (
-        <a href={url} target="_blank" rel="noopener noreferrer"
-          className="ml-3 shrink-0 text-sm font-medium text-indigo-600 hover:underline">
+        <button type="button" onClick={() => setViewing(true)}
+          className="ml-3 shrink-0 py-2 text-sm font-medium text-indigo-600 hover:underline">
           Open →
-        </a>
+        </button>
       ) : (
         <span className="ml-3 shrink-0 text-xs text-gray-400">Loading…</span>
+      )}
+      {viewing && url && (
+        <ReceiptViewer url={url} fileName={fileName} onClose={() => setViewing(false)} />
       )}
     </div>
   )

@@ -8,6 +8,7 @@ import { FileUpload } from '@/components/ui/FileUpload'
 import Link from 'next/link'
 import { DateInput } from '@/components/ui/DateInput'
 import { sanitizeAmountInput } from '@/components/expenses/NewExpenseForm'
+import { ReceiptViewer } from '@/components/ui/ReceiptViewer'
 
 interface Receipt {
   id: string
@@ -71,6 +72,7 @@ export default function ExpenseDetailPage() {
   const [commentText, setCommentText] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
   const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({})
+  const [viewingReceipt, setViewingReceipt] = useState<Receipt | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
@@ -391,14 +393,13 @@ export default function ExpenseDetailPage() {
                     <p className="text-xs text-gray-400 mt-0.5">Uploaded {new Date(r.uploadedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</p>
                   </div>
                   {receiptUrls[r.id] ? (
-                    <a
-                      href={receiptUrls[r.id]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-indigo-600 hover:underline"
+                    <button
+                      type="button"
+                      onClick={() => setViewingReceipt(r)}
+                      className="shrink-0 py-2 text-xs font-medium text-indigo-600 hover:underline"
                     >
                       Open receipt →
-                    </a>
+                    </button>
                   ) : (
                     <span className="text-xs text-gray-400">Loading…</span>
                   )}
@@ -498,6 +499,14 @@ export default function ExpenseDetailPage() {
           </button>
         </form>
       </div>
+
+      {viewingReceipt && receiptUrls[viewingReceipt.id] && (
+        <ReceiptViewer
+          url={receiptUrls[viewingReceipt.id]}
+          fileName={viewingReceipt.fileName}
+          onClose={() => setViewingReceipt(null)}
+        />
+      )}
     </div>
   )
 }

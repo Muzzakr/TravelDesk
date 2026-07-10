@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
     }),
     // Pending approvals - travel requests
     prisma.travelRequest.findMany({
-      where: { companyId, status: { in: ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED'] } },
+      where: { companyId, status: { in: ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED', 'PENDING_ADMIN'] } },
       select: { id: true, status: true, createdAt: true, estimatedCostUsd: true, employee: { select: { name: true } }, event: { select: { eventName: true } } },
       orderBy: { createdAt: 'asc' },
       take: 20,
@@ -146,8 +146,8 @@ export async function GET(req: NextRequest) {
   ])
 
   // Travel request stats
-  const trApproved = allRequests.filter(r => r.status === 'BOOKING_CONFIRMED').length
-  const trPending = allRequests.filter(r => ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED'].includes(r.status)).length
+  const trApproved = allRequests.filter(r => ['APPROVED', 'BOOKING_CONFIRMED'].includes(r.status)).length
+  const trPending = allRequests.filter(r => ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED', 'PENDING_ADMIN'].includes(r.status)).length
   const trRejected = allRequests.filter(r => r.status === 'REJECTED').length
   const trByDayMap = bucketByDay(allRequests)
   const trByDay = fillDays(trByDayMap, start, end)

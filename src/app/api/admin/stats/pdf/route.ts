@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       select: { status: true, amountUsd: true, category: true, employee: { select: { name: true } }, event: { select: { eventName: true } } },
     }),
     prisma.travelRequest.findMany({
-      where: { companyId, status: { in: ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED'] } },
+      where: { companyId, status: { in: ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED', 'PENDING_ADMIN'] } },
       select: { status: true, createdAt: true, estimatedCostUsd: true, employee: { select: { name: true } }, event: { select: { eventName: true } } },
       take: 20,
     }),
@@ -61,8 +61,8 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  const trApproved = allRequests.filter(r => r.status === 'BOOKING_CONFIRMED').length
-  const trPending = allRequests.filter(r => ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED'].includes(r.status)).length
+  const trApproved = allRequests.filter(r => ['APPROVED', 'BOOKING_CONFIRMED'].includes(r.status)).length
+  const trPending = allRequests.filter(r => ['PENDING_MANAGER', 'PENDING_AGENT', 'OPTIONS_PROVIDED', 'PENDING_ADMIN'].includes(r.status)).length
   const trRejected = allRequests.filter(r => r.status === 'REJECTED').length
   const expApproved = allExpenses.filter(e => ['APPROVED', 'PAID'].includes(e.status)).length
   const expPending = allExpenses.filter(e => ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status)).length

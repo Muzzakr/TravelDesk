@@ -22,6 +22,7 @@ const GOOGLE_BANNERS: Record<string, { color: string; msg: string }> = {
   pending:  { color: 'bg-blue-50 text-blue-800 border-blue-200',   msg: 'Check your email — click the link to confirm your Google login.' },
   verified: { color: 'bg-green-50 text-green-800 border-green-200', msg: 'Google login confirmed! Click "Sign in with Google" below to continue.' },
   notfound: { color: 'bg-red-50 text-red-800 border-red-200',       msg: 'No M4U Travel account found for that Google address. Contact your admin.' },
+  ambiguous: { color: 'bg-amber-50 text-amber-800 border-amber-200', msg: 'That email belongs to accounts in several companies. Sign in with your company, email and password — or use a sign-in link.' },
   expired:  { color: 'bg-amber-50 text-amber-800 border-amber-200', msg: 'Verification link expired. Please click "Sign in with Google" to try again.' },
 }
 

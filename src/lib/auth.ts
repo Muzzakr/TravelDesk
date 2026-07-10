@@ -132,10 +132,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }) {
       if (account?.provider !== 'google') return true
 
-      const dbUser = await prisma.user.findFirst({
+      // The same email can exist in several companies. Google gives us no
+      // company context, so an ambiguous match must not sign in to a
+      // company chosen at random — send those users to password/magic-link.
+      const matches = await prisma.user.findMany({
         where: { email: user.email!, isActive: true },
+        take: 2,
       })
-      if (!dbUser) return '/login?google=notfound'
+      if (matches.length === 0) return '/login?google=notfound'
+      if (matches.length > 1) return '/login?google=ambiguous'
+      const dbUser = matches[0]
 
       if (!dbUser.googleVerified) {
         try {
@@ -163,9 +169,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     async jwt({ token, user, account }) {
       if (account?.provider === 'google') {
-        const dbUser = await prisma.user.findFirst({
+        // Mirrors the signIn guard: only an unambiguous match gets a session
+        const matches = await prisma.user.findMany({
           where: { email: token.email!, isActive: true },
+          take: 2,
         })
+        const dbUser = matches.length === 1 ? matches[0] : null
         if (dbUser) {
           token.id         = dbUser.id
           token.companyId  = dbUser.companyId

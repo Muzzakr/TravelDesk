@@ -9,6 +9,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { LoadError } from '@/components/ui/LoadError'
+import { BookingConfirmationForm } from '@/components/travel/BookingConfirmationForm'
 
 type BookingOption = {
   id: string
@@ -72,6 +73,16 @@ export default function ApproveTravelPage() {
   const [approvedServices, setApprovedServices] = useState<string[]>([])
   const [rejectedServices, setRejectedServices] = useState<string[]>([])
   const [loadError, setLoadError] = useState(false)
+  const [viewerRole, setViewerRole] = useState('')
+  const [showConfirmForm, setShowConfirmForm] = useState(false)
+  const [confirmSuccess, setConfirmSuccess] = useState('')
+
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => setViewerRole(s?.user?.role ?? ''))
+      .catch(() => {})
+  }, [])
 
   async function load() {
     setLoadError(false)
@@ -119,7 +130,16 @@ export default function ApproveTravelPage() {
       body: JSON.stringify(body),
     })
     if (res.ok) {
-      router.push('/manager')
+      // Travel Managers and Admins complete the booking themselves — stay on
+      // the page and open the same booking-confirmation form the agent uses.
+      if (status === 'APPROVED' && ['TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(viewerRole)) {
+        await load()
+        setPanel(null)
+        setShowConfirmForm(true)
+        setLoading(false)
+      } else {
+        router.push('/manager')
+      }
     } else {
       const d = await res.json()
       setError(d.error ?? 'Failed')
@@ -476,6 +496,35 @@ export default function ApproveTravelPage() {
           </div>
         )}
       </div>
+
+      {/* Booking info to employee — same form and flow as the agent */}
+      {['TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(viewerRole) &&
+        ['PENDING_AGENT', 'APPROVED', 'BOOKING_CONFIRMED'].includes(reqStatus) && (
+        <>
+          {confirmSuccess && (
+            <p className="rounded-lg bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">{confirmSuccess}</p>
+          )}
+          {reqStatus !== 'BOOKING_CONFIRMED' || showConfirmForm ? (
+            <BookingConfirmationForm
+              requestId={id}
+              servicesRequested={services}
+              onSuccess={async () => {
+                setConfirmSuccess('Booking info sent — the employee has been notified.')
+                setShowConfirmForm(false)
+                await load()
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setConfirmSuccess(''); setShowConfirmForm(true) }}
+              className="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
+            >
+              Send booking info again
+            </button>
+          )}
+        </>
+      )}
     </div>
   )
 }

@@ -27,9 +27,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     where: { id: params.id, companyId: session.user.companyId },
   })
   if (!travelRequest) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (!['PENDING_AGENT', 'APPROVED'].includes(travelRequest.status)) {
+  // BOOKING_CONFIRMED is allowed so booking info can be re-sent manually
+  if (!['PENDING_AGENT', 'APPROVED', 'BOOKING_CONFIRMED'].includes(travelRequest.status)) {
     return NextResponse.json({ error: 'Cannot confirm at this stage' }, { status: 400 })
   }
+  const isResend = travelRequest.status === 'BOOKING_CONFIRMED'
 
   const body = await req.json()
   const parsed = ConfirmSchema.safeParse(body)
@@ -55,14 +57,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     where: { id: params.id },
     data: {
       status: 'BOOKING_CONFIRMED',
-      agentId: session.user.id,
+      // keep the original handler on re-sends
+      agentId: travelRequest.agentId ?? session.user.id,
       // keep flat field for backward compat / email
-      confirmationNumber: firstConfirmNo,
+      confirmationNumber: firstConfirmNo ?? travelRequest.confirmationNumber,
     },
   })
 
-  // Auto-create DRAFT expense records from selected booking options
-  const selectedOptions = await prisma.bookingOption.findMany({
+  // Auto-create DRAFT expense records from selected booking options —
+  // only on the first confirmation, never again on a manual re-send
+  const selectedOptions = isResend ? [] : await prisma.bookingOption.findMany({
     where: { travelRequestId: params.id, isSelected: true },
   })
 
@@ -89,7 +93,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         status: 'DRAFT',
       })),
     })
-  } else if (travelRequest.estimatedCostUsd) {
+  } else if (!isResend && travelRequest.estimatedCostUsd) {
     await prisma.expense.create({
       data: {
         companyId: session.user.companyId,

@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Check, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Check, AlertTriangle, Paperclip } from 'lucide-react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { BookingConfirmationForm } from '@/components/travel/BookingConfirmationForm'
 
 type TravelRequest = {
   id: string
@@ -25,7 +26,7 @@ type TravelRequest = {
   agent: { id: string; name: string; email: string } | null
   approvalActions: { id: string; actionType: string; note: string | null; createdAt: string; actor: { name: string; role: string } }[]
   bookingOptions: { id: string; serviceType: string; vendor: string; description: string; priceUsd: string; isSelected: boolean }[]
-  bookingConfirmations: { id: string; serviceType: string; confirmationNumber: string | null; notes: string | null }[]
+  bookingConfirmations: { id: string; serviceType: string; confirmationNumber: string | null; notes: string | null; fileName: string | null }[]
 }
 
 const STEP_LABELS = ['Submitted', 'Manager Review', 'Approved', 'Confirmed']
@@ -58,6 +59,8 @@ export default function AdminTravelRequestDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionSuccess, setActionSuccess] = useState('')
+  const [showConfirmForm, setShowConfirmForm] = useState(false)
+  const [confirmSuccess, setConfirmSuccess] = useState('')
 
   useEffect(() => {
     fetch(`/api/travel-requests/${id}`)
@@ -238,6 +241,57 @@ export default function AdminTravelRequestDetailPage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Booking confirmations sent to the employee */}
+          {request.bookingConfirmations.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Booking confirmations</h2>
+              <div className="space-y-2">
+                {request.bookingConfirmations.map(c => (
+                  <div key={c.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">{c.serviceType.replace(/_/g, ' ')}</p>
+                    {c.confirmationNumber && <p className="font-mono font-bold text-green-700 mt-0.5">{c.confirmationNumber}</p>}
+                    {c.notes && <p className="text-xs text-gray-600 mt-0.5">{c.notes}</p>}
+                    {c.fileName && (
+                      <a href={`/api/booking-confirmations/${c.id}/file`} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-1">
+                        <Paperclip className="w-3.5 h-3.5" /> {c.fileName}
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Booking info to employee — same form and flow as the agent */}
+          {['PENDING_AGENT', 'APPROVED', 'BOOKING_CONFIRMED'].includes(request.status) && (
+            <>
+              {confirmSuccess && (
+                <p className="rounded-lg bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">{confirmSuccess}</p>
+              )}
+              {request.status !== 'BOOKING_CONFIRMED' || showConfirmForm ? (
+                <BookingConfirmationForm
+                  requestId={request.id}
+                  servicesRequested={request.servicesRequested}
+                  onSuccess={async () => {
+                    setConfirmSuccess('Booking info sent — the employee has been notified.')
+                    setShowConfirmForm(false)
+                    const updated = await fetch(`/api/travel-requests/${id}`).then(r => r.json())
+                    setRequest(updated)
+                  }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setConfirmSuccess(''); setShowConfirmForm(true) }}
+                  className="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
+                >
+                  Send booking info again
+                </button>
+              )}
+            </>
           )}
 
           {/* Approval history */}

@@ -4,9 +4,10 @@ import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, UserGroup
 import { Check, Paperclip } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { BookingConfirmationForm } from '@/components/travel/BookingConfirmationForm'
 
 interface BookingConfirmation {
   id: string
@@ -50,12 +51,6 @@ interface BookingOption {
   bookingLink: string | null
 }
 
-type ServiceEntry = {
-  confirmationNumber: string
-  notes: string
-  files: File[]
-}
-
 const STATUS_STEPS = ['Submitted', 'Agent Review', 'Approved', 'Confirmed']
 
 const STATUS_TO_STEP: Record<string, number> = {
@@ -95,8 +90,6 @@ const SERVICE_LABEL: Record<string, string> = {
   AGENT_CHOOSES: 'Agent Chooses',
 }
 
-const ALL_SERVICES = ['FLIGHT', 'HOTEL', 'CAR_RENTAL', 'TAXI']
-
 const SERVICE_LINE_META: Record<string, { Icon: HeroIcon; label: string }> = {
   FLIGHT:        { Icon: PaperAirplaneIcon,  label: 'Flight' },
   HOTEL:         { Icon: BuildingOfficeIcon, label: 'Hotel' },
@@ -114,10 +107,6 @@ function parseServiceLine(line: string): { Icon: HeroIcon; label: string; detail
   return { ...meta, detail: line.slice(colon + 1).trim() }
 }
 
-function emptyEntry(): ServiceEntry {
-  return { confirmationNumber: '', notes: '', files: [] }
-}
-
 export default function AgentRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [request, setRequest] = useState<TravelRequest | null>(null)
@@ -125,13 +114,6 @@ export default function AgentRequestDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-
-  // Per-service confirmation state
-  const [serviceEntries, setServiceEntries] = useState<Record<string, ServiceEntry>>({})
-  // For AGENT_CHOOSES: agent can pick which services they're confirming
-  const [agentPickedServices, setAgentPickedServices] = useState<string[]>([])
-
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     async function load() {
@@ -141,46 +123,12 @@ export default function AgentRequestDetailPage() {
         const data: TravelRequest = await r.json()
         setRequest(data)
         setLoading(false)
-        const initial: Record<string, ServiceEntry> = {}
-        const svcs = data.servicesRequested.includes('AGENT_CHOOSES') ? [] : data.servicesRequested
-        svcs.forEach((s) => { initial[s] = emptyEntry() })
-        setServiceEntries(initial)
-        if (data.servicesRequested.includes('AGENT_CHOOSES')) {
-          setAgentPickedServices(['AGENT_CHOOSES'])
-          setServiceEntries({ AGENT_CHOOSES: emptyEntry() })
-        }
       } catch {
         setLoading(false)
       }
     }
     load()
   }, [id])
-
-  function updateEntry(svc: string, field: 'confirmationNumber' | 'notes', value: string) {
-    setServiceEntries((prev) => ({ ...prev, [svc]: { ...prev[svc], [field]: value } }))
-  }
-
-  function addFile(svc: string, file: File) {
-    setServiceEntries((prev) => ({ ...prev, [svc]: { ...prev[svc], files: [...(prev[svc]?.files ?? []), file] } }))
-    if (fileInputRefs.current[svc]) fileInputRefs.current[svc]!.value = ''
-  }
-
-  function removeFile(svc: string, index: number) {
-    setServiceEntries((prev) => ({ ...prev, [svc]: { ...prev[svc], files: prev[svc].files.filter((_, i) => i !== index) } }))
-  }
-
-  function toggleAgentService(svc: string) {
-    setAgentPickedServices((prev) => {
-      const next = prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
-      setServiceEntries((entries) => {
-        const updated = { ...entries }
-        if (!prev.includes(svc)) { updated[svc] = emptyEntry() }
-        else { delete updated[svc] }
-        return updated
-      })
-      return next
-    })
-  }
 
   async function handleAssign() {
     setSubmitting(true)
@@ -197,58 +145,10 @@ export default function AgentRequestDetailPage() {
     setSubmitting(false)
   }
 
-  async function handleConfirm(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError('')
-
-    const services = Object.entries(serviceEntries).map(([serviceType, entry]) => ({
-      serviceType,
-      confirmationNumber: entry.confirmationNumber || undefined,
-      notes: entry.notes || undefined,
-    }))
-
-    if (services.length === 0) {
-      setError('Add at least one service confirmation.')
-      setSubmitting(false)
-      return
-    }
-
-    // Step 1: POST the JSON confirmation data
-    const res = await fetch(`/api/travel-requests/${id}/confirm`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ services }),
-    })
-
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to confirm booking')
-      setSubmitting(false)
-      return
-    }
-
-    const { confirmationIds } = await res.json() as { confirmationIds: Record<string, string> }
-
-    // Step 2: Upload all files for each service
-    const fileUploads = Object.entries(serviceEntries)
-      .filter(([, entry]) => entry.files.length > 0)
-      .flatMap(([serviceType, entry]) => {
-        const confId = confirmationIds[serviceType]
-        if (!confId) return []
-        return entry.files.map(async (file) => {
-          const fd = new FormData()
-          fd.append('file', file)
-          await fetch(`/api/booking-confirmations/${confId}/file`, { method: 'POST', body: fd })
-        })
-      })
-
-    await Promise.all(fileUploads)
-
+  async function handleConfirmed() {
     setSuccess('Booking confirmed! The employee has been notified.')
     const updated = await fetch(`/api/travel-requests/${id}`).then((r) => r.json())
     setRequest(updated)
-    setSubmitting(false)
   }
 
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
@@ -256,7 +156,6 @@ export default function AgentRequestDetailPage() {
 
   const isUnassigned = !request.agentId && request.status === 'PENDING_AGENT'
   const canConfirm = ['PENDING_AGENT', 'APPROVED'].includes(request.status) && request.status !== 'BOOKING_CONFIRMED'
-  const isAgentChooses = request.servicesRequested.includes('AGENT_CHOOSES')
 
   const budgetPct = request.event.budgetUsd > 0
     ? Math.round((Number(request.event.approvedSpendUsd) / Number(request.event.budgetUsd)) * 100)
@@ -264,8 +163,6 @@ export default function AgentRequestDetailPage() {
 
   const currentStep = STATUS_TO_STEP[request.status] ?? 0
   const isTerminal = ['REJECTED', 'CANCELLED'].includes(request.status)
-
-  const confirmSections = isAgentChooses ? agentPickedServices : request.servicesRequested
 
   // The employee's final selection. If any options are explicitly marked selected
   // (agent-provided → employee-picked flow), show those; otherwise the saved
@@ -450,136 +347,13 @@ export default function AgentRequestDetailPage() {
         </div>
       )}
 
-      {/* Complete booking form */}
+      {/* Complete booking form (shared with Travel Manager / Admin) */}
       {canConfirm && (
-        <form onSubmit={handleConfirm} className="rounded-xl border-2 border-green-100 bg-green-50 p-6 space-y-5">
-          <div>
-            <h2 className="text-base font-semibold text-green-900">Complete booking</h2>
-            <p className="text-xs text-green-700 mt-0.5">
-              Fill in the confirmation details for each service. The employee will be notified.
-            </p>
-          </div>
-
-          {/* For AGENT_CHOOSES: let agent pick which services they're confirming */}
-          {isAgentChooses && (
-            <div>
-              <p className="text-xs font-medium text-gray-600 mb-2">Which services did you book?</p>
-              <div className="flex flex-wrap gap-2">
-                {ALL_SERVICES.map((svc) => {
-                  const picked = agentPickedServices.includes(svc)
-                  const SvcIcon = SERVICE_ICON[svc] ?? PlusCircleIcon
-                  return (
-                    <button
-                      key={svc}
-                      type="button"
-                      onClick={() => toggleAgentService(svc)}
-                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                        picked ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400'
-                      }`}
-                    >
-                      <SvcIcon className="w-4 h-4" /> {SERVICE_LABEL[svc]}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Per-service sections */}
-          {confirmSections.filter((s) => s !== 'AGENT_CHOOSES').map((svc) => {
-            const entry = serviceEntries[svc] ?? emptyEntry()
-            const SvcIcon = SERVICE_ICON[svc] ?? PlusCircleIcon
-            return (
-              <div key={svc} className="rounded-xl border border-green-200 bg-white p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <SvcIcon className="w-5 h-5 text-gray-600 shrink-0" />
-                  <h3 className="text-sm font-semibold text-gray-800">{SERVICE_LABEL[svc] ?? svc}</h3>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Confirmation number</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. UA-2026-8472"
-                    value={entry.confirmationNumber}
-                    onChange={(e) => updateEntry(svc, 'confirmationNumber', e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Documents (optional)</label>
-                  <input
-                    type="file"
-                    accept="*/*"
-                    title={`Upload document for ${SERVICE_LABEL[svc] ?? svc}`}
-                    aria-label={`Upload document for ${SERVICE_LABEL[svc] ?? svc}`}
-                    className="hidden"
-                    ref={(el) => { fileInputRefs.current[svc] = el }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) addFile(svc, f) }}
-                  />
-                  {entry.files.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {entry.files.map((file, i) => (
-                        <div key={i} className="flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs text-indigo-700 max-w-[180px]">
-                          <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                          </svg>
-                          <span className="truncate">{file.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeFile(svc, i)}
-                            aria-label="Remove file"
-                            className="shrink-0 w-3.5 h-3.5 rounded-full bg-indigo-200 hover:bg-red-200 hover:text-red-700 flex items-center justify-center transition-colors"
-                          >
-                            <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => fileInputRefs.current[svc]?.click()}
-                    className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                    </svg>
-                    {entry.files.length > 0 ? 'Add another file' : 'Upload file (PDF, image, any format)'}
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Notes (optional)</label>
-                  <textarea
-                    rows={2}
-                    placeholder={`Notes about this ${SERVICE_LABEL[svc] ?? svc} booking…`}
-                    value={entry.notes}
-                    onChange={(e) => updateEntry(svc, 'notes', e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
-                  />
-                </div>
-              </div>
-            )
-          })}
-
-          {confirmSections.length === 0 && isAgentChooses && (
-            <p className="text-sm text-gray-400 text-center py-2">Select at least one service above.</p>
-          )}
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={submitting || (isAgentChooses && confirmSections.filter((s) => s !== 'AGENT_CHOOSES').length === 0)}
-              className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              {submitting ? 'Confirming…' : 'Confirm & notify employee →'}
-            </button>
-          </div>
-        </form>
+        <BookingConfirmationForm
+          requestId={id}
+          servicesRequested={request.servicesRequested}
+          onSuccess={handleConfirmed}
+        />
       )}
 
       {/* Already confirmed: show booking confirmations */}

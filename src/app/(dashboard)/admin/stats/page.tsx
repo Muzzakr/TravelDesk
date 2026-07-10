@@ -6,7 +6,7 @@ import StatsDashboard from '@/components/ui/StatsDashboard'
 export default async function StatsPage() {
   const session = await auth()
   if (!session?.user?.companyId) redirect('/login')
-  if (!['SYSTEM_ADMIN', 'MANAGER'].includes(session.user.role ?? '')) redirect('/login')
+  if (!['SYSTEM_ADMIN', 'MANAGER', 'TRAVEL_MANAGER'].includes(session.user.role ?? '')) redirect('/login')
 
   const companyId = session.user.companyId
 

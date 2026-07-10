@@ -14,6 +14,7 @@ const ROLE_PATHS: Record<string, Role[]> = {
   '/manager': ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN'],
   '/agent': ['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN'],
   '/finance': ['FINANCE_ADMIN', 'MANAGER', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN'],
+  '/admin/stats': ['SYSTEM_ADMIN', 'MANAGER', 'TRAVEL_MANAGER'],
   '/admin': ['SYSTEM_ADMIN'],
 }
 
@@ -53,12 +54,15 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // RBAC gate
-  for (const [path, allowedRoles] of Object.entries(ROLE_PATHS)) {
-    if (pathname.startsWith(path)) {
-      if (!role || !allowedRoles.includes(role)) {
-        return NextResponse.redirect(new URL('/employee', req.url))
-      }
+  // RBAC gate — only the most specific (longest) matching prefix applies,
+  // so '/admin/stats' can be more permissive than '/admin'.
+  const matchedPath = Object.keys(ROLE_PATHS)
+    .filter((p) => pathname.startsWith(p))
+    .sort((a, b) => b.length - a.length)[0]
+  if (matchedPath) {
+    const allowedRoles = ROLE_PATHS[matchedPath]
+    if (!role || !allowedRoles.includes(role)) {
+      return NextResponse.redirect(new URL('/employee', req.url))
     }
   }
 

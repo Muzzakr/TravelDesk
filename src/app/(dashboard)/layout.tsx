@@ -68,6 +68,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'All Expenses', href: '/finance/expenses' },
     { label: 'Payout Reports', href: '/finance/payout-reports' },
     { label: 'Card Transactions', href: '/finance/cards' },
+    { label: 'Statistics', href: '/admin/stats' },
     { heading: 'Administration' },
     { label: 'Employees', href: '/manager/users-roles' },
     SECURITY_LINK,

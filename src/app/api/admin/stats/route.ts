@@ -64,7 +64,7 @@ function fillDays(map: Record<string, number>, start: Date, end: Date, isAmount 
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['SYSTEM_ADMIN', 'MANAGER'].includes(session.user.role ?? ''))
+  if (!['SYSTEM_ADMIN', 'MANAGER', 'TRAVEL_MANAGER'].includes(session.user.role ?? ''))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const companyId = session.user.companyId

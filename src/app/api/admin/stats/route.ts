@@ -86,7 +86,6 @@ export async function GET(req: NextRequest) {
     prevExpenses,
     pendingRequestsRaw,
     pendingExpensesRaw,
-    allUsers,
     allEvents,
     recordsRaw,
     recordsTotal,
@@ -121,11 +120,6 @@ export async function GET(req: NextRequest) {
       select: { id: true, status: true, amountUsd: true, createdAt: true, category: true, employee: { select: { name: true } }, event: { select: { eventName: true } } },
       orderBy: { createdAt: 'asc' },
       take: 20,
-    }),
-    // All users for ranking
-    prisma.user.findMany({
-      where: { companyId, role: 'EMPLOYEE' },
-      select: { id: true, name: true },
     }),
     // All events for ranking
     prisma.event.findMany({
@@ -230,7 +224,7 @@ export async function GET(req: NextRequest) {
     const [evRequests, evExpenses, evEvent] = await Promise.all([
       prisma.travelRequest.count({ where: { companyId, eventId: eventIdFilter } }),
       prisma.expense.findMany({ where: { companyId, eventId: eventIdFilter }, select: { amountUsd: true, status: true, createdAt: true } }),
-      prisma.event.findUnique({ where: { id: eventIdFilter }, select: { eventName: true, budgetUsd: true, approvedSpendUsd: true } }),
+      prisma.event.findFirst({ where: { id: eventIdFilter, companyId }, select: { eventName: true, budgetUsd: true, approvedSpendUsd: true } }),
     ])
     const evExpTotal = evExpenses.reduce((s, e) => s + Number(e.amountUsd), 0)
     const evApproved = evExpenses.filter(e => ['APPROVED', 'PAID'].includes(e.status)).length

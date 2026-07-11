@@ -136,12 +136,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   let nextStatus: string | undefined = parsed.data.status
   if (parsed.data.status === 'APPROVED' && request.status === 'PENDING_MANAGER') {
-    // Travel managers complete the booking themselves — skip agent step
-    nextStatus = role === 'TRAVEL_MANAGER' ? 'BOOKING_CONFIRMED' : 'PENDING_AGENT'
+    // Travel Managers and Admins book themselves: approval stays APPROVED
+    // and the booking flips to BOOKING_CONFIRMED only when they send the
+    // booking info. Plain managers hand off to the agent queue.
+    nextStatus = ['TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(role) ? 'APPROVED' : 'PENDING_AGENT'
   }
-  // Admin approving an escalated request → resume normal flow
+  // Admin approving an escalated request — approved, booking info comes next
   if (parsed.data.status === 'APPROVED' && request.status === 'PENDING_ADMIN') {
-    nextStatus = role === 'SYSTEM_ADMIN' ? 'PENDING_AGENT' : 'APPROVED'
+    nextStatus = 'APPROVED'
   }
 
   const updated = await prisma.travelRequest.update({

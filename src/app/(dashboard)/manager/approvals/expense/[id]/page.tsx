@@ -7,6 +7,7 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { ReceiptRow } from '@/components/manager/ReceiptRow'
 import { ExpenseReviewPanel } from '@/components/manager/ExpenseReviewPanel'
 import { BudgetBar } from '@/components/manager/BudgetBar'
+import { MarkPaidButton } from '@/components/finance/MarkPaidButton'
 
 const CATEGORY_LABELS: Record<string, string> = {
   MEALS: 'Meals',
@@ -271,7 +272,14 @@ export default async function ApproveExpensePage({ params }: { params: { id: str
 
         {/* ── Right column: decision panel ── */}
         <div className="lg:col-span-1">
-          <div className="lg:sticky lg:top-24">
+          <div className="lg:sticky lg:top-24 space-y-4">
+            {status === 'APPROVED' && ['FINANCE_ADMIN', 'SYSTEM_ADMIN', 'TRAVEL_MANAGER'].includes(role) && (
+              <div className="rounded-xl border bg-white p-5 space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800">Payment</h3>
+                <p className="text-xs text-gray-500">This expense is approved and ready for payout.</p>
+                <MarkPaidButton expenseId={params.id} />
+              </div>
+            )}
             <ExpenseReviewPanel
               expenses={relatedExpenses}
               currentExpenseId={params.id}

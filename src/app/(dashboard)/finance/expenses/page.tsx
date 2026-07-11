@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Pagination } from '@/components/ui/Pagination'
-import { ExpenseApproveActions } from '@/components/manager/ExpenseApproveActions'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
 import { LoadError } from '@/components/ui/LoadError'
@@ -40,6 +40,7 @@ const isManagerRole = (role: string) => ['MANAGER', 'TRAVEL_MANAGER'].includes(r
 const isFinanceRole = (role: string) => ['FINANCE_ADMIN', 'SYSTEM_ADMIN'].includes(role)
 
 export default function FinanceExpensesPage() {
+  const router = useRouter()
   const now = new Date()
   const [month, setMonth] = useState(-1)
   const [year, setYear] = useState(now.getFullYear())
@@ -50,13 +51,11 @@ export default function FinanceExpensesPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [markingId, setMarkingId] = useState<string | null>(null)
 
   // New expense modal — same shared form component as employee/expenses
   const [showNewExpense, setShowNewExpense] = useState(false)
   const [newSuccess, setNewSuccess] = useState('')
   const [loadError, setLoadError] = useState(false)
-  const [actionError, setActionError] = useState('')
 
   // Escape-to-close + focus management for the full-screen form
   const newExpenseDismissRef = useModalDismiss<HTMLDivElement>(showNewExpense, () => setShowNewExpense(false))
@@ -89,25 +88,6 @@ export default function FinanceExpensesPage() {
     setShowNewExpense(true)
   }
 
-  async function markAsPaid(expenseId: string) {
-    setMarkingId(expenseId)
-    setActionError('')
-    try {
-      const res = await fetch('/api/finance/expenses/mark-paid', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expenseId }),
-      })
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}))
-        setActionError(typeof d.error === 'string' ? d.error : 'Could not mark the expense as paid. Try again.')
-      }
-    } catch {
-      setActionError('Could not mark the expense as paid. Check your connection and try again.')
-    }
-    setMarkingId(null)
-    fetchData()
-  }
-
   function exportCSV() {
     if (!data?.expenses.length) return
     const rows = data.expenses.map((e) => [
@@ -128,8 +108,7 @@ export default function FinanceExpensesPage() {
   const role = data?.userRole ?? ''
   const isManager = isManagerRole(role)
   const isFinance = isFinanceRole(role)
-  // Travel Manager has the same payment rights as Finance
-  const canMarkPaid = isFinance || role === 'TRAVEL_MANAGER'
+  // Mark as Paid now lives on the expense detail page (row click → act there)
 
   const kpiCards = kpis ? [
     {
@@ -264,9 +243,6 @@ export default function FinanceExpensesPage() {
         )}
       </div>
 
-      {actionError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
-      )}
       {loadError && <LoadError onRetry={fetchData} />}
 
       {/* Table */}
@@ -280,7 +256,7 @@ export default function FinanceExpensesPage() {
           ) : !data?.expenses.length ? (
             <p className="p-8 text-center text-sm text-gray-400">No expenses found.</p>
           ) : data.expenses.map((e) => (
-            <div key={e.id} className="p-4 space-y-2.5">
+            <Link key={e.id} href={`/manager/approvals/expense/${e.id}`} className="block p-4 space-y-2.5 active:bg-gray-50">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 truncate">{e.employee.name}</p>
@@ -289,27 +265,18 @@ export default function FinanceExpensesPage() {
                 </div>
                 <span className="font-semibold text-gray-900 whitespace-nowrap shrink-0">${Number(e.amountUsd).toFixed(2)}</span>
               </div>
-              <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center justify-between gap-2">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                   e.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
                   e.status === 'PAID' ? 'bg-green-100 text-green-700' :
                   e.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                   'bg-yellow-100 text-yellow-700'
                 }`}>{STATUS_LABELS[e.status] ?? e.status}</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {isManager && ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) && (
-                    <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
-                  )}
-                  {canMarkPaid && e.status === 'APPROVED' && (
-                    <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
-                      className="min-h-[2.5rem] rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                      {markingId === e.id ? '...' : 'Mark as Paid'}
-                    </button>
-                  )}
-                  <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View →</Link>
-                </div>
+                <svg className="h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
@@ -325,20 +292,20 @@ export default function FinanceExpensesPage() {
                 <th className="px-3 py-3 text-left">Submitted</th>
                 <th className="px-3 py-3 text-left">Status</th>
                 <th className="px-3 py-3 text-center">Receipt</th>
-                <th className="px-3 py-3 text-left">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i}>{Array.from({ length: 8 }).map((_, j) => (
+                  <tr key={i}>{Array.from({ length: 7 }).map((_, j) => (
                     <td key={j} className="px-3 py-3"><div className="h-3 bg-gray-100 rounded animate-pulse" /></td>
                   ))}</tr>
                 ))
               ) : !data?.expenses.length ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found.</td></tr>
               ) : data.expenses.map((e) => (
-                <tr key={e.id} className="hover:bg-gray-50">
+                <tr key={e.id} onClick={() => router.push(`/manager/approvals/expense/${e.id}`)}
+                  className="cursor-pointer hover:bg-gray-50">
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
@@ -376,20 +343,6 @@ export default function FinanceExpensesPage() {
                         </svg>
                       </Link>
                     ) : <span className="text-gray-300 text-xs">—</span>}
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {isManager && ['SUBMITTED', 'UNDER_REVIEW'].includes(e.status) && (
-                        <ExpenseApproveActions expenseId={e.id} onDone={fetchData} />
-                      )}
-                      {canMarkPaid && e.status === 'APPROVED' && (
-                        <button type="button" onClick={() => markAsPaid(e.id)} disabled={markingId === e.id}
-                          className="rounded-lg bg-indigo-600 px-3 py-2.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                          {markingId === e.id ? '...' : 'Mark as Paid'}
-                        </button>
-                      )}
-                      <Link href={`/manager/approvals/expense/${e.id}`} className="text-sm font-medium text-indigo-600 hover:underline">View</Link>
-                    </div>
                   </td>
                 </tr>
               ))}

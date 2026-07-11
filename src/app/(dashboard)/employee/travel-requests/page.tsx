@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
-import { Zap, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 interface TravelRequest {
   id: string
@@ -28,9 +29,9 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 }
 
 export default function TravelRequestsPage() {
+  const router = useRouter()
   const [requests, setRequests] = useState<TravelRequest[]>([])
   const [role, setRole] = useState<string | null>(null)
-  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -41,19 +42,6 @@ export default function TravelRequestsPage() {
       setRole(session?.user?.role ?? null)
     })
   }, [])
-
-  async function cancelRequest(id: string) {
-    if (!confirm('Cancel this travel request?')) return
-    setCancellingId(id)
-    await fetch(`/api/travel-requests/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'CANCELLED' }),
-    })
-    const refreshed = await fetch('/api/travel-requests').then((r) => r.json())
-    setRequests(refreshed)
-    setCancellingId(null)
-  }
 
   return (
     <div className="space-y-6">
@@ -82,9 +70,9 @@ export default function TravelRequestsPage() {
             {requests.map((r) => {
               const dates = r.travelDates as { departureDate: string; returnDate: string }
               const needsAction = r.status === 'OPTIONS_PROVIDED' && role === 'EMPLOYEE'
-              const isDraft = r.status === 'DRAFT'
               return (
-                <div key={r.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
+                <Link key={r.id} href={`/employee/travel-requests/${r.id}`}
+                  className={`block rounded-xl border bg-white px-4 py-3 space-y-2 active:bg-gray-50 ${needsAction ? 'border-orange-300' : ''}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900 truncate">{r.origin} → {r.destination}</p>
@@ -97,27 +85,9 @@ export default function TravelRequestsPage() {
                     </div>
                   </div>
                   {STATUS_DESCRIPTIONS[r.status] && (
-                    <p className="text-xs text-gray-500 italic">{STATUS_DESCRIPTIONS[r.status]}</p>
+                    <p className={`text-xs italic ${needsAction ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>{STATUS_DESCRIPTIONS[r.status]}</p>
                   )}
-                  <div className="flex items-center gap-3">
-                    <Link
-                      href={`/employee/travel-requests/${r.id}`}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors ${needsAction ? 'bg-orange-500 hover:bg-orange-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                    >
-                      {needsAction ? <><Zap className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Choose option</> : 'View →'}
-                    </Link>
-                    {isDraft && role === 'EMPLOYEE' && (
-                      <button
-                        type="button"
-                        onClick={() => cancelRequest(r.id)}
-                        disabled={cancellingId === r.id}
-                        className="text-xs font-medium text-red-500 hover:underline disabled:opacity-50"
-                      >
-                        {cancellingId === r.id ? 'Cancelling…' : 'Cancel'}
-                      </button>
-                    )}
-                  </div>
-                </div>
+                </Link>
               )
             })}
           </div>
@@ -132,20 +102,17 @@ export default function TravelRequestsPage() {
                   <th className="px-4 py-3 text-left">Departure</th>
                   <th className="px-4 py-3 text-left">Est. cost</th>
                   <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {requests.map((r) => {
                   const dates = r.travelDates as { departureDate: string; returnDate: string }
                   const needsAction = r.status === 'OPTIONS_PROVIDED' && role === 'EMPLOYEE'
-                  const isDraft = r.status === 'DRAFT'
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50">
+                    <tr key={r.id} onClick={() => router.push(`/employee/travel-requests/${r.id}`)}
+                      className={`cursor-pointer hover:bg-gray-50 ${needsAction ? 'bg-orange-50/50' : ''}`}>
                       <td className="px-4 py-3 font-medium text-gray-900">
-                        <Link href={`/employee/travel-requests/${r.id}`} className="hover:text-indigo-600">
-                          {r.origin} → {r.destination}
-                        </Link>
+                        {r.origin} → {r.destination}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{r.event.eventName}</td>
                       <td className="px-4 py-3 text-gray-500">{dates.departureDate}</td>
@@ -154,24 +121,6 @@ export default function TravelRequestsPage() {
                         <span title={STATUS_DESCRIPTIONS[r.status]}>
                           <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
                         </span>
-                      </td>
-                      <td className="px-4 py-3 flex items-center gap-3">
-                        <Link
-                          href={`/employee/travel-requests/${r.id}`}
-                          className={`text-xs font-medium hover:underline ${needsAction ? 'text-orange-600 font-semibold' : 'text-indigo-600'}`}
-                        >
-                          {needsAction ? <><Zap className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />Choose option</> : 'View →'}
-                        </Link>
-                        {isDraft && (
-                          <button
-                            type="button"
-                            onClick={() => cancelRequest(r.id)}
-                            disabled={cancellingId === r.id}
-                            className="text-xs font-medium text-red-500 hover:underline disabled:opacity-50"
-                          >
-                            {cancellingId === r.id ? 'Cancelling…' : 'Cancel'}
-                          </button>
-                        )}
                       </td>
                     </tr>
                   )

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
@@ -45,6 +46,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export default function AdminExpensesPage() {
+  const router = useRouter()
   const now = new Date()
   const [month, setMonth] = useState(-1)
   const [year, setYear] = useState(now.getFullYear())
@@ -57,18 +59,11 @@ export default function AdminExpensesPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
-  // Approve / reject
-  const [acting, setActing] = useState<string | null>(null)
-  const [rejectId, setRejectId] = useState<string | null>(null)
-  const [rejectNote, setRejectNote] = useState('')
-  const [rejectErr, setRejectErr] = useState('')
-
   // New expense — same shared form component as employee/expenses
   const [showNewExpense, setShowNewExpense] = useState(false)
   const [newSuccess, setNewSuccess] = useState('')
 
-  // Escape-to-close + focus management for the overlays
-  const rejectDismissRef = useModalDismiss<HTMLDivElement>(!!rejectId, () => { setRejectId(null); setRejectNote(''); setRejectErr('') })
+  // Escape-to-close + focus management for the overlay
   const newExpenseDismissRef = useModalDismiss<HTMLDivElement>(showNewExpense, () => setShowNewExpense(false))
 
   const fetchData = useCallback(async () => {
@@ -95,35 +90,6 @@ export default function AdminExpensesPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { setPage(1) }, [month, year, statusFilter, employeeFilter, search])
-
-  async function approve(id: string) {
-    setActing(id)
-    await fetch(`/api/expenses/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'APPROVED' }),
-    })
-    fetchData()
-    setActing(null)
-  }
-
-  async function reject(id: string) {
-    if (!rejectNote.trim()) return
-    setActing(id)
-    const r = await fetch(`/api/expenses/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'REJECTED', rejectionNote: rejectNote }),
-    })
-    if (!r.ok) {
-      const d = await r.json()
-      setRejectErr(d.error ?? 'Failed to reject')
-    } else {
-      setRejectId(null); setRejectNote(''); setRejectErr('')
-      fetchData()
-    }
-    setActing(null)
-  }
 
   function exportCSV() {
     if (!data?.expenses.length) return
@@ -174,33 +140,6 @@ export default function AdminExpensesPage() {
 
   return (
     <div className="space-y-5">
-
-      {/* Reject modal */}
-      {rejectId && (
-        <>
-          <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => { setRejectId(null); setRejectNote(''); setRejectErr('') }} />
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
-            <div ref={rejectDismissRef} className="pointer-events-auto w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-6 space-y-4">
-              <h2 className="text-base font-semibold text-gray-900">Reject expense</h2>
-              <textarea rows={3} placeholder="Reason for rejection (required)"
-                value={rejectNote} onChange={e => setRejectNote(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none resize-none" />
-              {rejectErr && <p className="text-sm text-red-600">{rejectErr}</p>}
-              <div className="flex gap-3">
-                <button type="button" disabled={!rejectNote.trim() || acting === rejectId}
-                  onClick={() => reject(rejectId!)}
-                  className="rounded-xl bg-red-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-red-700 disabled:opacity-50 min-h-[44px]">
-                  {acting === rejectId ? 'Rejecting…' : 'Reject'}
-                </button>
-                <button type="button" onClick={() => { setRejectId(null); setRejectNote(''); setRejectErr('') }}
-                  className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 min-h-[44px]">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -296,7 +235,8 @@ export default function AdminExpensesPage() {
         ) : !data?.expenses.length ? (
           <p className="text-center text-sm text-gray-400 py-8">No expenses found.</p>
         ) : data.expenses.map(e => (
-          <div key={e.id} className="rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-sm space-y-3">
+          <Link key={e.id} href={`/manager/approvals/expense/${e.id}`}
+            className="block rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-sm space-y-3 active:bg-gray-50">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-gray-900 text-sm">{e.employee.name}</p>
@@ -308,25 +248,7 @@ export default function AdminExpensesPage() {
                 <Badge variant={statusToBadgeVariant(e.status)}>{STATUS_LABELS[e.status] ?? e.status}</Badge>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-gray-50">
-              {e.status === 'SUBMITTED' && (
-                <>
-                  <button type="button" disabled={acting === e.id} onClick={() => approve(e.id)}
-                    className="rounded-xl bg-green-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-green-700 disabled:opacity-50 min-h-[44px] flex-1">
-                    {acting === e.id ? '…' : 'Approve'}
-                  </button>
-                  <button type="button" onClick={() => { setRejectId(e.id); setRejectNote(''); setRejectErr('') }}
-                    className="rounded-xl border border-red-200 bg-red-50 text-red-600 px-4 py-2.5 text-sm font-medium hover:bg-red-100 min-h-[44px] flex-1">
-                    Reject
-                  </button>
-                </>
-              )}
-              <Link href={`/manager/approvals/expense/${e.id}`}
-                className="text-xs font-medium text-indigo-600 hover:underline px-1 py-2 min-h-[44px] flex items-center">
-                View →
-              </Link>
-            </div>
-          </div>
+          </Link>
         ))}
       </div>}
 
@@ -342,20 +264,20 @@ export default function AdminExpensesPage() {
                 <th className="px-3 py-3 text-right">Amount</th>
                 <th className="px-3 py-3 text-left">Submitted</th>
                 <th className="px-3 py-3 text-left">Status</th>
-                <th className="px-3 py-3 text-left">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i}>{Array.from({ length: 7 }).map((_, j) => (
+                  <tr key={i}>{Array.from({ length: 6 }).map((_, j) => (
                     <td key={j} className="px-3 py-3"><div className="h-3 bg-gray-100 rounded animate-pulse" /></td>
                   ))}</tr>
                 ))
               ) : !data?.expenses.length ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">No expenses found.</td></tr>
               ) : data.expenses.map(e => (
-                <tr key={e.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={e.id} onClick={() => router.push(`/manager/approvals/expense/${e.id}`)}
+                  className="cursor-pointer hover:bg-gray-50 transition-colors">
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
@@ -377,26 +299,6 @@ export default function AdminExpensesPage() {
                   </td>
                   <td className="px-3 py-3">
                     <Badge variant={statusToBadgeVariant(e.status)}>{STATUS_LABELS[e.status] ?? e.status}</Badge>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {e.status === 'SUBMITTED' && (
-                        <>
-                          <button type="button" disabled={acting === e.id} onClick={() => approve(e.id)}
-                            className="rounded-lg bg-green-600 text-white px-3 py-2.5 text-xs font-medium hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
-                            {acting === e.id ? '…' : 'Approve'}
-                          </button>
-                          <button type="button" onClick={() => { setRejectId(e.id); setRejectNote(''); setRejectErr('') }}
-                            className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-3 py-2.5 text-xs font-medium hover:bg-red-100 whitespace-nowrap">
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      <Link href={`/manager/approvals/expense/${e.id}`}
-                        className="text-xs font-medium text-indigo-600 hover:underline whitespace-nowrap">
-                        View →
-                      </Link>
-                    </div>
                   </td>
                 </tr>
               ))}

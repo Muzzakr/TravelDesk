@@ -2,10 +2,9 @@
 
 import React, { Suspense, useState, useEffect } from 'react'
 import { compressImageFile } from '@/lib/compress'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
-import Link from 'next/link'
 import type { Expense } from '@/types/expense'
 import { Check, AlertTriangle, Plus } from 'lucide-react'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
@@ -16,9 +15,9 @@ const EXPENSE_DRAFT_KEY = 'expense_draft_v2'
 
 function ExpensesContent() {
   const params = useSearchParams()
+  const router = useRouter()
   const [expenses, setExpenses]     = useState<Expense[]>([])
   const [showForm, setShowForm]     = useState(params.get('add') === '1')
-  const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [manager, setManager]       = useState<{ name: string; email: string } | null | undefined>(undefined)
   const [addingReceiptFor, setAddingReceiptFor]       = useState<string | null>(null)
   const [uploadingReceiptFor, setUploadingReceiptFor] = useState<string | null>(null)
@@ -63,17 +62,6 @@ function ExpensesContent() {
       await refreshExpenses()
     }
     setUploadingReceiptFor(null)
-  }
-
-  async function submitExpense(expenseId: string) {
-    setSubmittingId(expenseId)
-    await fetch(`/api/expenses/${expenseId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'SUBMITTED' }),
-    })
-    await refreshExpenses()
-    setSubmittingId(null)
   }
 
   return (
@@ -121,10 +109,11 @@ function ExpensesContent() {
         {expenses.length === 0 ? (
           <p className="text-center text-sm text-gray-400 py-8">No expenses yet.</p>
         ) : expenses.map((exp) => (
-          <div key={exp.id} className="rounded-xl border bg-white px-4 py-3 space-y-2">
+          <div key={exp.id} onClick={() => router.push(`/employee/expenses/${exp.id}`)}
+            className="cursor-pointer rounded-xl border bg-white px-4 py-3 space-y-2 active:bg-gray-50">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <Link href={`/employee/expenses/${exp.id}`} className="font-medium text-gray-900 hover:text-indigo-600 truncate block">{exp.description}</Link>
+                <p className="font-medium text-gray-900 truncate">{exp.description}</p>
                 <p className="text-xs text-gray-400">{exp.category}</p>
               </div>
               <Badge variant={statusToBadgeVariant(exp.status)}>{exp.status}</Badge>
@@ -133,14 +122,9 @@ function ExpensesContent() {
               <span className="font-medium text-gray-800">${Number(exp.amountUsd).toFixed(2)}</span>
               <span className="text-xs text-gray-400">{exp.transactionDate ? new Date(exp.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</span>
             </div>
-            {exp.status === 'DRAFT' && (
-              <button type="button" onClick={() => submitExpense(exp.id)} disabled={submittingId === exp.id}
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                {submittingId === exp.id ? 'Submitting…' : 'Submit for approval'}
-              </button>
-            )}
             {canAddReceipt(exp.status) && (exp.receipts?.length ?? 0) === 0 && (
-              <div className="pt-1">
+              // Quick receipt attach stays inline — clicks must not open the detail page
+              <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                 {addingReceiptFor === exp.id ? (
                   <div className="space-y-2">
                     <FileUpload
@@ -182,16 +166,13 @@ function ExpensesContent() {
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Receipt</th>
                 <th className="px-4 py-3 text-left">Date</th>
-                <th className="px-4 py-3 text-left">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {expenses.map((exp) => (
                 <React.Fragment key={exp.id}>
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      <Link href={`/employee/expenses/${exp.id}`} className="hover:text-indigo-600">{exp.description}</Link>
-                    </td>
+                  <tr onClick={() => router.push(`/employee/expenses/${exp.id}`)} className="cursor-pointer hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{exp.description}</td>
                     <td className="px-4 py-3 text-gray-500">{exp.category}</td>
                     <td className="px-4 py-3 font-medium">${Number(exp.amountUsd).toFixed(2)}</td>
                     <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(exp.status)}>{exp.status}</Badge></td>
@@ -200,7 +181,7 @@ function ExpensesContent() {
                         <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> {exp.receipts!.length}</span>
                       ) : canAddReceipt(exp.status) ? (
                         <button type="button"
-                          onClick={() => { setAddingReceiptFor(addingReceiptFor === exp.id ? null : exp.id); setReceiptUploadError('') }}
+                          onClick={(e) => { e.stopPropagation(); setAddingReceiptFor(addingReceiptFor === exp.id ? null : exp.id); setReceiptUploadError('') }}
                           className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700">
                           <AlertTriangle className="w-3.5 h-3.5" /> Attach missing receipt
                         </button>
@@ -209,19 +190,10 @@ function ExpensesContent() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-400">{exp.transactionDate ? new Date(exp.transactionDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</td>
-                    <td className="px-4 py-3 flex items-center gap-3">
-                      <Link href={`/employee/expenses/${exp.id}`} className="text-xs font-medium text-indigo-600 hover:underline">View →</Link>
-                      {exp.status === 'DRAFT' && (
-                        <button type="button" onClick={() => submitExpense(exp.id)} disabled={submittingId === exp.id}
-                          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                          {submittingId === exp.id ? 'Submitting…' : 'Submit'}
-                        </button>
-                      )}
-                    </td>
                   </tr>
                   {addingReceiptFor === exp.id && (
                     <tr>
-                      <td colSpan={7} className="px-4 pb-3 bg-amber-50">
+                      <td colSpan={6} className="px-4 pb-3 bg-amber-50">
                         <div className="max-w-sm space-y-2 pt-2">
                           <FileUpload
                             label={uploadingReceiptFor === exp.id ? 'Uploading…' : 'Select receipt file'}

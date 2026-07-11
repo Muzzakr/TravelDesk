@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Plane, Clock, CheckCircle, Calendar } from 'lucide-react'
 import { Pagination } from '@/components/ui/Pagination'
@@ -51,6 +52,7 @@ const STATUS_OPTIONS = [
 
 
 export default function AdminTravelRequestsPage() {
+  const router = useRouter()
   const [data, setData]           = useState<PageData | null>(null)
   const [loading, setLoading]     = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -250,14 +252,14 @@ export default function AdminTravelRequestsPage() {
                 <th className="px-4 py-3 text-left">Services</th>
                 <th className="px-4 py-3 text-left">Dates</th>
                 <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {data?.requests.map(r => {
                 const dates = r.travelDates as Record<string, string>
                 return (
-                  <tr key={r.id} className="hover:bg-gray-50">
+                  <tr key={r.id} onClick={() => router.push(`/admin/travel-requests/${r.id}`)}
+                    className="cursor-pointer hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{r.employee.name}</p>
                       <p className="text-xs text-gray-400 truncate max-w-[160px]">{r.employee.email}</p>
@@ -277,12 +279,6 @@ export default function AdminTravelRequestsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={statusToBadgeVariant(r.status)}>{r.status.replace(/_/g, ' ')}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link href={`/admin/travel-requests/${r.id}`}
-                        className="text-xs font-medium text-indigo-600 hover:underline">
-                        View →
-                      </Link>
                     </td>
                   </tr>
                 )

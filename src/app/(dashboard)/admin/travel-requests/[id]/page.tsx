@@ -288,18 +288,18 @@ export default function AdminTravelRequestDetailPage() {
                   onClick={() => { setConfirmSuccess(''); setShowConfirmForm(true) }}
                   className="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
                 >
-                  Send booking info again
+                  Send booking Info
                 </button>
               )}
             </>
           )}
 
-          {/* Approval history */}
-          {request.approvalActions.length > 0 && (
+          {/* Approval history (edit/MODIFY entries are noise for the approver) */}
+          {request.approvalActions.filter(a => a.actionType !== 'MODIFY').length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Approval history</h2>
               <div className="space-y-3">
-                {request.approvalActions.map(a => (
+                {request.approvalActions.filter(a => a.actionType !== 'MODIFY').map(a => (
                   <div key={a.id} className="flex gap-3 text-sm">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 shrink-0" />
                     <div>

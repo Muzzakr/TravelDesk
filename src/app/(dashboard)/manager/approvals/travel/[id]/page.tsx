@@ -398,11 +398,11 @@ export default function ApproveTravelPage() {
         </div>
       )}
 
-      {/* Approval history */}
-      {actions.length > 0 && (
+      {/* Approval history (edit/MODIFY entries are noise for the approver) */}
+      {actions.filter((a) => a.actionType !== 'MODIFY').length > 0 && (
         <div className="rounded-xl bg-white p-6 shadow-sm space-y-3">
           <h2 className="text-base font-semibold text-gray-800">History</h2>
-          {actions.map((a, i) => (
+          {actions.filter((a) => a.actionType !== 'MODIFY').map((a, i) => (
             <div key={i} className="flex items-start gap-3 text-sm">
               <span className={`mt-0.5 shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
                 a.actionType === 'APPROVE' ? 'bg-green-100 text-green-700' :
@@ -419,6 +419,7 @@ export default function ApproveTravelPage() {
         </div>
       )}
 
+      {(!isDecided || reqStatus === 'PENDING_ADMIN') && (
       <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
         {reqStatus === 'PENDING_ADMIN' && (
           <p className="rounded-lg bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-800">
@@ -489,13 +490,8 @@ export default function ApproveTravelPage() {
             )}
           </>
         )}
-
-        {isDecided && (
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={() => router.back()}>Back</Button>
-          </div>
-        )}
       </div>
+      )}
 
       {/* Booking info to employee — same form and flow as the agent */}
       {['TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(viewerRole) &&
@@ -520,7 +516,7 @@ export default function ApproveTravelPage() {
               onClick={() => { setConfirmSuccess(''); setShowConfirmForm(true) }}
               className="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
             >
-              Send booking info again
+              Send booking Info
             </button>
           )}
         </>

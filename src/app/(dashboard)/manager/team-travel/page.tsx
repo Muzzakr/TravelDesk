@@ -176,22 +176,22 @@ export default function TeamTravelPage() {
           </select>
         )}
 
-        <div className="flex gap-1 flex-1 min-w-[200px]">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-1 flex-1 min-w-[200px]">
           <input
             type="text"
             placeholder="Search employee, route, event…"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && applySearch()}
-            className="rounded-xl border border-gray-200 px-3 py-2 text-sm flex-1 focus:border-indigo-500 outline-none"
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm sm:flex-1 focus:border-indigo-500 outline-none"
           />
           <button type="button" onClick={applySearch}
-            className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors">
+            className="rounded-xl bg-indigo-600 text-white px-4 py-2.5 sm:py-2 text-sm font-medium hover:bg-indigo-700 transition-colors w-full sm:w-auto">
             Search
           </button>
           {(status || employeeId || search) && (
             <button type="button" onClick={() => { setStatus(''); setEmployeeId(''); setSearch(''); setSearchInput(''); setPage(1) }}
-              className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+              className="rounded-xl border border-gray-200 px-3 py-2.5 sm:py-2 text-sm text-gray-500 hover:bg-gray-50 transition-colors w-full sm:w-auto">
               Clear
             </button>
           )}

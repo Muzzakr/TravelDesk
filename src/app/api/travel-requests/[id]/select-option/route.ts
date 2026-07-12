@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
-import { emailPendingManagerApproval } from '@/lib/mail'
+import { emailPendingManagerApproval, emailAgentActionRequired } from '@/lib/mail'
 import { createNotification } from '@/lib/notifications'
 import { z } from 'zod'
 
@@ -79,30 +79,60 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     payload: { optionIds, totalUsd, vendors: selectedOptions.map((o) => o.vendor) },
   })
 
-  // Email manager to approve
   const emp = await prisma.user.findUnique({
     where: { id: travelRequest.employeeId },
     select: { name: true, email: true, managerId: true },
   })
-  if (emp?.managerId) {
-    const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
-    if (manager?.email) {
-      emailPendingManagerApproval(manager.email, manager.name ?? 'Manager', {
-        employeeName: emp.name ?? 'Employee',
-        origin: travelRequest.origin,
-        destination: travelRequest.destination,
-        departureDate: (travelRequest.travelDates as { departureDate: string }).departureDate,
-        requestId: params.id,
-      }).catch(() => {})
+
+  if (nextStatus === 'PENDING_MANAGER') {
+    // Selection needs manager approval next
+    if (emp?.managerId) {
+      const manager = await prisma.user.findUnique({ where: { id: emp.managerId }, select: { name: true, email: true } })
+      if (manager?.email) {
+        emailPendingManagerApproval(manager.email, manager.name ?? 'Manager', {
+          employeeName: emp.name ?? 'Employee',
+          origin: travelRequest.origin,
+          destination: travelRequest.destination,
+          departureDate: (travelRequest.travelDates as { departureDate: string }).departureDate,
+          requestId: params.id,
+        }).catch(() => {})
+      }
+      await createNotification({
+        companyId: session.user.companyId,
+        userId: emp.managerId,
+        type: 'travel_pending',
+        title: 'Travel request awaiting your approval',
+        description: `${emp.name ?? 'Employee'} · ${travelRequest.origin} → ${travelRequest.destination}`,
+        href: `/manager/approvals/travel/${params.id}`,
+      })
     }
-    await createNotification({
-      companyId: session.user.companyId,
-      userId: emp.managerId,
-      type: 'travel_pending',
-      title: 'Travel request awaiting your approval',
-      description: `${emp.name ?? 'Employee'} · ${travelRequest.origin} → ${travelRequest.destination}`,
-      href: `/manager/approvals/travel/${params.id}`,
+  } else {
+    // Already manager-approved (MANAGER_FIRST) — the booking can proceed,
+    // so tell the handling agent (or every agent if none is assigned)
+    const agents = await prisma.user.findMany({
+      where: travelRequest.agentId
+        ? { id: travelRequest.agentId }
+        : { companyId: session.user.companyId, role: 'TRAVEL_AGENT', isActive: true },
+      select: { id: true, name: true, email: true },
     })
+    for (const agent of agents) {
+      if (agent.email) {
+        emailAgentActionRequired(agent.email, agent.name ?? 'Agent', {
+          employeeName: emp?.name ?? 'Employee',
+          origin: travelRequest.origin,
+          destination: travelRequest.destination,
+          requestId: params.id,
+        }).catch(() => {})
+      }
+      await createNotification({
+        companyId: session.user.companyId,
+        userId: agent.id,
+        type: 'workflow_update',
+        title: 'Options selected — ready to book',
+        description: `${emp?.name ?? 'Employee'} · ${travelRequest.origin} → ${travelRequest.destination}`,
+        href: `/agent/requests/${params.id}`,
+      })
+    }
   }
 
   return NextResponse.json({ success: true })

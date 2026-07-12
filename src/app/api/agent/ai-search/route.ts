@@ -109,7 +109,7 @@ function searchRentalCars(city: string, pickupDate: string, returnDate: string, 
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  const allowedRoles = ['TRAVEL_AGENT', 'EMPLOYEE']
+  const allowedRoles = ['TRAVEL_AGENT', 'TRAVEL_MANAGER', 'SYSTEM_ADMIN', 'EMPLOYEE']
   if (!session?.user?.companyId || !allowedRoles.includes(session.user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

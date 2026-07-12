@@ -38,7 +38,7 @@ const SHORT: Record<string, string> = {
   'Team Travel': 'Travel',
   'Team Expenses': 'Expenses',
   'All Expenses': 'Expenses',
-  'Payout Reports': 'Payouts',
+  'Payouts': 'Payouts',
   'Monthly Reports': 'Reports',
   'Create Travel Booking': 'Book',
   'My Profile': 'Profile',

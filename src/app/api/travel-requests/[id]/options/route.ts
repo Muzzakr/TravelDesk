@@ -63,6 +63,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   })
   if (!travelRequest) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // A finished or dead request must not regress to OPTIONS_PROVIDED —
+  // that would wipe the chosen options on a confirmed booking.
+  if (['BOOKING_CONFIRMED', 'REJECTED', 'CANCELLED'].includes(travelRequest.status)) {
+    return NextResponse.json({ error: 'Cannot provide options at this stage' }, { status: 400 })
+  }
+
   const body = await req.json()
   const parsed = OptionsSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })

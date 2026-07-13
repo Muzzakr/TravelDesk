@@ -8,6 +8,8 @@ import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { Check, Paperclip } from 'lucide-react'
+import { LoadError } from '@/components/ui/LoadError'
+import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
 interface BookingOption {
   id: string
@@ -123,13 +125,23 @@ export default function EmployeeTravelRequestDetailPage() {
   const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
 
+  const [loadError, setLoadError] = useState(false)
+  const cancelDismissRef = useModalDismiss<HTMLDivElement>(showCancelModal, () => setShowCancelModal(false))
+
   async function load() {
-    const res = await fetch(`/api/travel-requests/${id}`)
-    if (res.ok) setRequest(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const res = await fetch(`/api/travel-requests/${id}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setRequest(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function confirmSelections() {
     setConfirming(true)
@@ -150,7 +162,10 @@ export default function EmployeeTravelRequestDetailPage() {
   }
 
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
-  if (!request) return <div className="p-8 text-red-500">Request not found.</div>
+  if (!request) {
+    if (loadError) return <LoadError onRetry={() => { setLoading(true); load() }} />
+    return <div className="p-8 text-red-500">Request not found.</div>
+  }
 
   async function saveEdit() {
     setSavingEdit(true)
@@ -407,7 +422,7 @@ export default function EmployeeTravelRequestDetailPage() {
       )}
 
       {/* Request details */}
-      <div className="rounded-xl border bg-white p-6 grid grid-cols-2 gap-4 text-sm">
+      <div className="rounded-xl border bg-white p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-xs font-medium text-gray-400 uppercase mb-1">Route</p>
           <p className="font-medium text-gray-900">{request.origin} → {request.destination}</p>
@@ -535,7 +550,7 @@ export default function EmployeeTravelRequestDetailPage() {
         <>
           <div className="fixed inset-0 z-[99] bg-black/40" onClick={() => setShowCancelModal(false)} />
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <div ref={cancelDismissRef} className="pointer-events-auto w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 space-y-4">
               <h2 className="text-base font-semibold text-gray-900">Cancel confirmed booking</h2>
               <p className="text-sm text-gray-500">This will cancel your booking. Please provide a reason.</p>
               <textarea

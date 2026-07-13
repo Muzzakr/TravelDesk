@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { DateInput } from '@/components/ui/DateInput'
 import { sanitizeAmountInput } from '@/components/expenses/NewExpenseForm'
 import { ReceiptViewer } from '@/components/ui/ReceiptViewer'
+import { LoadError } from '@/components/ui/LoadError'
 
 interface Receipt {
   id: string
@@ -84,11 +85,16 @@ export default function ExpenseDetailPage() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState('')
 
+  const [loadError, setLoadError] = useState(false)
+
   async function load() {
+    setLoadError(false)
+    try {
     const [expRes, sessionRes] = await Promise.all([
       fetch(`/api/expenses/${id}`, { cache: 'no-store' }),
       fetch('/api/auth/session'),
     ])
+    if (!expRes.ok) throw new Error(`HTTP ${expRes.status}`)
     if (expRes.ok) {
       const data = await expRes.json()
       setExpense(data)
@@ -113,12 +119,16 @@ export default function ExpenseDetailPage() {
           .catch(() => {})
       }
     }
-    const session = await sessionRes.json()
+    const session = await sessionRes.json().catch(() => null)
     setCurrentUserId(session?.user?.id ?? null)
-    setLoading(false)
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function postComment(e: React.FormEvent) {
     e.preventDefault()
@@ -204,7 +214,10 @@ export default function ExpenseDetailPage() {
   }
 
   if (loading) return <div className="p-8 text-gray-500">Loading…</div>
-  if (!expense) return <div className="p-8 text-red-500">Expense not found.</div>
+  if (!expense) {
+    if (loadError) return <LoadError onRetry={() => { setLoading(true); load() }} />
+    return <div className="p-8 text-red-500">Expense not found.</div>
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -254,7 +267,7 @@ export default function ExpenseDetailPage() {
       )}
 
       {/* Expense details */}
-      <div className="rounded-xl border bg-white p-6 grid grid-cols-2 gap-4 text-sm">
+      <div className="rounded-xl border bg-white p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-xs font-medium text-gray-400 uppercase mb-1">Amount</p>
           {editMode ? (
@@ -405,7 +418,7 @@ export default function ExpenseDetailPage() {
                   )}
                 </div>
                 {(r.ocrMerchant || r.ocrAmount || r.ocrDate) && (
-                  <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs">
                     <div>
                       <p className="text-indigo-400 font-medium uppercase">Merchant (OCR)</p>
                       <p className="mt-0.5 text-indigo-800">{r.ocrMerchant ?? '—'}</p>

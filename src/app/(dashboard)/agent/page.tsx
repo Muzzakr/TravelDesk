@@ -49,7 +49,8 @@ export default async function AgentDashboard() {
   const today = new Date()
 
   const [pendingBookings, awaitingApproval, upcomingTrips, completedTrips, myRecentBookings] = await Promise.all([
-    prisma.travelRequest.count({ where: { companyId, status: 'PENDING_AGENT' } }),
+    // APPROVED = selection made and manager-approved — ready for the agent to book
+    prisma.travelRequest.count({ where: { companyId, status: { in: ['PENDING_AGENT', 'APPROVED'] } } }),
     prisma.travelRequest.count({ where: { companyId, agentId, status: { in: ['OPTIONS_PROVIDED', 'PENDING_MANAGER'] } } }),
     prisma.travelRequest.count({
       where: {
@@ -91,8 +92,8 @@ export default async function AgentDashboard() {
 
   const stats = [
     { label: 'Inbox — New',       value: inboxNewCount,   color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-200',    icon: Inbox, href: '/agent/inbox?status=NEW' },
-    { label: 'Pending Bookings',  value: pendingBookings, color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200',  icon: Clock, href: '/agent/bookings?status=PENDING_AGENT' },
-    { label: 'Awaiting Approval', value: awaitingApproval, color: 'text-blue-600', bg: 'bg-blue-50',   border: 'border-blue-200',   icon: Clock3, href: '/agent/bookings?status=PENDING_MANAGER' },
+    { label: 'Pending Bookings',  value: pendingBookings, color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200',  icon: Clock, href: '/agent/bookings' },
+    { label: 'Awaiting Approval', value: awaitingApproval, color: 'text-blue-600', bg: 'bg-blue-50',   border: 'border-blue-200',   icon: Clock3, href: '/agent/bookings' },
     { label: 'Upcoming Trips',    value: upcomingTrips,   color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-200',  icon: Plane, href: '/agent/bookings?status=BOOKING_CONFIRMED' },
     { label: 'Completed Trips',   value: completedTrips,  color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200', icon: Check, href: '/agent/bookings?status=BOOKING_CONFIRMED' },
   ]

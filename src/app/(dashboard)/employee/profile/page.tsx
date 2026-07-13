@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DateInput } from '@/components/ui/DateInput'
 import { Check, Sparkles } from 'lucide-react'
+import { LoadError } from '@/components/ui/LoadError'
 
 type AirlineAccount = { airline: string; number: string }
 
@@ -233,9 +234,12 @@ export default function ProfilePage() {
   const dlPhotoRef       = useRef<HTMLInputElement>(null)
   const dlScanRef        = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
+  const [loadError, setLoadError] = useState(false)
+
+  function loadProfile() {
+    setLoadError(false)
     fetch('/api/profile')
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((data: Profile) => {
         setProfile(data)
         setUserEmail(data.userEmail ?? data.contactEmail ?? '')
@@ -267,7 +271,10 @@ export default function ProfilePage() {
             .then(r => r.json()).then((d: { url: string | null }) => { if (d.url) setDlPhotoUrl(d.url) })
         }
       })
-  }, [])
+      .catch(() => setLoadError(true))
+  }
+
+  useEffect(() => { loadProfile() }, [])
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -392,7 +399,10 @@ export default function ProfilePage() {
     setAirlineAccounts((prev) => prev.map((row, i) => i === index ? { ...row, [key]: value } : row))
   }
 
-  if (!profile) return <p className="text-sm text-gray-400">Loading profile…</p>
+  if (!profile) {
+    if (loadError) return <LoadError onRetry={loadProfile} />
+    return <p className="text-sm text-gray-400">Loading profile…</p>
+  }
 
   const initials = '?'
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
+import { LoadError } from '@/components/ui/LoadError'
 
 interface TravelRequest {
   id: string
@@ -32,16 +33,26 @@ export default function TravelRequestsPage() {
   const router = useRouter()
   const [requests, setRequests] = useState<TravelRequest[]>([])
   const [role, setRole] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState(false)
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/travel-requests').then((r) => r.json()),
-      fetch('/api/auth/session').then((r) => r.json()),
-    ]).then(([data, session]) => {
-      setRequests(data)
+  async function load() {
+    setLoadError(false)
+    try {
+      const [reqRes, sessionRes] = await Promise.all([
+        fetch('/api/travel-requests'),
+        fetch('/api/auth/session'),
+      ])
+      if (!reqRes.ok) throw new Error(`HTTP ${reqRes.status}`)
+      const data = await reqRes.json()
+      const session = await sessionRes.json().catch(() => null)
+      setRequests(Array.isArray(data) ? data : [])
       setRole(session?.user?.role ?? null)
-    })
-  }, [])
+    } catch {
+      setLoadError(true)
+    }
+  }
+
+  useEffect(() => { load() }, [])
 
   return (
     <div className="space-y-6">
@@ -54,7 +65,9 @@ export default function TravelRequestsPage() {
         )}
       </div>
 
-      {requests.length === 0 ? (
+      {loadError ? (
+        <LoadError onRetry={load} />
+      ) : requests.length === 0 ? (
         <div className="rounded-xl border bg-white p-12 text-center text-gray-400">
           <p>No travel requests yet.</p>
           {role === 'EMPLOYEE' && (

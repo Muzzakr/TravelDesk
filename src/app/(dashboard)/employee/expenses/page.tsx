@@ -5,6 +5,7 @@ import { compressImageFile } from '@/lib/compress'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
+import { LoadError } from '@/components/ui/LoadError'
 import type { Expense } from '@/types/expense'
 import { Check, AlertTriangle, Plus } from 'lucide-react'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
@@ -24,10 +25,22 @@ function ExpensesContent() {
   const [receiptUploadError, setReceiptUploadError]   = useState('')
   const [notice, setNotice]                           = useState('')
 
-  useEffect(() => {
-    fetch('/api/expenses').then(r => r.json()).then(setExpenses)
-    fetch('/api/users/me').then(r => r.json()).then(data => setManager(data.manager ?? null))
-  }, [])
+  const [loadError, setLoadError] = useState(false)
+
+  async function loadInitial() {
+    setLoadError(false)
+    try {
+      const res = await fetch('/api/expenses')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setExpenses(await res.json())
+    } catch {
+      setLoadError(true)
+    }
+    // The manager hint is non-critical — the page works without it
+    fetch('/api/users/me').then(r => r.json()).then(data => setManager(data.manager ?? null)).catch(() => {})
+  }
+
+  useEffect(() => { loadInitial() }, [])
 
   // Re-open the form if a draft is in progress
   useEffect(() => {
@@ -104,8 +117,10 @@ function ExpensesContent() {
         </div>
       )}
 
+      {loadError && <LoadError onRetry={loadInitial} />}
+
       {/* Mobile cards */}
-      <div className="sm:hidden space-y-3">
+      {!loadError && <div className="sm:hidden space-y-3">
         {expenses.length === 0 ? (
           <p className="text-center text-sm text-gray-400 py-8">No expenses yet.</p>
         ) : expenses.map((exp) => (
@@ -150,10 +165,10 @@ function ExpensesContent() {
             )}
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Desktop table */}
-      {!showForm && <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white shadow-sm">
+      {!showForm && !loadError && <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white shadow-sm">
         {expenses.length === 0 ? (
           <p className="p-8 text-center text-gray-400">No expenses yet.</p>
         ) : (

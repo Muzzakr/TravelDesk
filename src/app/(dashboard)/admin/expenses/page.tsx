@@ -53,7 +53,7 @@ export default function AdminExpensesPage() {
   const [data, setData] = useState<PageData | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [statusFilter, setStatusFilter] = useState('SUBMITTED')
+  const [statusFilter, setStatusFilter] = useState('')
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -218,8 +218,8 @@ export default function AdminExpensesPage() {
             onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput); setPage(1) } }}
             placeholder="Search employee, description, event…" className="text-sm flex-1 focus:outline-none bg-transparent" />
         </div>
-        {(statusFilter !== 'SUBMITTED' || employeeFilter || search) && (
-          <button type="button" onClick={() => { setStatusFilter('SUBMITTED'); setEmployeeFilter(''); setSearch(''); setSearchInput(''); setPage(1) }}
+        {(statusFilter || employeeFilter || search) && (
+          <button type="button" onClick={() => { setStatusFilter(''); setEmployeeFilter(''); setSearch(''); setSearchInput(''); setPage(1) }}
             className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">Clear</button>
         )}
       </div>

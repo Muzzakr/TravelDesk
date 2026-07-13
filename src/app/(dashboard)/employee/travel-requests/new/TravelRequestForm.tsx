@@ -897,7 +897,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                         key={chip}
                         type="button"
                         onClick={() => setHotel(h => ({ ...h, area: chip }))}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${hotel.area === chip ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}
+                        className={`px-4 py-2 rounded-full text-xs font-medium border transition-colors ${hotel.area === chip ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'}`}
                       >
                         {chip}
                       </button>

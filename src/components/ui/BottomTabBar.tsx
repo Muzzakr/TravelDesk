@@ -6,7 +6,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
   Users, Calendar, User, Workflow, Settings, MoreHorizontal, X, Circle,
-  LogOut, type LucideIcon,
+  LogOut, CreditCard, SlidersHorizontal, ClipboardList, Shield, type LucideIcon,
 } from 'lucide-react'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
 
@@ -19,6 +19,7 @@ function iconFor(label: string): LucideIcon {
   if (l.includes('inbox')) return Inbox
   if (l.includes('approval')) return CheckCircle2
   if (l.includes('payout')) return Wallet
+  if (l.includes('card')) return CreditCard
   if (l.includes('expense')) return Receipt
   if (l.includes('travel') || l.includes('trip') || l.includes('book')) return Plane
   if (l.includes('report') || l.includes('stat')) return BarChart3
@@ -26,7 +27,10 @@ function iconFor(label: string): LucideIcon {
   if (l.includes('user') || l.includes('employee')) return Users
   if (l.includes('profile')) return User
   if (l.includes('workflow')) return Workflow
-  if (l.includes('policy') || l.includes('card') || l.includes('setting')) return Settings
+  if (l.includes('policy')) return SlidersHorizontal
+  if (l.includes('audit')) return ClipboardList
+  if (l.includes('security')) return Shield
+  if (l.includes('setting')) return Settings
   return Circle
 }
 

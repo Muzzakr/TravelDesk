@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { BookingConfirmationForm } from '@/components/travel/BookingConfirmationForm'
+import { LoadError } from '@/components/ui/LoadError'
 
 interface BookingConfirmation {
   id: string
@@ -114,21 +115,23 @@ export default function AgentRequestDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [loadError, setLoadError] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const r = await fetch(`/api/travel-requests/${id}`)
-        if (!r.ok) { setLoading(false); return }
-        const data: TravelRequest = await r.json()
-        setRequest(data)
-        setLoading(false)
-      } catch {
-        setLoading(false)
-      }
+  async function load() {
+    setLoadError(false)
+    try {
+      const r = await fetch(`/api/travel-requests/${id}`)
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const data: TravelRequest = await r.json()
+      setRequest(data)
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
     }
-    load()
-  }, [id])
+  }
+
+  useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAssign() {
     setSubmitting(true)
@@ -152,7 +155,10 @@ export default function AgentRequestDetailPage() {
   }
 
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
-  if (!request) return <div className="p-8 text-red-500">Request not found.</div>
+  if (!request) {
+    if (loadError) return <div className="p-8"><LoadError onRetry={() => { setLoading(true); load() }} /></div>
+    return <div className="p-8 text-red-500">Request not found.</div>
+  }
 
   const isUnassigned = !request.agentId && request.status === 'PENDING_AGENT'
   const canConfirm = ['PENDING_AGENT', 'APPROVED'].includes(request.status) && request.status !== 'BOOKING_CONFIRMED'
@@ -211,7 +217,7 @@ export default function AgentRequestDetailPage() {
 
       {/* Request details */}
       <div className="rounded-xl border bg-white p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase mb-1">Employee</p>
             <p className="font-medium text-gray-900">{request.employee.name}</p>

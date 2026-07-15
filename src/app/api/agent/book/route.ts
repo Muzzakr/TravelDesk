@@ -13,7 +13,9 @@ const BookSchema = z.object({
   destination: z.string().min(1),
   travelDates: z.object({ departureDate: z.string(), returnDate: z.string() }),
   servicesRequested: z.array(z.string()).min(1),
-  estimatedCostUsd: z.number().positive().optional(),
+  // Upper bound guards against a fat-fingered entry (e.g. extra zeros)
+  // silently inflating company-wide cost reporting.
+  estimatedCostUsd: z.number().positive().max(100_000, 'Estimated cost seems too high — please double-check the amount').optional(),
   purpose: z.string().min(1),
   preferredClass: z.enum(['ECONOMY', 'BUSINESS', 'FIRST']).optional(),
   hotelNights: z.number().int().positive().optional(),

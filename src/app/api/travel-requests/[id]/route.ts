@@ -19,7 +19,7 @@ const UpdateSchema = z.object({
   rejectedServices: z.array(z.string()).optional(),
   // Edit fields (allowed before first approval)
   purpose: z.string().optional(),
-  estimatedCostUsd: z.number().nullable().optional(),
+  estimatedCostUsd: z.number().max(100_000, 'Estimated cost seems too high — please double-check the amount').nullable().optional(),
   specialInstructions: z.string().optional(),
   travelDates: z.object({ departureDate: z.string(), returnDate: z.string() }).optional(),
   origin: z.string().optional(),

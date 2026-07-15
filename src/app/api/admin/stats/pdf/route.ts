@@ -69,7 +69,10 @@ export async function GET(req: NextRequest) {
   const expRejected = allExpenses.filter(e => e.status === 'REJECTED').length
   const expTotalAmount = allExpenses.reduce((s, e) => s + Number(e.amountUsd), 0)
   const expApprovedAmount = allExpenses.filter(e => ['APPROVED', 'PAID'].includes(e.status)).reduce((s, e) => s + Number(e.amountUsd), 0)
-  const travelCosts = allRequests.reduce((s, r) => s + Number(r.estimatedCostUsd ?? 0), 0)
+  // A rejected/cancelled request never happened — exclude it from travel costs
+  const travelCosts = allRequests
+    .filter(r => !['REJECTED', 'CANCELLED'].includes(r.status))
+    .reduce((s, r) => s + Number(r.estimatedCostUsd ?? 0), 0)
 
   const catMap: Record<string, number> = {}
   for (const e of allExpenses) catMap[e.category] = (catMap[e.category] ?? 0) + Number(e.amountUsd)

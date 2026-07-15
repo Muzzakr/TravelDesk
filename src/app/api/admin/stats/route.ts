@@ -167,8 +167,11 @@ export async function GET(req: NextRequest) {
   }
   const byCategory = Object.entries(catMap).map(([category, v]) => ({ category, count: v.count, amount: Math.round(v.amount * 100) / 100 })).sort((a, b) => b.amount - a.amount)
 
-  // Financial
-  const travelCosts = allRequests.reduce((s, r) => s + Number(r.estimatedCostUsd ?? 0), 0)
+  // Financial — a rejected/cancelled request never happened, so its
+  // estimate must not count as a real travel cost.
+  const travelCosts = allRequests
+    .filter(r => !['REJECTED', 'CANCELLED'].includes(r.status))
+    .reduce((s, r) => s + Number(r.estimatedCostUsd ?? 0), 0)
   const expenseCosts = expApprovedAmount
   const combined = travelCosts + expenseCosts
   const prevTravelCosts = 0 // not tracked for prev period in this simplified version

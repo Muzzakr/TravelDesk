@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { LoadError } from '@/components/ui/LoadError'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -16,15 +17,23 @@ export default function FinanceReportsPage() {
   const [year, setYear] = useState(now.getFullYear())
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [tab, setTab] = useState<'summary' | 'expenses'>('summary')
 
-  useEffect(() => { fetchReport() }, [month, year])
+  useEffect(() => { fetchReport() }, [month, year]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchReport() {
     setLoading(true)
-    const res = await fetch(`/api/finance/reports?month=${month + 1}&year=${year}`)
-    if (res.ok) setData(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const res = await fetch(`/api/finance/reports?month=${month + 1}&year=${year}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setData(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   function exportCSV() {
@@ -100,6 +109,8 @@ export default function FinanceReportsPage() {
 
       {loading ? (
         <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">Loading report...</div>
+      ) : loadError ? (
+        <LoadError onRetry={fetchReport} />
       ) : !data ? (
         <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">No data available.</div>
       ) : tab === 'summary' ? (
@@ -148,37 +159,58 @@ export default function FinanceReportsPage() {
             )}
           </div>
         </div>
+      ) : data.expenses.length === 0 ? (
+        <div className="rounded-xl border bg-white p-8 text-center text-sm text-gray-400">No expenses this month.</div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
-              <tr>
-                <th className="px-4 py-3 text-left">Employee</th>
-                <th className="px-4 py-3 text-left">Description</th>
-                <th className="px-4 py-3 text-left">Category</th>
-                <th className="px-4 py-3 text-left">Event</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.expenses.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No expenses this month.</td></tr>
-              ) : data.expenses.map((e) => (
-                <tr key={e.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{e.employee}</td>
-                  <td className="px-4 py-3 text-gray-700">{e.description}</td>
-                  <td className="px-4 py-3 text-gray-500 capitalize text-xs">{e.category.replace(/_/g,' ').toLowerCase()}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{e.event}</td>
-                  <td className="px-4 py-3 text-right font-medium">${Number(e.amountUsd).toFixed(2)}</td>
-                  <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(e.status)}>{e.status.replace(/_/g,' ')}</Badge></td>
-                  <td className="px-4 py-3 text-xs text-gray-400">{new Date(e.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
+        <>
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {data.expenses.map((e) => (
+              <div key={e.id} className="rounded-xl border bg-white px-4 py-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-gray-900 text-sm">{e.employee}</p>
+                  <span className="font-semibold text-gray-900 whitespace-nowrap shrink-0">${Number(e.amountUsd).toFixed(2)}</span>
+                </div>
+                <p className="text-sm text-gray-700">{e.description}</p>
+                <p className="text-xs text-gray-400">{e.category.replace(/_/g,' ').toLowerCase()} · {e.event}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant={statusToBadgeVariant(e.status)}>{e.status.replace(/_/g,' ')}</Badge>
+                  <span className="text-xs text-gray-400">{new Date(e.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white shadow-sm">
+            <table className="min-w-[700px] w-full divide-y divide-gray-100 text-sm">
+              <thead className="bg-gray-50 text-xs font-medium uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">Employee</th>
+                  <th className="px-4 py-3 text-left">Description</th>
+                  <th className="px-4 py-3 text-left">Category</th>
+                  <th className="px-4 py-3 text-left">Event</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data.expenses.map((e) => (
+                  <tr key={e.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{e.employee}</td>
+                    <td className="px-4 py-3 text-gray-700">{e.description}</td>
+                    <td className="px-4 py-3 text-gray-500 capitalize text-xs">{e.category.replace(/_/g,' ').toLowerCase()}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{e.event}</td>
+                    <td className="px-4 py-3 text-right font-medium">${Number(e.amountUsd).toFixed(2)}</td>
+                    <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(e.status)}>{e.status.replace(/_/g,' ')}</Badge></td>
+                    <td className="px-4 py-3 text-xs text-gray-400">{new Date(e.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   )

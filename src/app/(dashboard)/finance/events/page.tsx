@@ -194,8 +194,8 @@ export default function FinanceEventsPage() {
             </div>
 
             {/* KPI boxes */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5 sm:p-4 min-w-0">
                 <p className="text-xs text-gray-400 mb-1">Budget</p>
                 {isEditing ? (
                   <div className="flex items-center gap-1.5">
@@ -206,20 +206,20 @@ export default function FinanceEventsPage() {
                       placeholder="0.00"
                       value={budgetInput}
                       onChange={(e) => setBudgetInput(e.target.value)}
-                      className="w-full rounded border border-indigo-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full min-w-0 rounded border border-indigo-300 px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900">${budget.toLocaleString('en-US')}</p>
+                  <p className="text-base sm:text-2xl font-bold text-gray-900 truncate">${budget.toLocaleString('en-US')}</p>
                 )}
               </div>
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5 sm:p-4 min-w-0">
                 <p className="text-xs text-gray-400 mb-1">Used</p>
-                <p className="text-2xl font-bold text-gray-900">${spent.toLocaleString('en-US')}</p>
+                <p className="text-base sm:text-2xl font-bold text-gray-900 truncate">${spent.toLocaleString('en-US')}</p>
               </div>
-              <div className={`rounded-xl border p-4 ${remaining < 0 ? 'border-red-200 bg-red-50' : 'border-green-100 bg-green-50'}`}>
+              <div className={`rounded-xl border p-2.5 sm:p-4 min-w-0 ${remaining < 0 ? 'border-red-200 bg-red-50' : 'border-green-100 bg-green-50'}`}>
                 <p className="text-xs text-gray-400 mb-1">Remaining</p>
-                <p className={`text-2xl font-bold ${remaining < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                <p className={`text-base sm:text-2xl font-bold truncate ${remaining < 0 ? 'text-red-600' : 'text-green-700'}`}>
                   ${Math.abs(remaining).toLocaleString('en-US')}
                 </p>
               </div>

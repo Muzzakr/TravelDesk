@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { LoadError } from '@/components/ui/LoadError'
 
 interface PolicyConfig {
   amountThreshold: number
@@ -17,15 +18,22 @@ export default function PolicyPage() {
     budgetBlockPercent: 100,
   })
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  function load() {
+    setLoading(true)
+    setLoadError(false)
     fetch('/api/finance/policy')
-      .then((r) => r.json())
-      .then((d) => { setConfig(d); setLoading(false) })
-  }, [])
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
+      .then((d) => setConfig(d))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -47,6 +55,7 @@ export default function PolicyPage() {
   }
 
   if (loading) return <div className="text-sm text-gray-400 py-10 text-center">Loading...</div>
+  if (loadError) return <div className="max-w-2xl"><LoadError onRetry={load} /></div>
 
   return (
     <div className="space-y-6 max-w-2xl">

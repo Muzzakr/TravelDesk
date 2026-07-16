@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
 import { FinanceCharts } from '@/components/finance/FinanceCharts'
 import { CheckCircle, Wallet, Clock3, BarChart3, Zap, Send, XCircle, Check } from 'lucide-react'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
+import { LoadError } from '@/components/ui/LoadError'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -64,58 +66,55 @@ const STATUS_BADGE: Record<string, 'yellow' | 'blue' | 'green' | 'red' | 'gray' 
 }
 
 export default function FinanceDashboard() {
+  const router = useRouter()
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth())
   const [year, setYear] = useState(now.getFullYear())
   const [data, setData] = useState<DashData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [page, setPage] = useState(1)
-  const [markingId, setMarkingId] = useState<string | null>(null)
   const [escalating, setEscalating] = useState(false)
   const [showEscalated, setShowEscalated] = useState(false)
   const escalatedDismissRef = useModalDismiss<HTMLDivElement>(showEscalated, () => setShowEscalated(false))
 
   const fetch72h = useCallback(async () => {
     setEscalating(true)
-    await fetch('/api/finance/escalate', { method: 'POST' })
+    await fetch('/api/finance/escalate', { method: 'POST' }).catch(() => {})
     setEscalating(false)
     setShowEscalated(true)
   }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({
-      month: String(month + 1), year: String(year),
-      page: String(page),
-      include: 'charts',
-      ...(statusFilter && { status: statusFilter }),
-      ...(employeeFilter && { employeeId: employeeFilter }),
-      ...(search && { search }),
-    })
-    const res = await fetch(`/api/finance/expenses?${params}`)
-    if (res.ok) setData(await res.json())
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const params = new URLSearchParams({
+        month: String(month + 1), year: String(year),
+        page: String(page),
+        include: 'charts',
+        ...(statusFilter && { status: statusFilter }),
+        ...(employeeFilter && { employeeId: employeeFilter }),
+        ...(search && { search }),
+      })
+      const res = await fetch(`/api/finance/expenses?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setData(await res.json())
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [month, year, page, statusFilter, employeeFilter, search])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   // Reset page when filters change
   useEffect(() => { setPage(1) }, [month, year, statusFilter, employeeFilter, search])
-
-  async function markAsPaid(expenseId: string) {
-    setMarkingId(expenseId)
-    await fetch('/api/finance/expenses/mark-paid', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expenseId }),
-    })
-    setMarkingId(null)
-    fetchData()
-  }
 
   function exportCSV() {
     if (!data?.expenses.length) return
@@ -309,6 +308,9 @@ export default function FinanceDashboard() {
           </div>
 
           {/* Table */}
+          {loadError ? (
+            <LoadError onRetry={fetchData} />
+          ) : (
           <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-100 text-sm">
@@ -321,22 +323,22 @@ export default function FinanceDashboard() {
                     <th className="px-4 py-3 text-left hidden sm:table-cell">Submitted</th>
                     <th className="px-4 py-3 text-left">Status</th>
                     <th className="px-4 py-3 text-center">Receipt</th>
-                    <th className="px-4 py-3 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <tr key={i}>
-                        {Array.from({ length: 8 }).map((_, j) => (
+                        {Array.from({ length: 7 }).map((_, j) => (
                           <td key={j} className="px-4 py-3"><div className="h-3 bg-gray-100 rounded animate-pulse w-full" /></td>
                         ))}
                       </tr>
                     ))
                   ) : !data?.expenses.length ? (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">No expenses found.</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No expenses found.</td></tr>
                   ) : data.expenses.map((e) => (
-                    <tr key={e.id} className="hover:bg-gray-50">
+                    <tr key={e.id} onClick={() => router.push(`/manager/approvals/expense/${e.id}`)}
+                      className="cursor-pointer hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
@@ -365,29 +367,11 @@ export default function FinanceDashboard() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {e.receipts.length > 0 ? (
-                          <Link href={`/manager/approvals/expense/${e.id}`}>
-                            <svg className="h-4 w-4 text-red-400 hover:text-red-600 mx-auto" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
-                            </svg>
-                          </Link>
+                          <svg className="h-4 w-4 text-red-400 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+                          </svg>
                         ) : (
                           <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {e.status === 'APPROVED' ? (
-                          <button
-                            type="button"
-                            onClick={() => markAsPaid(e.id)}
-                            disabled={markingId === e.id}
-                            className="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                          >
-                            {markingId === e.id ? '...' : 'Mark as Paid'}
-                          </button>
-                        ) : (
-                          <Link href={`/manager/approvals/expense/${e.id}`} className="text-xs font-medium text-indigo-600 hover:underline">
-                            View
-                          </Link>
                         )}
                       </td>
                     </tr>
@@ -406,6 +390,7 @@ export default function FinanceDashboard() {
               </div>
             )}
           </div>
+          )}
 
           {/* Payment summary */}
           <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">

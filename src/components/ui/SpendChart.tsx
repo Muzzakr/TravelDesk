@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { BarChart3 } from 'lucide-react'
+import { LoadError } from '@/components/ui/LoadError'
 
 type Granularity = 'monthly' | 'weekly' | 'daily'
 
@@ -50,19 +51,25 @@ export function SpendChart({ companyEvents }: SpendChartProps) {
   const [data,        setData]        = useState<DataPoint[]>([])
   const [budgetUsd,   setBudgetUsd]   = useState<number | null>(null)
   const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ granularity })
-    if (eventId)  params.set('eventId', eventId)
-    if (category) params.set('category', category)
-    const res = await fetch(`/api/finance/spend-over-time?${params}`)
-    if (res.ok) {
+    setLoadError(false)
+    try {
+      const params = new URLSearchParams({ granularity })
+      if (eventId)  params.set('eventId', eventId)
+      if (category) params.set('category', category)
+      const res = await fetch(`/api/finance/spend-over-time?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setData(json.data ?? [])
       setBudgetUsd(json.budgetUsd ?? null)
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [granularity, eventId, category])
 
   useEffect(() => { load() }, [load])
@@ -144,6 +151,8 @@ export function SpendChart({ companyEvents }: SpendChartProps) {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
         </div>
+      ) : loadError ? (
+        <LoadError onRetry={load} />
       ) : data.length === 0 ? (
         <div className="h-64 flex items-center justify-center rounded-xl border border-dashed border-gray-200">
           <div className="text-center">

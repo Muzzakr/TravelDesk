@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { User } from 'lucide-react'
 import { DateInput } from '@/components/ui/DateInput'
+import { LoadError } from '@/components/ui/LoadError'
 
 
 interface TravelRequest {
@@ -94,17 +95,29 @@ function BookingsContent() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '')
   const [dateFilter, setDateFilter] = useState('')
   const [view, setView] = useState<'all' | 'mine'>('all')
+  const [loadError, setLoadError] = useState(false)
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/travel-requests').then((r) => r.json()),
-      fetch('/api/auth/session').then((r) => r.json()),
-    ]).then(([data, session]) => {
+  async function load() {
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const [reqRes, sessionRes] = await Promise.all([
+        fetch('/api/travel-requests'),
+        fetch('/api/auth/session'),
+      ])
+      if (!reqRes.ok) throw new Error(`HTTP ${reqRes.status}`)
+      const data = await reqRes.json()
+      const session = await sessionRes.json().catch(() => null)
       setRequests(Array.isArray(data) ? data : [])
       setCurrentUserId(session?.user?.id ?? null)
+    } catch {
+      setLoadError(true)
+    } finally {
       setLoading(false)
-    })
-  }, [])
+    }
+  }
+
+  useEffect(() => { load() }, [])
 
   const filtered = requests.filter((r) => {
     const dates = r.travelDates as { departureDate: string; returnDate: string }
@@ -142,6 +155,10 @@ function BookingsContent() {
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
       </div>
     )
+  }
+
+  if (loadError) {
+    return <div className="py-10"><LoadError onRetry={load} /></div>
   }
 
   return (
@@ -307,7 +324,7 @@ function BookingsContent() {
                     {/* View employee profile */}
                     <Link
                       href={`/agent/employees/${r.employee.id}`}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="rounded-lg border border-gray-200 px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                       title={`View ${r.employee.name}'s full profile`}
                     >
                       <User className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />View Profile
@@ -317,7 +334,7 @@ function BookingsContent() {
                     <button
                       type="button"
                       onClick={() => exportCsv(r)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="rounded-lg border border-gray-200 px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                       title="Export as CSV"
                     >
                       ↓ Export
@@ -328,7 +345,7 @@ function BookingsContent() {
                       <button
                         type="button"
                         onClick={() => handleAssign(r.id)}
-                        className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                        className="rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
                       >
                         Accept
                       </button>
@@ -338,7 +355,7 @@ function BookingsContent() {
                     {isApproved && isMyBooking && (
                       <Link
                         href={`/agent/requests/${r.id}`}
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+                        className="rounded-lg bg-green-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
                       >
                         Confirm
                       </Link>

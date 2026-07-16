@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, User, Phone, Mail, MapPin, Calendar, CreditCard, Plane, Globe, Building2, CheckCircle, XCircle } from 'lucide-react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { LoadError } from '@/components/ui/LoadError'
 
 type AirlineAccount = { airline: string; number: string }
 
@@ -98,19 +99,30 @@ export default function EmployeeProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const [loadError, setLoadError] = useState(false)
+
+  function load() {
+    setLoading(true)
+    setError('')
+    setLoadError(false)
     fetch(`/api/agent/employees/${id}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) setError(data.error)
         else setEmployee(data)
       })
-      .catch(() => setError('Failed to load profile'))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false))
-  }, [id])
+  }
+
+  useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[40vh] text-gray-400 text-sm">Loading profile…</div>
+  )
+
+  if (loadError) return (
+    <div className="py-10"><LoadError onRetry={load} /></div>
   )
 
   if (error || !employee) return (

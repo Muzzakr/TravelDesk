@@ -9,8 +9,9 @@ import { clientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 
 const UpdateSchema = z.object({
-  status: z.enum(['SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  status: z.enum(['SUBMITTED', 'APPROVED', 'REJECTED', 'PENDING_ADMIN']).optional(),
   rejectionNote: z.string().optional(),
+  adminEscalationNote: z.string().optional(),
   amountUsd: z.number().positive().optional(),
   description: z.string().min(1).optional(),
   merchantName: z.string().optional(),
@@ -111,6 +112,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (parsed.data.status === 'REJECTED' && !parsed.data.rejectionNote) {
     return NextResponse.json({ error: 'rejectionNote required when rejecting' }, { status: 400 })
   }
+  if (parsed.data.status === 'PENDING_ADMIN' && !parsed.data.adminEscalationNote?.trim()) {
+    return NextResponse.json({ error: 'adminEscalationNote required when asking an admin' }, { status: 400 })
+  }
 
   const role = session.user.role ?? ''
   const approverRoles = ['MANAGER', 'TRAVEL_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN']
@@ -123,6 +127,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } else if (parsed.data.status === 'APPROVED' || parsed.data.status === 'REJECTED') {
     // Only managers/finance/admin can approve or reject
     if (!approverRoles.includes(role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  } else if (parsed.data.status === 'PENDING_ADMIN') {
+    // Only Manager/Travel Manager ask for a second opinion — Finance/System
+    // Admin are already the top of the approval chain
+    if (!['MANAGER', 'TRAVEL_MANAGER'].includes(role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
@@ -166,12 +176,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const actionType = parsed.data.status === 'APPROVED' ? 'APPROVE'
     : parsed.data.status === 'REJECTED' ? 'REJECT'
+    : parsed.data.status === 'PENDING_ADMIN' ? 'ESCALATE'
     : 'SUBMIT'
 
   const auditAction: Record<string, string> = {
     SUBMITTED: 'EXPENSE_SUBMITTED',
     APPROVED: 'EXPENSE_APPROVED',
     REJECTED: 'EXPENSE_REJECTED',
+    PENDING_ADMIN: 'EXPENSE_ESCALATED_TO_ADMIN',
   }
 
   await prisma.approvalAction.create({
@@ -180,7 +192,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       actorId: session.user.id,
       expenseId: params.id,
       actionType,
-      note: parsed.data.rejectionNote,
+      note: parsed.data.rejectionNote ?? parsed.data.adminEscalationNote,
       ipAddress: clientIp(req),
     },
   })
@@ -267,6 +279,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       description: `${expense.description} · $${Number(expense.amountUsd).toFixed(2)}`,
       href: `/employee/expenses/${params.id}`,
     })
+  } else if (parsed.data.status === 'PENDING_ADMIN') {
+    // Notify admins when a manager escalates for a second opinion
+    const admins = await prisma.user.findMany({
+      where: { companyId: session.user.companyId, role: 'SYSTEM_ADMIN', isActive: true },
+      select: { id: true },
+    })
+    for (const admin of admins) {
+      await createNotification({
+        companyId: session.user.companyId,
+        userId: admin.id,
+        type: 'expense_pending',
+        title: 'Manager needs your input on an expense',
+        description: `${expense.employee.name ?? 'Employee'} · ${expense.description} · $${Number(expense.amountUsd).toFixed(2)}`,
+        href: `/manager/approvals/expense/${params.id}`,
+      })
+    }
   }
 
   return NextResponse.json(updated)

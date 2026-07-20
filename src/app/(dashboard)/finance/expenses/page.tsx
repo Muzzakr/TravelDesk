@@ -32,7 +32,7 @@ type PageData = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  SUBMITTED: 'Pending Review', UNDER_REVIEW: 'Under Review',
+  SUBMITTED: 'Pending Review', UNDER_REVIEW: 'Under Review', PENDING_ADMIN: 'Needs Admin Review',
   APPROVED: 'Awaiting Payment', PAID: 'Paid', REJECTED: 'Rejected', DRAFT: 'Draft',
 }
 
@@ -220,6 +220,7 @@ export default function FinanceExpensesPage() {
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">All statuses</option>
           <option value="SUBMITTED">Pending Review</option>
+          <option value="PENDING_ADMIN">Needs admin review</option>
           <option value="APPROVED">Awaiting Payment</option>
           <option value="PAID">Paid</option>
           <option value="REJECTED">Rejected</option>

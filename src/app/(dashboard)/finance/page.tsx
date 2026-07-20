@@ -50,6 +50,7 @@ type DashData = {
 const STATUS_LABELS: Record<string, string> = {
   SUBMITTED: 'Pending Manager Review',
   UNDER_REVIEW: 'Under Review',
+  PENDING_ADMIN: 'Needs Admin Review',
   APPROVED: 'Awaiting Payment',
   PAID: 'Paid',
   REJECTED: 'Rejected',
@@ -59,6 +60,7 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_BADGE: Record<string, 'yellow' | 'blue' | 'green' | 'red' | 'gray' | 'purple'> = {
   SUBMITTED: 'yellow',
   UNDER_REVIEW: 'yellow',
+  PENDING_ADMIN: 'yellow',
   APPROVED: 'blue',
   PAID: 'green',
   REJECTED: 'red',
@@ -274,6 +276,7 @@ export default function FinanceDashboard() {
             >
               <option value="">All status</option>
               <option value="SUBMITTED">Pending Manager Review</option>
+              <option value="PENDING_ADMIN">Needs admin review</option>
               <option value="APPROVED">Awaiting Payment</option>
               <option value="PAID">Paid</option>
               <option value="REJECTED">Rejected</option>

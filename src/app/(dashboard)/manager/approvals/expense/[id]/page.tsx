@@ -57,6 +57,7 @@ export default async function ApproveExpensePage({ params }: { params: { id: str
       amountUsd: true,
       status: true,
       rejectionNote: true,
+      adminEscalationNote: true,
       reason: true,
       personName: true,
     },
@@ -188,6 +189,15 @@ export default async function ApproveExpensePage({ params }: { params: { id: str
                 <p className="mt-1 text-sm text-red-700">{expense.rejectionNote}</p>
               </div>
             )}
+
+            {status === 'PENDING_ADMIN' && expense.adminEscalationNote && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                  Escalated to Admin for a second opinion
+                </p>
+                <p className="mt-1 text-sm text-amber-800">{expense.adminEscalationNote}</p>
+              </div>
+            )}
           </div>
 
           {/* Budget impact */}
@@ -249,6 +259,8 @@ export default async function ApproveExpensePage({ params }: { params: { id: str
                           ? 'bg-green-100 text-green-700'
                           : a.actionType === 'REJECT'
                           ? 'bg-red-100 text-red-700'
+                          : a.actionType === 'ESCALATE'
+                          ? 'bg-amber-100 text-amber-700'
                           : 'bg-gray-100 text-gray-600'
                       }`}
                     >
@@ -283,6 +295,7 @@ export default async function ApproveExpensePage({ params }: { params: { id: str
             <ExpenseReviewPanel
               expenses={relatedExpenses}
               currentExpenseId={params.id}
+              canEscalate={['MANAGER', 'TRAVEL_MANAGER'].includes(role)}
             />
           </div>
         </div>

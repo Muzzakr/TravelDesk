@@ -59,6 +59,7 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
   DRAFT: 'Saved but not yet submitted for approval.',
   SUBMITTED: 'Submitted — waiting for manager review.',
   UNDER_REVIEW: 'Your manager is reviewing this expense.',
+  PENDING_ADMIN: 'Your manager has asked an Admin for a second opinion on this expense.',
   APPROVED: 'Approved and queued for reimbursement.',
   REJECTED: 'Rejected. See the note below for details.',
   PAID: 'Reimbursed and included in a payout report.',

@@ -2,6 +2,7 @@ export type ExpenseStatus =
   | 'DRAFT'
   | 'SUBMITTED'
   | 'UNDER_REVIEW'
+  | 'PENDING_ADMIN'
   | 'APPROVED'
   | 'REJECTED'
   | 'PAID'

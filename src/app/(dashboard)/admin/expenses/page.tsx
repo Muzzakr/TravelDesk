@@ -34,6 +34,7 @@ type PageData = {
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'SUBMITTED', label: 'Pending Review' },
+  { value: 'PENDING_ADMIN', label: 'Needs admin review' },
   { value: 'APPROVED', label: 'Awaiting Payment' },
   { value: 'PAID', label: 'Paid' },
   { value: 'REJECTED', label: 'Rejected' },
@@ -41,7 +42,7 @@ const STATUS_OPTIONS = [
 ]
 
 const STATUS_LABELS: Record<string, string> = {
-  SUBMITTED: 'Pending Review', UNDER_REVIEW: 'Under Review',
+  SUBMITTED: 'Pending Review', UNDER_REVIEW: 'Under Review', PENDING_ADMIN: 'Needs Admin Review',
   APPROVED: 'Awaiting Payment', PAID: 'Paid', REJECTED: 'Rejected', DRAFT: 'Draft',
 }
 

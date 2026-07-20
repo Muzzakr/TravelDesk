@@ -9,6 +9,7 @@ type CategoryBar = { category: string; amount: number }
 const STATUS_COLORS: Record<string, string> = {
   SUBMITTED: '#f59e0b',
   UNDER_REVIEW: '#f59e0b',
+  PENDING_ADMIN: '#d97706',
   APPROVED: '#3b82f6',
   PAID: '#10b981',
   REJECTED: '#ef4444',
@@ -18,6 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   SUBMITTED: 'Pending Manager Review',
   UNDER_REVIEW: 'Under Review',
+  PENDING_ADMIN: 'Needs Admin Review',
   APPROVED: 'Awaiting Payment',
   PAID: 'Paid',
   REJECTED: 'Rejected',

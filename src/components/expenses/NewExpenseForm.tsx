@@ -13,7 +13,7 @@ import { Check } from 'lucide-react'
 const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
 
 type ExpenseSubKey =
-  | 'FLIGHT' | 'TAXI' | 'CAR_RENTAL' | 'TRAIN' | 'BUS' | 'PARKING' | 'FUEL'
+  | 'FLIGHT' | 'TAXI' | 'CAR_RENTAL' | 'TRAIN' | 'BUS' | 'PARKING' | 'FUEL' | 'TOLL' | 'COGS'
   | 'HOTEL' | 'APARTMENT' | 'AIRBNB' | 'OTHER_LODGING'
   | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS' | 'CLIENT_MEALS'
   | 'OTHER'
@@ -34,6 +34,8 @@ const SUB_CATEGORIES: Record<string, { key: ExpenseSubKey; label: string; emoji:
     { key: 'BUS',        label: 'Bus',        emoji: '🚌' },
     { key: 'PARKING',    label: 'Parking',    emoji: '🅿️' },
     { key: 'FUEL',       label: 'Fuel',       emoji: '⛽' },
+    { key: 'TOLL',       label: 'Toll',       emoji: '🛣️' },
+    { key: 'COGS',       label: 'COGS',       emoji: '📦' },
   ],
   ACCOMMODATION: [
     { key: 'HOTEL',         label: 'Hotel',         emoji: '🏨' },
@@ -58,6 +60,8 @@ const SUB_CATEGORY_MAP: Record<string, { category: string; service: string }> = 
   BUS:           { category: 'TRANSPORT',     service: 'Bus' },
   PARKING:       { category: 'TRANSPORT',     service: 'Parking' },
   FUEL:          { category: 'TRANSPORT',     service: 'Fuel' },
+  TOLL:          { category: 'TRANSPORT',     service: 'Toll' },
+  COGS:          { category: 'TRANSPORT',     service: 'COGS' },
   HOTEL:         { category: 'ACCOMMODATION', service: 'Hotel' },
   APARTMENT:     { category: 'ACCOMMODATION', service: 'Apartment' },
   AIRBNB:        { category: 'ACCOMMODATION', service: 'Airbnb' },
@@ -78,6 +82,8 @@ const SERVICE_DETAIL_CONFIG: Record<string, { merchantLabel: string; merchantPla
   BUS:           { merchantLabel: 'Operator (optional)',   merchantPlaceholder: 'E.g. FlixBus',             descPlaceholder: 'E.g. Airport bus' },
   PARKING:       { merchantLabel: 'Location (optional)',   merchantPlaceholder: 'E.g. Airport Parking',     descPlaceholder: 'E.g. 2 days parking' },
   FUEL:          { merchantLabel: 'Station (optional)',    merchantPlaceholder: 'E.g. Shell, BP',           descPlaceholder: 'E.g. Fuel for rental car' },
+  TOLL:          { merchantLabel: 'Toll road (optional)',  merchantPlaceholder: 'E.g. E4, Öresundsbron',    descPlaceholder: 'E.g. Toll charge en route' },
+  COGS:          { merchantLabel: 'Vendor (optional)',     merchantPlaceholder: 'E.g. Supplier name',       descPlaceholder: 'E.g. Materials for event' },
   HOTEL:         { merchantLabel: 'Hotel name',            merchantPlaceholder: 'E.g. Scandic Downtown',    descPlaceholder: 'E.g. 2 nights, conference rate' },
   APARTMENT:     { merchantLabel: 'Property name',         merchantPlaceholder: 'E.g. City Centre Flat',    descPlaceholder: 'E.g. 3-night stay' },
   AIRBNB:        { merchantLabel: 'Host / Property',       merchantPlaceholder: 'E.g. Studio in Milan',     descPlaceholder: 'E.g. 2-night Airbnb stay' },

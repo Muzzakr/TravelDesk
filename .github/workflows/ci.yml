@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Placeholder values only — prisma generate reads schema shape and never
+# connects to a real database, and no other build step opens a network
+# connection. Real secrets (Supabase, AUTH_SECRET, etc.) live in Vercel,
+# never here.
+env:
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+  AUTH_SECRET: ci-placeholder-secret-not-used-in-production
+  NEXTAUTH_URL: http://localhost:3000
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p .
+
+      - name: Test
+        run: npx jest
+
+      - name: Build
+        run: npm run build

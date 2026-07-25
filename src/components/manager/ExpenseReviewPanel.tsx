@@ -120,6 +120,7 @@ export function ExpenseReviewPanel({
           return (
             <div
               key={e.id}
+              data-testid={`expense-row-${e.id}`}
               className={`px-5 py-4 space-y-3 transition-colors ${
                 isCurrent ? 'bg-indigo-50/60 ring-1 ring-inset ring-indigo-100' : ''
               }`}
@@ -209,7 +210,7 @@ export function ExpenseReviewPanel({
               Already decided
             </p>
             {decidedExpenses.map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-3">
+              <div key={e.id} data-testid={`expense-decided-${e.id}`} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">
                     {CATEGORY_LABELS[e.category] ?? e.category}

@@ -82,6 +82,7 @@ model User {
   eventDocuments        EventDocument[]
   assignedInboxMessages TravelInboxMessage[] @relation("InboxAssignee")
   notifications         Notification[]
+  createdEvents         Event[]              @relation("EventOwner")
 
   @@unique([companyId, email])
 }
@@ -171,6 +172,7 @@ model Event {
   updatedAt DateTime @updatedAt
 
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner          User            @relation("EventOwner", fields: [ownerUserId], references: [id])
   travelRequests TravelRequest[]
   expenses       Expense[]
   documents      EventDocument[]

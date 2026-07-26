@@ -9,6 +9,28 @@ const PatchSchema = z.object({
   status: z.enum(['DRAFT', 'ACTIVE', 'CLOSED']).optional(),
 })
 
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await auth()
+  if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!['SYSTEM_ADMIN', 'FINANCE_ADMIN'].includes(session.user.role ?? ''))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const event = await prisma.event.findFirst({
+    where: { id: params.id, companyId: session.user.companyId },
+  })
+  if (!event) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const [count, sum] = await Promise.all([
+    prisma.expense.count({ where: { eventId: params.id } }),
+    prisma.expense.aggregate({ where: { eventId: params.id }, _sum: { amountUsd: true } }),
+  ])
+
+  return NextResponse.json({
+    expenseCount: count,
+    expenseTotalUsd: Number(sum._sum.amountUsd ?? 0),
+  })
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

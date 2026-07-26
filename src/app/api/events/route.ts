@@ -33,19 +33,23 @@ export async function GET(req: NextRequest) {
     new URL(req.url).searchParams.get('view') === 'picker' ||
     session.user.role === 'EMPLOYEE'
 
-  const events = await prisma.event.findMany({
-    where: {
-      companyId: session.user.companyId,
-      ...(picker && { status: { not: 'CLOSED' as const } }),
-    },
-    ...(picker && {
-      select: {
-        id: true, eventName: true, eventCode: true, status: true,
-        eventDate: true, dateStart: true, dateEnd: true,
-      },
-    }),
-    orderBy: [{ eventDate: 'asc' }, { eventCode: 'asc' }],
-  })
+  const events = picker
+    ? await prisma.event.findMany({
+        where: { companyId: session.user.companyId, status: { not: 'CLOSED' } },
+        select: {
+          id: true, eventName: true, eventCode: true, status: true,
+          eventDate: true, dateStart: true, dateEnd: true,
+        },
+        orderBy: [{ eventDate: 'asc' }, { eventCode: 'asc' }],
+      })
+    : await prisma.event.findMany({
+        where: { companyId: session.user.companyId },
+        include: {
+          owner: { select: { id: true, name: true, email: true } },
+          _count: { select: { expenses: true } },
+        },
+        orderBy: [{ eventDate: 'asc' }, { eventCode: 'asc' }],
+      })
   // Imports populate `eventDate` (single date) but not the dateStart/dateEnd
   // range that the booking/travel UI reads. Fall back so dates show correctly
   // instead of rendering a null date as 1970-01-01.

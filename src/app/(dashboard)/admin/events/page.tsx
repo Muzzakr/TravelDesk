@@ -1,35 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Badge } from '@/components/ui/Badge'
-import { Pagination } from '@/components/ui/Pagination'
 import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
 import type { ExtractedEvent } from '@/app/api/events/extract/route'
-import { Check, MapPin, Calendar, Headphones, Mic, User } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
-
-type EventRow = {
-  id: string
-  eventCode: string
-  eventName: string
-  status: string
-  eventDate: string | null
-  timing: string | null
-  venue: string | null
-  address: string | null
-  assignedDj: string | null
-  assignedMc: string | null
-  salesPerson: string | null
-  costCenter: string | null
-  budgetUsd: number
-}
-
-const statusBadge: Record<string, 'blue' | 'green' | 'gray'> = {
-  DRAFT: 'blue',
-  ACTIVE: 'green',
-  CLOSED: 'gray',
-}
+import { EventsCalendar } from '@/components/admin/events/EventsCalendar'
+import { EventDetailDrawer } from '@/components/admin/events/EventDetailDrawer'
+import type { EventRow } from '@/components/admin/events/types'
 
 const EMPTY_FORM = {
   eventCode: '', eventName: '', venue: '', address: '',
@@ -79,21 +58,9 @@ function Field({
   )
 }
 
-function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{label}</span>
-      <span className="text-sm text-gray-800">{value || '—'}</span>
-    </div>
-  )
-}
-
-const PAGE_SIZE = 10
-
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<EventRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
@@ -111,8 +78,11 @@ export default function AdminEventsPage() {
   const [deleting, setDeleting] = useState(false)
 
   // Search / filter
-  const [search, setSearch]       = useState('')
-  const [dateFilter, setDateFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [creatorFilter, setCreatorFilter] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   // Smart import state
   const [extracting, setExtracting] = useState(false)
@@ -122,10 +92,8 @@ export default function AdminEventsPage() {
   const [creating, setCreating] = useState(false)
   const [createResult, setCreateResult] = useState<{ created: number; errors: string[] } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const drawerRef = useRef<HTMLDivElement>(null)
 
-  // Escape-to-close + focus management for the drawer and edit modal
-  useModalDismiss<HTMLDivElement>(!!selected, () => setSelected(null))
+  // Escape-to-close + focus management for the edit modal (the drawer handles its own)
   const editDismissRef = useModalDismiss<HTMLDivElement>(!!editModal, () => setEditModal(null))
 
   function f(key: string, value: string) { setForm((p) => ({ ...p, [key]: value })) }
@@ -137,18 +105,6 @@ export default function AdminEventsPage() {
   }
 
   useEffect(() => { loadEvents() }, [])
-  useEffect(() => { setPage(1) }, [search, dateFilter])
-
-  useEffect(() => {
-    if (!selected) return
-    function onMouseDown(e: MouseEvent) {
-      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
-        setSelected(null)
-      }
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [selected])
 
   function openDetail(ev: EventRow) {
     setSelected(ev)
@@ -158,6 +114,11 @@ export default function AdminEventsPage() {
   function closeDrawer() {
     setSelected(null)
     setConfirmDelete(false)
+  }
+
+  function handleStatusChanged(updated: EventRow) {
+    setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
+    setSelected(updated)
   }
 
   async function deleteEvent() {
@@ -317,108 +278,55 @@ export default function AdminEventsPage() {
   const validCount = preview ? preview.filter((ev) => ev.errors.length === 0).length : 0
   const invalidCount = preview ? preview.filter((ev) => ev.errors.length > 0).length : 0
 
+  const creators = Array.from(new Map(events.map((e) => [e.owner.id, e.owner])).values())
+
+  function clearFilters() {
+    setSearch('')
+    setStatusFilter('all')
+    setCreatorFilter('all')
+    setDateFrom('')
+    setDateTo('')
+  }
+
   const filteredEvents = events.filter((ev) => {
     const q = search.trim().toLowerCase()
     const matchesSearch = !q ||
       ev.eventCode.toLowerCase().includes(q) ||
-      ev.eventName.toLowerCase().includes(q)
-    const matchesDate = !dateFilter ||
-      (ev.eventDate && new Date(ev.eventDate).toISOString().slice(0, 10) === dateFilter)
-    return matchesSearch && matchesDate
+      ev.eventName.toLowerCase().includes(q) ||
+      (ev.venue ?? '').toLowerCase().includes(q) ||
+      (ev.owner?.name ?? '').toLowerCase().includes(q)
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && ev.status === 'ACTIVE') ||
+      (statusFilter === 'inactive' && ev.status !== 'ACTIVE')
+
+    const matchesCreator = creatorFilter === 'all' || ev.owner?.id === creatorFilter
+
+    const evDateIso = ev.eventDate ? new Date(ev.eventDate).toISOString().slice(0, 10) : null
+    const matchesFrom = !dateFrom || (!!evDateIso && evDateIso >= dateFrom)
+    const matchesTo = !dateTo || (!!evDateIso && evDateIso <= dateTo)
+
+    return matchesSearch && matchesStatus && matchesCreator && matchesFrom && matchesTo
   })
 
-  // Reset to page 1 whenever filter changes — computed inline so no extra effect needed
-  const effectivePage = page
-  const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE)
-  const pagedEvents = filteredEvents.slice((effectivePage - 1) * PAGE_SIZE, effectivePage * PAGE_SIZE)
+  const filtersActive = !!search || statusFilter !== 'all' || creatorFilter !== 'all' || !!dateFrom || !!dateTo
 
   return (
     <div className="space-y-6">
 
       {/* ── Right-side detail drawer ─────────────────────── */}
       {selected && (
-        <>
-          <div className="fixed inset-0 z-50 bg-black/20 pointer-events-none" />
-          <div ref={drawerRef} className="fixed right-0 top-0 h-full w-full max-w-md z-[51] flex flex-col bg-white shadow-2xl">
-            {/* Header */}
-            <div className="flex items-start justify-between border-b px-6 py-5">
-              <div className="min-w-0 pr-4">
-                <p className="font-mono text-xs text-gray-400">{selected.eventCode}</p>
-                <h2 className="mt-0.5 text-lg font-semibold text-gray-900 leading-tight">{selected.eventName}</h2>
-              </div>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={closeDrawer}
-                className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Body — view only */}
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <div className="space-y-5">
-                <div className="flex items-center gap-2">
-                  <Badge variant={statusBadge[selected.status] ?? 'gray'}>{selected.status}</Badge>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DetailRow label="Venue" value={selected.venue} />
-                  <DetailRow label="Address" value={selected.address} />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DetailRow
-                    label="Date"
-                    value={selected.eventDate ? new Date(selected.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : null}
-                  />
-                  <DetailRow label="Timing" value={selected.timing} />
-                </div>
-                <div className="h-px bg-gray-100" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DetailRow label="Assigned DJ" value={selected.assignedDj} />
-                  <DetailRow label="Assigned MC" value={selected.assignedMc} />
-                </div>
-                <DetailRow label="Sales Person" value={selected.salesPerson} />
-                {(selected.costCenter || selected.budgetUsd > 0) && (
-                  <>
-                    <div className="h-px bg-gray-100" />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {selected.costCenter && <DetailRow label="Cost Center" value={selected.costCenter} />}
-                      {selected.budgetUsd > 0 && <DetailRow label="Budget" value={`$${Number(selected.budgetUsd).toLocaleString()}`} />}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="border-t px-6 py-4 flex items-center gap-3 flex-wrap">
-              {confirmDelete ? (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-red-600 font-medium">Delete {selected.eventName}?</span>
-                  <button type="button" onClick={deleteEvent} disabled={deleting}
-                    className="min-h-[44px] rounded-lg bg-red-600 px-4 py-2.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">
-                    {deleting ? '…' : 'Yes, delete'}
-                  </button>
-                  <button type="button" onClick={() => setConfirmDelete(false)}
-                    className="min-h-[44px] rounded-lg border border-gray-300 px-4 py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <Button type="button" onClick={() => openEditModal(selected)}>Edit</Button>
-                  <button type="button" onClick={() => setConfirmDelete(true)}
-                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100">
-                    Delete
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </>
+        <EventDetailDrawer
+          event={selected}
+          onClose={closeDrawer}
+          onEdit={() => openEditModal(selected)}
+          onDelete={deleteEvent}
+          deleting={deleting}
+          confirmDelete={confirmDelete}
+          onConfirmDeleteChange={setConfirmDelete}
+          onStatusChanged={handleStatusChanged}
+        />
       )}
 
       {/* ── Edit modal ────────────────────────────────── */}
@@ -646,34 +554,58 @@ export default function AdminEventsPage() {
 
       {/* ── Search / filter ─────────────────────────────── */}
       {!showForm && !preview && events.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by Event ID or name…"
-              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-            />
-            {search && (
-              <button type="button" onClick={() => setSearch('')} aria-label="Clear search"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+        <div className="space-y-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by ID, name, venue, or creator…"
+                className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+              )}
+            </div>
+            <select
+              title="Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive (Draft + Closed)</option>
+            </select>
+            {creators.length > 1 && (
+              <select
+                title="Creator"
+                value={creatorFilter}
+                onChange={(e) => setCreatorFilter(e.target.value)}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              >
+                <option value="all">All creators</option>
+                {creators.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             )}
           </div>
-          <div className="relative">
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              title="Filter by date"
-              className="w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-            />
-            {dateFilter && (
-              <button type="button" onClick={() => setDateFilter('')} aria-label="Clear date filter"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+            <DateInput label="From" title="From date" value={dateFrom} onChange={setDateFrom}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm w-full" />
+            <DateInput label="To" title="To date" value={dateTo} onChange={setDateTo}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm w-full" />
+            {filtersActive && (
+              <button type="button" onClick={clearFilters}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 sm:mb-0">
+                Clear filters
+              </button>
             )}
           </div>
         </div>
@@ -751,7 +683,7 @@ export default function AdminEventsPage() {
         </div>
       )}
 
-      {/* ── Event list ───────────────────────────────────── */}
+      {/* ── Events calendar ───────────────────────────────── */}
       {loading ? (
         <p className="text-sm text-gray-400 py-6 text-center">Loading…</p>
       ) : events.length === 0 ? (
@@ -761,115 +693,13 @@ export default function AdminEventsPage() {
       ) : filteredEvents.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center">
           <p className="text-sm font-medium text-gray-500">No events match your search</p>
-          <button type="button" onClick={() => { setSearch(''); setDateFilter('') }}
+          <button type="button" onClick={clearFilters}
             className="mt-3 text-xs text-indigo-600 hover:underline font-medium">
             Clear filters
           </button>
         </div>
       ) : (
-        <>
-          {/* Mobile cards */}
-          <div className="sm:hidden space-y-2">
-            {pagedEvents.map((ev) => (
-              <button
-                key={ev.id}
-                type="button"
-                onClick={() => openDetail(ev)}
-                className="w-full text-left rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-sm active:bg-gray-50"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">{ev.eventName}</p>
-                    <p className="font-mono text-xs text-gray-400 mt-0.5">{ev.eventCode}</p>
-                  </div>
-                  <Badge variant={statusBadge[ev.status] ?? 'gray'}>{ev.status}</Badge>
-                </div>
-                <div className="mt-2 space-y-1.5">
-                  {(ev.venue || ev.address) && (
-                    <p className="flex items-start gap-1.5 text-xs text-gray-600">
-                      <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{[ev.venue, ev.address].filter(Boolean).join(', ')}</span>
-                    </p>
-                  )}
-                  {ev.eventDate && (
-                    <p className="flex items-center gap-1.5 text-xs text-gray-500">
-                      <Calendar className="w-3.5 h-3.5 shrink-0" />
-                      {new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
-                      {ev.timing && <span className="text-gray-400">· {ev.timing}</span>}
-                    </p>
-                  )}
-                  {(ev.assignedDj || ev.assignedMc || ev.salesPerson) && (
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 pt-0.5">
-                      {ev.assignedDj && <span className="flex items-center gap-1"><Headphones className="w-3 h-3" />{ev.assignedDj}</span>}
-                      {ev.assignedMc && <span className="flex items-center gap-1"><Mic className="w-3 h-3" />{ev.assignedMc}</span>}
-                      {ev.salesPerson && <span className="flex items-center gap-1"><User className="w-3 h-3" />{ev.salesPerson}</span>}
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between rounded-xl border bg-white px-4 py-3">
-                <p className="text-xs text-gray-500">
-                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredEvents.length)} of {filteredEvents.length}
-                </p>
-                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-              </div>
-            )}
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden sm:block rounded-xl border bg-white overflow-hidden">
-            <table className="w-full table-fixed divide-y divide-gray-100 text-xs">
-              <thead className="bg-gray-50 text-[10px] font-medium uppercase text-gray-500">
-                <tr>
-                  <th className="px-2 py-2 text-left w-[8%]">Event ID</th>
-                  <th className="px-2 py-2 text-left w-[16%]">Event Name</th>
-                  <th className="px-2 py-2 text-left w-[11%]">Venue</th>
-                  <th className="px-2 py-2 text-left w-[12%]">Address</th>
-                  <th className="px-2 py-2 text-left w-[8%]">Date</th>
-                  <th className="px-2 py-2 text-left w-[7%]">Timing</th>
-                  <th className="px-2 py-2 text-left w-[10%]">DJ</th>
-                  <th className="px-2 py-2 text-left w-[10%]">MC</th>
-                  <th className="px-2 py-2 text-left w-[9%]">Sales Person</th>
-                  <th className="px-2 py-2 text-left w-[9%]">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {pagedEvents.map((ev) => (
-                  <tr
-                    key={ev.id}
-                    onClick={() => openDetail(ev)}
-                    className="hover:bg-indigo-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-2 py-2 font-mono text-gray-500 truncate">{ev.eventCode}</td>
-                    <td className="px-2 py-2 font-medium text-gray-900 truncate">{ev.eventName}</td>
-                    <td className="px-2 py-2 text-gray-600 truncate">{ev.venue ?? '—'}</td>
-                    <td className="px-2 py-2 text-gray-500 truncate">{ev.address ?? '—'}</td>
-                    <td className="px-2 py-2 text-gray-500 whitespace-nowrap">
-                      {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
-                    </td>
-                    <td className="px-2 py-2 text-gray-500 truncate">{ev.timing ?? '—'}</td>
-                    <td className="px-2 py-2 text-gray-700 truncate">{ev.assignedDj ?? '—'}</td>
-                    <td className="px-2 py-2 text-gray-700 truncate">{ev.assignedMc ?? '—'}</td>
-                    <td className="px-2 py-2 text-gray-500 truncate">{ev.salesPerson ?? '—'}</td>
-                    <td className="px-2 py-2">
-                      <Badge variant={statusBadge[ev.status] ?? 'gray'}>{ev.status}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t px-4 py-3 bg-white">
-                <p className="text-xs text-gray-500">
-                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredEvents.length)} of {filteredEvents.length} events
-                </p>
-                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-              </div>
-            )}
-          </div>
-        </>
+        <EventsCalendar events={filteredEvents} onSelect={openDetail} />
       )}
     </div>
   )

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashToken } from '@/lib/tokens'
 import { rateLimit, clientIp } from '@/lib/rate-limit'
+import { emailInvitationAccepted } from '@/lib/mail'
 import bcrypt from 'bcryptjs'
 
 export async function GET(req: NextRequest) {
@@ -48,12 +49,26 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await bcrypt.hash(password, 12)
 
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: record.userId },
     data: { passwordHash, passwordChangedAt: new Date() },
+    select: { id: true, name: true, email: true, companyId: true },
   })
 
   await prisma.verificationToken.delete({ where: { id: record.id } })
+
+  if (record.type === 'INVITE') {
+    const admins = await prisma.user.findMany({
+      where: { companyId: user.companyId, role: { in: ['SYSTEM_ADMIN', 'FINANCE_ADMIN'] }, isActive: true },
+      select: { name: true, email: true },
+    })
+    for (const admin of admins) {
+      if (!admin.email) continue
+      emailInvitationAccepted(admin.email, admin.name ?? 'there', {
+        newUserName: user.name, newUserEmail: user.email, userId: user.id,
+      }, user.companyId).catch(() => {})
+    }
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { emailPasswordChanged } from '@/lib/mail'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
     where: { id: session.user.id },
     data: { passwordHash: newHash, passwordChangedAt: new Date() },
   })
+
+  if (session.user.email && session.user.companyId) {
+    emailPasswordChanged(session.user.email, session.user.name ?? 'there', session.user.companyId).catch(() => {})
+  }
 
   return NextResponse.json({ success: true })
 }

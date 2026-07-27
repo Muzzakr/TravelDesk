@@ -30,6 +30,8 @@ model Company {
   policyRules         PolicyRule[]
   travelerProfiles    TravelerProfile[]
   travelInboxMessages TravelInboxMessage[]
+  emailLogs           EmailLog[]
+  emailSettings       EmailNotificationSetting[]
 }
 
 // ─── Users & Auth ────────────────────────────────────────────────────────────
@@ -83,6 +85,7 @@ model User {
   assignedInboxMessages TravelInboxMessage[] @relation("InboxAssignee")
   notifications         Notification[]
   createdEvents         Event[]              @relation("EventOwner")
+  knownDevices          KnownLoginDevice[]
 
   @@unique([companyId, email])
 }
@@ -181,13 +184,14 @@ model Event {
 }
 
 model EventDocument {
-  id         String   @id @default(cuid())
-  eventId    String
-  uploadedBy String
-  fileName   String
-  mimeType   String
-  fileData   Bytes
-  uploadedAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  eventId      String
+  uploadedBy   String
+  fileName     String
+  mimeType     String
+  fileData     Bytes
+  documentType String   @default("GENERAL")
+  uploadedAt   DateTime @default(now())
 
   event    Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   uploader User  @relation(fields: [uploadedBy], references: [id])
@@ -449,6 +453,63 @@ model AuditLog {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actor   User?   @relation(fields: [actorId], references: [id])
+}
+
+// ─── Email notifications ─────────────────────────────────────────────────────
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model EmailLog {
+  id                String      @id @default(cuid())
+  companyId         String
+  type              String
+  to                String[]
+  cc                String[]    @default([])
+  bcc               String[]    @default([])
+  subject           String
+  html              String
+  status            EmailStatus @default(PENDING)
+  attempts          Int         @default(0)
+  errorMessage      String?
+  triggeredByUserId String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  sentAt            DateTime?
+  createdAt         DateTime    @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([companyId, type])
+  @@index([companyId, createdAt])
+}
+
+model EmailNotificationSetting {
+  id        String  @id @default(cuid())
+  companyId String
+  type      String
+  enabled   Boolean @default(true)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, type])
+}
+
+model KnownLoginDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceHash  String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceHash])
 }
 
 // ─── Payout Reports ───────────────────────────────────────────────────────────

@@ -23,7 +23,6 @@
     "@aws-sdk/s3-request-presigner": "^3.0.0",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^5.0.0",
-    "@sendgrid/mail": "^8.0.0",
     "@sentry/nextjs": "^10.67.0",
     "@supabase/supabase-js": "^2.106.1",
     "bcryptjs": "^2.4.3",

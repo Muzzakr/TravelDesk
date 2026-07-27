@@ -25,7 +25,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
   let emailSent = false
   try {
-    await sendInviteEmail(user.email, user.name, rawToken, company?.slug)
+    await sendInviteEmail(user.email, user.name, rawToken, company?.slug, session.user.companyId)
     emailSent = true
   } catch (err) {
     console.error('Resend invite email failed:', err)

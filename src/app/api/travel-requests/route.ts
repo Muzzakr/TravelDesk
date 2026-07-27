@@ -6,7 +6,7 @@ import { checkEventBudget } from '@/lib/policy-engine'
 import { determineRoutingPath } from '@/lib/routing-engine'
 import { notifyTravelRequestCreated } from '@/lib/notify'
 import { createNotification } from '@/lib/notifications'
-import { emailRequestConfirmation, emailPendingManagerApproval } from '@/lib/mail'
+import { emailRequestConfirmation, emailPendingManagerApproval, emailTravelerAssigned } from '@/lib/mail'
 import { getProfileStatus } from '@/lib/profile-check'
 import { z } from 'zod'
 
@@ -157,7 +157,18 @@ export async function POST(req: NextRequest) {
       estimatedCostUsd: parsed.data.estimatedCostUsd,
       requestId: travelRequest.id,
       nextStatus: initialStatus,
-    }).catch(() => {})
+    }, session.user.companyId).catch(() => {})
+  }
+
+  // "Traveler assigned to event" — notify the event owner (skip if the
+  // requester IS the owner, e.g. an admin booking their own trip).
+  if (event.ownerUserId !== targetEmployeeId) {
+    const owner = await prisma.user.findUnique({ where: { id: event.ownerUserId }, select: { name: true, email: true } })
+    if (owner?.email) {
+      emailTravelerAssigned(owner.email, owner.name ?? 'there', {
+        employeeName: session.user.name ?? 'An employee', eventName: event.eventName, requestId: travelRequest.id, assigned: true,
+      }, session.user.companyId).catch(() => {})
+    }
   }
 
   // Notify assigned manager (if any)
@@ -171,7 +182,7 @@ export async function POST(req: NextRequest) {
         departureDate: parsed.data.travelDates.departureDate,
         estimatedCostUsd: parsed.data.estimatedCostUsd,
         requestId: travelRequest.id,
-      }).catch(() => {})
+      }, session.user.companyId).catch(() => {})
     }
     await createNotification({
       companyId: session.user.companyId,

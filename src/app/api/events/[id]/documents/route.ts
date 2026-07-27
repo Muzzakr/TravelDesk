@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { emailDocumentUploaded } from '@/lib/mail'
 
 export const maxDuration = 60
 
@@ -25,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const docs = await prisma.eventDocument.findMany({
     where: { eventId: params.id },
-    select: { id: true, fileName: true, mimeType: true, uploadedAt: true, uploader: { select: { name: true } } },
+    select: { id: true, fileName: true, mimeType: true, documentType: true, uploadedAt: true, uploader: { select: { name: true } } },
     orderBy: { uploadedAt: 'desc' },
   })
 
@@ -50,6 +51,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (file.size > MAX_SIZE) return NextResponse.json({ error: 'File too large (max 10 MB)' }, { status: 413 })
   if (!ALLOWED_TYPES.includes(file.type)) return NextResponse.json({ error: 'File type not allowed' }, { status: 415 })
 
+  const documentTypeRaw = formData.get('documentType')
+  const documentType = documentTypeRaw === 'COI' ? 'COI' : 'GENERAL'
+
   const buffer = Buffer.from(await file.arrayBuffer())
 
   const doc = await prisma.eventDocument.create({
@@ -59,8 +63,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       fileName: file.name,
       mimeType: file.type,
       fileData: buffer,
+      documentType,
     },
-    select: { id: true, fileName: true, mimeType: true, uploadedAt: true },
+    select: { id: true, fileName: true, mimeType: true, documentType: true, uploadedAt: true },
   })
 
   await writeAuditLog({
@@ -69,8 +74,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     action: 'EVENT_DOCUMENT_UPLOADED',
     entityType: 'Event',
     entityId: params.id,
-    payload: { fileName: file.name },
+    payload: { fileName: file.name, documentType },
   })
+
+  const owner = await prisma.user.findUnique({ where: { id: event.ownerUserId }, select: { name: true, email: true } })
+  if (owner?.email) {
+    emailDocumentUploaded(owner.email, owner.name ?? 'there', {
+      eventName: event.eventName, fileName: file.name, isCoi: documentType === 'COI', eventId: event.id,
+    }, session.user.companyId).catch(() => {})
+  }
 
   return NextResponse.json(doc, { status: 201 })
 }

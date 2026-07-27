@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { createNotification } from '@/lib/notifications'
+import { emailExpensePaid } from '@/lib/mail'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -15,6 +16,7 @@ export async function POST(req: NextRequest) {
 
   const expense = await prisma.expense.findFirst({
     where: { id: expenseId, companyId: session.user.companyId },
+    include: { employee: { select: { name: true, email: true } } },
   })
   if (!expense) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (expense.status !== 'APPROVED') {
@@ -43,6 +45,12 @@ export async function POST(req: NextRequest) {
     description: `${expense.description} · $${Number(expense.amountUsd).toFixed(2)}`,
     href: `/employee/expenses/${expenseId}`,
   })
+
+  if (expense.employee.email) {
+    emailExpensePaid(expense.employee.email, expense.employee.name ?? 'there', {
+      amountUsd: Number(expense.amountUsd), description: expense.description, expenseId,
+    }, session.user.companyId).catch(() => {})
+  }
 
   return NextResponse.json(updated)
 }

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyTravelRequestStatusChanged } from '@/lib/notify'
 import { createNotification } from '@/lib/notifications'
-import { emailRequestApproved, emailRequestRejected, emailAgentActionRequired } from '@/lib/mail'
+import { emailRequestApproved, emailRequestRejected, emailAgentActionRequired, emailTravelRequestUpdated, emailTravelRequestCancelled, emailTravelerAssigned } from '@/lib/mail'
 import { clientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 import type { TravelRequestStatus } from '@prisma/client'
@@ -131,6 +131,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         travelDates: parsed.data.travelDates, origin: parsed.data.origin, destination: parsed.data.destination,
       },
     })
+    if (request.employee.email) {
+      emailTravelRequestUpdated(request.employee.email, request.employee.name ?? 'there', {
+        origin: edited.origin, destination: edited.destination, requestId: params.id,
+      }, session.user.companyId).catch(() => {})
+    }
     return NextResponse.json(edited)
   }
 
@@ -229,7 +234,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         destination: request.destination,
         requestId: params.id,
         actorName: session.user.name ?? 'Your manager',
-      }).catch(() => {})
+      }, session.user.companyId).catch(() => {})
     }
     await createNotification({
       companyId: session.user.companyId,
@@ -247,7 +252,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           origin: request.origin,
           destination: request.destination,
           requestId: params.id,
-        }).catch(() => {})
+        }, session.user.companyId).catch(() => {})
       }
       await createNotification({
         companyId: session.user.companyId,
@@ -269,7 +274,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         origin: request.origin,
         destination: request.destination,
         requestId: params.id,
-      }).catch(() => {})
+      }, session.user.companyId).catch(() => {})
       await createNotification({
         companyId: session.user.companyId,
         userId: agent.id,
@@ -286,7 +291,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         rejectionNote: parsed.data.rejectionNote,
         requestId: params.id,
         actorName: session.user.name ?? 'Your manager',
-      }).catch(() => {})
+      }, session.user.companyId).catch(() => {})
     }
     await createNotification({
       companyId: session.user.companyId,
@@ -296,6 +301,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       description: `${request.origin} → ${request.destination}`,
       href: `/employee/travel-requests/${params.id}`,
     })
+  } else if (nextStatus === 'CANCELLED') {
+    if (employeeEmail) {
+      emailTravelRequestCancelled(employeeEmail, request.employee.name ?? 'there', {
+        origin: request.origin, destination: request.destination, requestId: params.id, actorName: session.user.name ?? 'Team member',
+      }, session.user.companyId).catch(() => {})
+    }
+    // "Traveler removed" — notify the event owner, mirroring the "assigned" email sent on creation.
+    const evt = await prisma.event.findUnique({ where: { id: request.eventId }, select: { eventName: true, ownerUserId: true } })
+    if (evt) {
+      const owner = await prisma.user.findUnique({ where: { id: evt.ownerUserId }, select: { name: true, email: true } })
+      if (owner?.email) {
+        emailTravelerAssigned(owner.email, owner.name ?? 'there', {
+          employeeName: request.employee.name ?? 'An employee', eventName: evt.eventName, requestId: params.id, assigned: false,
+        }, session.user.companyId).catch(() => {})
+      }
+    }
   }
 
   return NextResponse.json(updated)

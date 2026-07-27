@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { determineRoutingPath } from '@/lib/routing-engine'
-import { emailRequestCreatedOnBehalf } from '@/lib/mail'
+import { emailRequestCreatedOnBehalf, emailTravelerAssigned } from '@/lib/mail'
 import { z } from 'zod'
 
 const BookSchema = z.object({
@@ -88,7 +88,17 @@ export async function POST(req: NextRequest) {
     eventName: event.eventName,
     agentName: session.user.name ?? 'Your travel agent',
     requestId: travelRequest.id,
-  }).catch(() => {})
+  }, session.user.companyId).catch(() => {})
+
+  // "Traveler assigned to event" — notify the event owner, distinct from the
+  // employee-facing booking email above (no clean separate "assign traveler"
+  // action exists in the data model, so this piggybacks on request creation).
+  const owner = await prisma.user.findUnique({ where: { id: event.ownerUserId }, select: { name: true, email: true } })
+  if (owner?.email) {
+    emailTravelerAssigned(owner.email, owner.name ?? 'there', {
+      employeeName: employee.name ?? 'An employee', eventName: event.eventName, requestId: travelRequest.id, assigned: true,
+    }, session.user.companyId).catch(() => {})
+  }
 
   return NextResponse.json(travelRequest, { status: 201 })
 }

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { createNotification } from '@/lib/notifications'
+import { emailPayoutReportGenerated } from '@/lib/mail'
 import { z } from 'zod'
 
 const MarkPersonPaidSchema = z.object({ employeeId: z.string().min(1) })
@@ -133,6 +134,14 @@ export async function PATCH(req: NextRequest) {
     description: `${approved.length} expense${approved.length > 1 ? 's' : ''} · $${totalUsd.toFixed(2)}`,
     href: '/employee/expenses',
   })
+
+  // "Financial report generated" — this per-person bulk payout is this app's
+  // closest equivalent (the batched PayoutReport model is retired/unused).
+  if (session.user.email) {
+    emailPayoutReportGenerated(session.user.email, session.user.name ?? 'there', {
+      reportId: employeeId, totalUsd, count: approved.length,
+    }, companyId).catch(() => {})
+  }
 
   return NextResponse.json({ success: true, count: approved.length, totalUsd })
 }

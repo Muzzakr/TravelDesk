@@ -123,7 +123,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       destination: travelRequest.destination,
       optionCount: parsed.data.options.length,
       requestId: params.id,
-    }).catch(() => {})
+    }, session.user.companyId).catch(() => {})
 
     await createNotification({
       companyId: session.user.companyId,

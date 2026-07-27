@@ -95,7 +95,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           destination: travelRequest.destination,
           departureDate: (travelRequest.travelDates as { departureDate: string }).departureDate,
           requestId: params.id,
-        }).catch(() => {})
+        }, session.user.companyId).catch(() => {})
       }
       await createNotification({
         companyId: session.user.companyId,
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           origin: travelRequest.origin,
           destination: travelRequest.destination,
           requestId: params.id,
-        }).catch(() => {})
+        }, session.user.companyId).catch(() => {})
       }
       await createNotification({
         companyId: session.user.companyId,

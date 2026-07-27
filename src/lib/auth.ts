@@ -5,9 +5,37 @@ import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { writeAuditLog } from './audit'
 import { createVerificationToken, hashToken } from './tokens'
-import { sendGoogleVerificationEmail } from './mail'
-import { rateLimit } from './rate-limit'
+import { sendGoogleVerificationEmail, emailNewDeviceLogin } from './mail'
+import { rateLimit, clientIp } from './rate-limit'
+import { createHash } from 'crypto'
 import type { Role } from '@/types/user'
+
+// New-device detection: hash User-Agent + IP, compare against previously
+// seen devices for this user. Best-effort — never blocks sign-in.
+async function checkNewDevice(userId: string, companyId: string, name: string, email: string, request: Request | undefined) {
+  try {
+    const userAgent = request?.headers.get('user-agent') ?? 'unknown'
+    const ip = request ? clientIp(request) : 'unknown'
+    const deviceHash = createHash('sha256').update(`${userAgent}|${ip}`).digest('hex')
+
+    const known = await prisma.knownLoginDevice.findUnique({
+      where: { userId_deviceHash: { userId, deviceHash } },
+    })
+    if (known) {
+      await prisma.knownLoginDevice.update({ where: { id: known.id }, data: { lastSeenAt: new Date() } })
+      return
+    }
+
+    await prisma.knownLoginDevice.create({ data: { userId, deviceHash } })
+    // Don't email on a user's very first-ever login — every device would be "new".
+    const deviceCount = await prisma.knownLoginDevice.count({ where: { userId } })
+    if (deviceCount > 1 && email) {
+      emailNewDeviceLogin(email, name, { userAgent, time: new Date().toISOString() }, companyId).catch(() => {})
+    }
+  } catch (err) {
+    console.error('checkNewDevice failed:', err)
+  }
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -28,7 +56,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: 'Password', type: 'password' },
         companySlug: { label: 'Company', type: 'text' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password || !credentials?.companySlug) {
           return null
         }
@@ -71,6 +99,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         } catch (err) {
           console.error('Audit log failed:', err)
         }
+
+        await checkNewDevice(user.id, company.id, user.name, user.email, request)
 
         return {
           id: user.id,
@@ -155,7 +185,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (await rateLimit(`gverify:${dbUser.id}`, 3, 15 * 60_000)) {
           try {
             const raw = await createVerificationToken(dbUser.id, 'GOOGLE_VERIFY')
-            await sendGoogleVerificationEmail(dbUser.email, dbUser.name, raw)
+            await sendGoogleVerificationEmail(dbUser.email, dbUser.name, raw, dbUser.companyId)
           } catch (err) {
             console.error('Google verification email failed:', err)
           }

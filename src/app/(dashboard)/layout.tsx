@@ -111,6 +111,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Events',            href: '/admin/events' },
     { label: 'Policy Limits',     href: '/finance/policy' },
     { label: 'Audit Log',         href: '/admin/audit-log' },
+    { label: 'Email Notifications', href: '/admin/emails' },
     { label: 'Settings',          href: '/admin/settings' },
     SECURITY_LINK,
   ],

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   for (const user of users) {
     try {
       const rawToken = await createVerificationToken(user.id, 'PASSWORD_RESET')
-      await sendPasswordResetEmail(user.email, user.name, rawToken, user.company.name)
+      await sendPasswordResetEmail(user.email, user.name, rawToken, user.company.name, user.companyId)
     } catch (err) {
       console.error('Failed to send password reset email:', err)
     }

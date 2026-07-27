@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { toDate } from '@/lib/normalise-date'
+import { emailEventCreated, emailEventUpdated, emailVenueChanged } from '@/lib/mail'
 import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
 
@@ -90,6 +91,11 @@ export async function POST(req: NextRequest) {
     costCenter: d.costCenter,
     budgetUsd: d.budgetUsd ?? 0,
   }
+  const existing = await prisma.event.findUnique({
+    where: { companyId_eventCode: { companyId: session.user.companyId, eventCode: d.eventCode } },
+    select: { id: true, venue: true },
+  })
+
   let event
   try {
     event = await prisma.event.upsert({
@@ -124,6 +130,24 @@ export async function POST(req: NextRequest) {
     entityId: event.id,
     payload: { eventCode: event.eventCode, eventName: event.eventName },
   })
+
+  const owner = await prisma.user.findUnique({ where: { id: event.ownerUserId }, select: { name: true, email: true } })
+  if (owner?.email) {
+    if (!existing) {
+      emailEventCreated(owner.email, owner.name ?? 'there', {
+        eventName: event.eventName, eventCode: event.eventCode, eventId: event.id,
+      }, session.user.companyId).catch(() => {})
+    } else {
+      emailEventUpdated(owner.email, owner.name ?? 'there', {
+        eventName: event.eventName, eventId: event.id,
+      }, session.user.companyId).catch(() => {})
+      if (event.venue && existing.venue !== event.venue) {
+        emailVenueChanged(owner.email, owner.name ?? 'there', {
+          eventName: event.eventName, eventId: event.id, venue: event.venue,
+        }, session.user.companyId).catch(() => {})
+      }
+    }
+  }
 
   return NextResponse.json(event, { status: 201 })
 }

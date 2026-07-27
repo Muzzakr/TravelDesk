@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { notifyExpenseStatusChanged } from '@/lib/notify'
 import { createNotification } from '@/lib/notifications'
-import { emailExpenseApproved, emailExpenseRejected, emailExpenseToFinance } from '@/lib/mail'
+import { emailExpenseApproved, emailExpenseRejected, emailExpenseToFinance, emailExpenseUpdated, emailExpenseDeleted } from '@/lib/mail'
 import { clientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 
@@ -106,6 +106,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       entityId: params.id,
       payload: { fields: Object.keys(parsed.data) },
     })
+    if (session.user.email) {
+      emailExpenseUpdated(session.user.email, session.user.name ?? 'there', {
+        description: expense.description, expenseId: params.id,
+      }, session.user.companyId).catch(() => {})
+    }
     return NextResponse.json(updated)
   }
 
@@ -224,7 +229,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       description: expense.description,
       actorName: session.user.name ?? 'Your manager',
       expenseId: params.id,
-    }).catch(() => {})
+    }, session.user.companyId).catch(() => {})
 
     await createNotification({
       companyId: session.user.companyId,
@@ -252,7 +257,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         eventCode,
         approverName: session.user.name ?? 'Manager',
         expenseId: params.id,
-      }).catch(() => {})
+      }, session.user.companyId).catch(() => {})
       await createNotification({
         companyId: session.user.companyId,
         userId: fa.id,
@@ -269,7 +274,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       rejectionNote: parsed.data.rejectionNote,
       actorName: session.user.name ?? 'Your manager',
       expenseId: params.id,
-    }).catch(() => {})
+    }, session.user.companyId).catch(() => {})
 
     await createNotification({
       companyId: session.user.companyId,
@@ -298,4 +303,40 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   return NextResponse.json(updated)
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await auth()
+  if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const expense = await prisma.expense.findFirst({
+    where: { id: params.id, companyId: session.user.companyId },
+    include: { employee: { select: { name: true, email: true } } },
+  })
+  if (!expense) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (expense.status !== 'DRAFT') {
+    return NextResponse.json({ error: 'Only DRAFT expenses can be deleted' }, { status: 403 })
+  }
+  if (expense.employeeId !== session.user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  await prisma.expense.delete({ where: { id: params.id } })
+
+  await writeAuditLog({
+    companyId: session.user.companyId,
+    actorId: session.user.id,
+    action: 'EXPENSE_DELETED',
+    entityType: 'Expense',
+    entityId: params.id,
+    payload: { description: expense.description, amountUsd: Number(expense.amountUsd) },
+  })
+
+  if (expense.employee.email) {
+    emailExpenseDeleted(expense.employee.email, expense.employee.name ?? 'there', {
+      description: expense.description, amountUsd: Number(expense.amountUsd),
+    }, session.user.companyId).catch(() => {})
+  }
+
+  return NextResponse.json({ ok: true })
 }

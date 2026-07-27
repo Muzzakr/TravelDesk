@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     const rawToken = await createVerificationToken(user.id, 'INVITE')
     const appBase = (process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? '').replace(/\/+$/, '')
     setPasswordUrl = `${appBase}/set-password?token=${rawToken}`
-    await sendInviteEmail(user.email, user.name, rawToken, companySlug)
+    await sendInviteEmail(user.email, user.name, rawToken, companySlug, session.user.companyId)
     emailSent = true
   } catch (err) {
     console.error('Failed to send invite email:', err)

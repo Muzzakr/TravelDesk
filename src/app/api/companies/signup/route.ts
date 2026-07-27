@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
   // be permanently locked, so roll back and let the user retry.
   try {
     const rawToken = await createVerificationToken(user.id, 'EMAIL_VERIFY')
-    await sendSignupVerificationEmail(user.email, user.name, rawToken, company.name)
+    const result = await sendSignupVerificationEmail(user.email, user.name, rawToken, company.name, company.id)
+    if (result.status === 'FAILED') {
+      throw new Error('Verification email send failed')
+    }
   } catch (err) {
     console.error('Signup verification email failed:', err)
     await prisma.company.delete({ where: { id: company.id } }).catch(() => {})

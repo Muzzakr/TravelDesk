@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         items,
         totalUsd,
         count: items.length,
-      }).catch((err) => console.error(`[cron] finance digest email failed for ${fa.email}:`, err))
+      }, companyId).catch((err) => console.error(`[cron] finance digest email failed for ${fa.email}:`, err))
       emailsSent++
     }
     companiesNotified++

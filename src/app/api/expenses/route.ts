@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
                   description: parsed.data.description,
                   eventCode: event.eventCode,
                   expenseId: expense.id,
-                }).catch(() => {})
+                }, session.user.companyId).catch(() => {})
               : Promise.resolve(),
             createNotification({
               companyId: session.user.companyId,

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   for (const user of users) {
     try {
       const rawToken = await createVerificationToken(user.id, 'MAGIC_LINK')
-      await sendMagicLinkEmail(user.email, user.name, rawToken, user.company.name)
+      await sendMagicLinkEmail(user.email, user.name, rawToken, user.company.name, user.companyId)
     } catch (err) {
       console.error('Magic link email failed:', err)
       failed++

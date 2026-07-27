@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { emailUserUpdated, emailRoleChanged, emailUserDeleted } from '@/lib/mail'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SYSTEM_ADMIN', 'MANAGER', 'TRAVEL_MANAGER'] as const
@@ -33,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const target = await prisma.user.findUnique({
     where: { id: params.id },
-    select: { companyId: true },
+    select: { companyId: true, name: true, email: true, role: true, isActive: true, managerId: true },
   })
   if (!target || target.companyId !== session.user.companyId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -63,6 +64,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     payload: parsed.data,
   })
 
+  // Role changes get their own dedicated email; everything else (name,
+  // email, isActive, managerId) is bundled into one generic "updated" email.
+  if (parsed.data.role !== undefined && parsed.data.role !== target.role && updated.email) {
+    emailRoleChanged(updated.email, updated.name ?? 'there', { newRole: updated.role, userId: params.id }, session.user.companyId).catch(() => {})
+  }
+  const otherChangedFields = (['name', 'email', 'isActive', 'managerId'] as const).filter(
+    (f) => parsed.data[f] !== undefined && parsed.data[f] !== target[f]
+  )
+  if (otherChangedFields.length > 0 && updated.email) {
+    emailUserUpdated(updated.email, updated.name ?? 'there', { changes: otherChangedFields.join(', '), userId: params.id }, session.user.companyId).catch(() => {})
+  }
+
   return NextResponse.json(updated)
 }
 
@@ -89,6 +102,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     entityId: params.id,
     payload: { email: user.email, name: user.name },
   })
+
+  if (user.email) {
+    emailUserDeleted(user.email, user.name ?? 'there', session.user.companyId).catch(() => {})
+  }
 
   return NextResponse.json({ ok: true })
 }

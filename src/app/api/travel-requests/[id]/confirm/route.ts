@@ -130,7 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       departureDate: (travelRequest.travelDates as { departureDate: string }).departureDate,
       confirmationNumber: firstConfirmNo ?? 'See booking details',
       requestId: params.id,
-    }).catch(() => {})
+    }, session.user.companyId).catch(() => {})
   }
 
   await createNotification({

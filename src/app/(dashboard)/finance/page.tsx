@@ -31,6 +31,8 @@ type KPIs = {
   pendingManagerReviewAmount: number; pendingManagerReviewCount: number
   totalExpensesAmount: number; totalExpensesCount: number
   avgProcessingDays: number
+  paidYtdAmount: number
+  rejectedThisMonthAmount: number; rejectedThisMonthCount: number
 }
 
 type Charts = {
@@ -402,8 +404,8 @@ export default function FinanceDashboard() {
               {[
                 { label: 'Awaiting payment', value: kpis ? `$${kpis.awaitingPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: kpis ? `${kpis.awaitingPaymentCount} expenses` : '', icon: Send, color: 'text-amber-500' },
                 { label: 'Paid this month', value: kpis ? `$${kpis.paidThisMonthAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: kpis ? `${kpis.paidThisMonthCount} expenses` : '', icon: CheckCircle, color: 'text-green-600' },
-                { label: 'Total paid YTD', value: '—', sub: 'Year to date', icon: BarChart3, color: 'text-indigo-600' },
-                { label: 'Rejected this month', value: '—', sub: 'This month', icon: XCircle, color: 'text-red-500' },
+                { label: 'Total paid YTD', value: kpis ? `$${kpis.paidYtdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: 'Year to date', icon: BarChart3, color: 'text-indigo-600' },
+                { label: 'Rejected this month', value: kpis ? `$${kpis.rejectedThisMonthAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', sub: kpis ? `${kpis.rejectedThisMonthCount} expenses` : 'This month', icon: XCircle, color: 'text-red-500' },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
                   <item.icon className={`w-6 h-6 ${item.color}`} />

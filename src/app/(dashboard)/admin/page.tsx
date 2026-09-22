@@ -3,15 +3,12 @@ export const dynamic = 'force-dynamic'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { StatCard } from '@/components/ui/StatCard'
+import { UpcomingList } from '@/components/ui/UpcomingList'
+import { getUpcoming } from '@/lib/upcoming'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plane, Calendar, CreditCard, BarChart3, Users, Search } from 'lucide-react'
-
-const ChevronRight = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-  </svg>
-)
+import { Plane, Calendar, CreditCard, BarChart3, Users, Search, Clock } from 'lucide-react'
 
 export default async function AdminDashboard() {
   const session = await auth()
@@ -38,6 +35,7 @@ export default async function AdminDashboard() {
     latestPayoutReport,
     recentAudit,
     approvedSpend,
+    upcoming,
   ] = await Promise.all([
     prisma.user.count({ where: { companyId } }),
     prisma.user.count({ where: { companyId, isActive: true } }),
@@ -93,6 +91,7 @@ export default async function AdminDashboard() {
       where: { companyId, status: { in: ['APPROVED', 'PAID'] } },
       _sum: { amountUsd: true },
     }),
+    getUpcoming(companyId),
   ])
 
   const totalApproved = Number(approvedSpend._sum.amountUsd ?? 0)
@@ -107,12 +106,6 @@ export default async function AdminDashboard() {
     expenseMissingReceipts > 0 && { count: expenseMissingReceipts, label: 'Missing receipts', href: '/admin/expenses', color: 'red' as const },
     expensePendingPayout > 0 && { count: expensePendingPayout, label: 'Pending payout', href: '/finance/payout-reports', color: 'orange' as const },
   ].filter(Boolean) as { count: number; label: string; href: string; color: 'amber' | 'red' | 'orange' }[]
-
-  const urgentColors = {
-    amber:  { border: 'border-amber-300',  bg: 'bg-amber-50',  text: 'text-amber-600',  sub: 'text-amber-700' },
-    red:    { border: 'border-red-300',    bg: 'bg-red-50',    text: 'text-red-600',    sub: 'text-red-700' },
-    orange: { border: 'border-orange-300', bg: 'bg-orange-50', text: 'text-orange-600', sub: 'text-orange-700' },
-  }
 
   const kpis = [
     { label: 'Total Users',    value: userCount,          sub: `${activeUserCount} active`,   href: '/admin/users',              urgent: false },
@@ -145,19 +138,9 @@ export default async function AdminDashboard() {
         <section>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Needs attention</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {urgentItems.map((item) => {
-              const c = urgentColors[item.color]
-              return (
-                <Link key={item.label} href={item.href}
-                  className={`rounded-xl border-2 ${c.border} ${c.bg} px-5 py-4 flex items-center justify-between hover:shadow-md transition-all group`}>
-                  <div>
-                    <p className={`text-3xl font-bold ${c.text}`}>{item.count}</p>
-                    <p className={`text-sm font-medium ${c.sub} mt-0.5`}>{item.label}</p>
-                  </div>
-                  <span className={`${c.text} opacity-50 group-hover:opacity-100 transition-opacity`}><ChevronRight /></span>
-                </Link>
-              )
-            })}
+            {urgentItems.map((item) => (
+              <StatCard key={item.label} urgent color={item.color} value={item.count} label={item.label} href={item.href} />
+            ))}
           </div>
         </section>
       )}
@@ -179,13 +162,20 @@ export default async function AdminDashboard() {
       {/* ── KPI Cards — Desktop grid ─────────────────────────── */}
       <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((k) => (
-          <Link key={k.label} href={k.href}
-            className={`rounded-xl border bg-white px-4 py-3 hover:shadow-md transition-all group ${k.urgent ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
-            <p className={`text-2xl font-bold truncate ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
-            <p className="text-xs font-semibold text-gray-700 mt-0.5">{k.label}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{k.sub}</p>
-          </Link>
+          <StatCard key={k.label} urgent={k.urgent} value={k.value} label={k.label} sublabel={k.sub} href={k.href} />
         ))}
+      </div>
+
+      {/* ── Upcoming ─────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><Clock className="w-4 h-4" /></div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Upcoming</p>
+            <p className="text-xs text-gray-400">Trips and events in the next 30 days</p>
+          </div>
+        </div>
+        <UpcomingList items={upcoming} hrefFor={(item) => item.type === 'trip' ? `/admin/travel-requests/${item.id}` : '/admin/events'} />
       </div>
 
       {/* ── Module Grid ─────────────────────────────────────── */}

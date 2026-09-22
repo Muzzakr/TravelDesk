@@ -3,15 +3,12 @@ export const dynamic = 'force-dynamic'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { StatCard } from '@/components/ui/StatCard'
+import { UpcomingList } from '@/components/ui/UpcomingList'
+import { getUpcoming, type UpcomingItem } from '@/lib/upcoming'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plane, CreditCard } from 'lucide-react'
-
-const ChevronRight = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-  </svg>
-)
+import { Plane, CreditCard, Clock, History } from 'lucide-react'
 
 export default async function ManagerDashboard() {
   const session = await auth()
@@ -26,8 +23,11 @@ export default async function ManagerDashboard() {
   let totalSpendAmount = 0
   type TravelRow = { id: string; status: string; createdAt: Date; origin: string; destination: string; employee: { name: string }; event: { eventName: string; eventCode: string } }
   type ExpenseRow = { id: string; amountUsd: unknown; category: string | null; description: string; status: string; createdAt: Date; employee: { name: string }; event: { eventName: string; eventCode: string } }
+  type AuditRow = { id: string; action: string; entityType: string; createdAt: Date; actor: { name: string } | null }
   let recentTravel: TravelRow[] = []
   let recentExpenses: ExpenseRow[] = []
+  let recentAudit: AuditRow[] = []
+  let upcoming: UpcomingItem[] = []
   let fetchError: string | null = null
 
   try {
@@ -52,6 +52,15 @@ export default async function ManagerDashboard() {
     activeTeamCount = await prisma.user.count({ where: { companyId, role: 'EMPLOYEE', isActive: true } })
     const spendAgg = await prisma.expense.aggregate({ where: { companyId, status: 'APPROVED', createdAt: { gte: startOfMonth } }, _sum: { amountUsd: true } })
     totalSpendAmount = Number(spendAgg._sum.amountUsd ?? 0)
+    upcoming = await getUpcoming(companyId)
+    // Filtered to travel/expense activity only — a plain manager doesn't need
+    // to see company-settings or webhook-key changes in their recent feed.
+    recentAudit = await prisma.auditLog.findMany({
+      where: { companyId, entityType: { in: ['TravelRequest', 'Expense'] } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: { actor: { select: { name: true } } },
+    })
   } catch (err) {
     fetchError = err instanceof Error ? err.message : String(err)
   }
@@ -69,11 +78,6 @@ export default async function ManagerDashboard() {
     travelPending > 0 && { count: travelPending, label: 'Travel requests pending', href: '/manager/team-travel', color: 'amber' as const },
     expensePending > 0 && { count: expensePending, label: 'Expenses pending', href: '/finance/expenses', color: 'orange' as const },
   ].filter(Boolean) as { count: number; label: string; href: string; color: 'amber' | 'orange' }[]
-
-  const urgentColors = {
-    amber:  { border: 'border-amber-300',  bg: 'bg-amber-50',  text: 'text-amber-600',  sub: 'text-amber-700' },
-    orange: { border: 'border-orange-300', bg: 'bg-orange-50', text: 'text-orange-600', sub: 'text-orange-700' },
-  }
 
   const kpis = [
     { label: 'Team Members',     value: teamCount,       sub: `${activeTeamCount} active`,    href: '/manager/users-roles',   urgent: false },
@@ -106,19 +110,9 @@ export default async function ManagerDashboard() {
         <section>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Needs attention</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {urgentItems.map((item) => {
-              const c = urgentColors[item.color]
-              return (
-                <Link key={item.label} href={item.href}
-                  className={`rounded-xl border-2 ${c.border} ${c.bg} px-5 py-4 flex items-center justify-between hover:shadow-md transition-all group`}>
-                  <div>
-                    <p className={`text-3xl font-bold ${c.text}`}>{item.count}</p>
-                    <p className={`text-sm font-medium ${c.sub} mt-0.5`}>{item.label}</p>
-                  </div>
-                  <span className={`${c.text} opacity-50 group-hover:opacity-100 transition-opacity`}><ChevronRight /></span>
-                </Link>
-              )
-            })}
+            {urgentItems.map((item) => (
+              <StatCard key={item.label} urgent color={item.color} value={item.count} label={item.label} href={item.href} />
+            ))}
           </div>
         </section>
       )}
@@ -126,13 +120,20 @@ export default async function ManagerDashboard() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {kpis.map((k) => (
-          <Link key={k.label} href={k.href}
-            className={`rounded-xl border bg-white px-5 py-4 hover:shadow-md transition-all group ${k.urgent ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
-            <p className={`text-2xl font-bold ${k.urgent ? 'text-amber-600' : 'text-gray-900'}`}>{k.value}</p>
-            <p className="text-xs font-semibold text-gray-700 mt-0.5">{k.label}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{k.sub}</p>
-          </Link>
+          <StatCard key={k.label} urgent={k.urgent} value={k.value} label={k.label} sublabel={k.sub} href={k.href} />
         ))}
+      </div>
+
+      {/* Upcoming */}
+      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><Clock className="w-4 h-4" /></div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Upcoming</p>
+            <p className="text-xs text-gray-400">Trips and events in the next 30 days</p>
+          </div>
+        </div>
+        <UpcomingList items={upcoming} hrefFor={(item) => item.type === 'trip' ? `/manager/approvals/travel/${item.id}` : '/finance/events'} />
       </div>
 
       {/* Module Grid */}
@@ -252,6 +253,32 @@ export default async function ManagerDashboard() {
             <Link href="/manager/approvals" className="text-xs text-gray-500 hover:underline">Pending approvals</Link>
           </div>
         </details>
+      </div>
+
+      {/* Recent activity — travel/expense actions only, not the full admin audit trail */}
+      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
+          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500"><History className="w-4 h-4" /></div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Recent activity</p>
+            <p className="text-xs text-gray-400">Latest travel &amp; expense actions</p>
+          </div>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {recentAudit.length === 0 ? (
+            <p className="px-5 py-4 text-xs text-gray-400">No activity yet.</p>
+          ) : recentAudit.map((log) => (
+            <div key={log.id} className="px-5 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50">
+              <div className="min-w-0">
+                <p className="text-xs font-mono font-medium text-gray-700 truncate">{log.action}</p>
+                <p className="text-xs text-gray-400">{log.actor?.name ?? 'System'} · {log.entityType}</p>
+              </div>
+              <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
+                {new Date(log.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
     </div>

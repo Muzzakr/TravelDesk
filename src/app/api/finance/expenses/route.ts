@@ -44,7 +44,12 @@ export async function GET(req: NextRequest) {
   const includeCharts = searchParams.get('include') === 'charts'
   const periodWhere = { companyId, ...(!allMonths && { createdAt: { gte: start, lte: end } }) }
 
-  const [expenses, total, statusGroups, categoryGroups, processedExpenses] = await Promise.all([
+  // Year-to-date paid total — independent of the month/year picker above,
+  // always spans Jan 1 of `year` through now (or Dec 31 if `year` is past).
+  const ytdStart = new Date(year, 0, 1)
+  const ytdEnd = year === new Date().getFullYear() ? new Date() : new Date(year, 11, 31, 23, 59, 59)
+
+  const [expenses, total, statusGroups, categoryGroups, processedExpenses, paidYtdAgg] = await Promise.all([
     prisma.expense.findMany({
       where: where as never,
       include: {
@@ -77,6 +82,12 @@ export async function GET(req: NextRequest) {
           select: { createdAt: true, updatedAt: true },
         })
       : Promise.resolve([] as { createdAt: Date; updatedAt: Date }[]),
+    includeCharts
+      ? prisma.expense.aggregate({
+          where: { companyId, status: 'PAID', createdAt: { gte: ytdStart, lte: ytdEnd } },
+          _sum: { amountUsd: true },
+        })
+      : Promise.resolve({ _sum: { amountUsd: null } } as { _sum: { amountUsd: unknown } }),
   ])
 
   const amountFor = (statuses: string[]) =>
@@ -133,6 +144,9 @@ export async function GET(req: NextRequest) {
       totalExpensesAmount: amountFor(allStatuses),
       totalExpensesCount: countFor(allStatuses),
       avgProcessingDays: Math.round(avgProcessingTime * 10) / 10,
+      paidYtdAmount: Number(paidYtdAgg._sum.amountUsd ?? 0),
+      rejectedThisMonthAmount: amountFor(['REJECTED']),
+      rejectedThisMonthCount: countFor(['REJECTED']),
     },
     ...(includeCharts && {
       charts: {

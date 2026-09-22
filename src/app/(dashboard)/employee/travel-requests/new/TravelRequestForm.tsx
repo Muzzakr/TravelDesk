@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { TravelEvent } from '@/types/event'
-import { AIRPORTS, HOTEL_CITIES, TRAVEL_LOCATIONS, type AirportOption } from '@/lib/travel-locations'
+import { HOTEL_CITIES, TRAVEL_LOCATIONS, type AirportOption } from '@/lib/travel-locations'
 import { DateInput } from '@/components/ui/DateInput'
+import { Combobox } from '@/components/ui/Combobox'
+import { EventCombobox } from '@/components/travel/EventCombobox'
+import { AirportCombobox } from '@/components/travel/AirportCombobox'
 import { advanceOnEnter } from '@/lib/form-nav'
 import { PaperAirplaneIcon, BuildingOfficeIcon, TruckIcon, MapPinIcon, UserGroupIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
 import { Check } from 'lucide-react'
@@ -30,6 +33,15 @@ type CarData   = { pickupCity: string; pickupDate: string; pickupTime: string; r
 
 const inputCls = 'rounded-xl border border-gray-200 px-3 py-2.5 text-sm w-full focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none bg-white'
 
+// Free-text-with-suggestions fields (hotel city, taxi/car pickup) only show
+// suggestions once something's typed, capped at 8 — matches the old
+// SearchCombobox behavior these replaced.
+function locationFilter(items: string[], query: string): string[] {
+  if (!query) return []
+  const lower = query.toLowerCase()
+  return items.filter((s) => s.toLowerCase().includes(lower)).slice(0, 8)
+}
+
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -51,132 +63,6 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-function AirportCombobox({ value, onChange, placeholder, label, required }: {
-  value: AirportOption | null
-  onChange: (a: AirportOption | null) => void
-  placeholder: string
-  label: string
-  required?: boolean
-}) {
-  const [query, setQuery]     = useState(value ? `${value.name} (${value.code})` : '')
-  const [open, setOpen]       = useState(false)
-  const [results, setResults] = useState<AirportOption[]>([])
-
-  function handleInput(q: string) {
-    setQuery(q)
-    onChange(null)
-    if (q.length >= 1) {
-      const lower    = q.toLowerCase()
-      const filtered = AIRPORTS.filter(a =>
-        a.code.toLowerCase().includes(lower) ||
-        a.name.toLowerCase().includes(lower) ||
-        a.city.toLowerCase().includes(lower)
-      ).slice(0, 8)
-      setResults(filtered)
-      setOpen(filtered.length > 0)
-    } else {
-      setOpen(false)
-    }
-  }
-
-  function select(airport: AirportOption) {
-    onChange(airport)
-    setQuery(`${airport.name} (${airport.code})`)
-    setOpen(false)
-  }
-
-  return (
-    <div className="relative flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        type="text"
-        value={query}
-        onChange={e => handleInput(e.target.value)}
-        onFocus={() => { if (query.length >= 1 && results.length > 0) setOpen(true) }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={placeholder}
-        autoComplete="off"
-        className={inputCls}
-      />
-      {open && (
-        <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
-          {results.map(a => (
-            <button
-              key={a.code}
-              type="button"
-              onMouseDown={() => select(a)}
-              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex items-center justify-between gap-2 text-sm border-b border-gray-50 last:border-0"
-            >
-              <span>
-                <span className="font-medium text-gray-900">{a.name}</span>
-                <span className="text-gray-400 ml-1 text-xs">· {a.city}, {a.country}</span>
-              </span>
-              <span className="text-xs font-bold text-indigo-600 shrink-0">{a.code}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function SearchCombobox({ value, onChange, suggestions, placeholder, label, required }: {
-  value: string
-  onChange: (v: string) => void
-  suggestions: string[]
-  placeholder: string
-  label: string
-  required?: boolean
-}) {
-  const [open, setOpen]       = useState(false)
-  const [results, setResults] = useState<string[]>([])
-
-  function handleInput(q: string) {
-    onChange(q)
-    if (q.length >= 1) {
-      const lower    = q.toLowerCase()
-      const filtered = suggestions.filter(s => s.toLowerCase().includes(lower)).slice(0, 8)
-      setResults(filtered)
-      setOpen(filtered.length > 0)
-    } else {
-      setOpen(false)
-    }
-  }
-
-  return (
-    <div className="relative flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        type="text"
-        value={value}
-        onChange={e => handleInput(e.target.value)}
-        onFocus={() => { if (value.length >= 1 && results.length > 0) setOpen(true) }}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={placeholder}
-        autoComplete="off"
-        className={inputCls}
-      />
-      {open && (
-        <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
-          {results.map((s, i) => (
-            <button
-              key={i}
-              type="button"
-              onMouseDown={() => { onChange(s); setOpen(false) }}
-              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -215,107 +101,6 @@ function ProgressBar({ step }: { step: number }) {
   )
 }
 
-function EventCombobox({ value, onChange, events }: {
-  value: TravelEvent | null
-  onChange: (ev: TravelEvent | null) => void
-  events: TravelEvent[]
-}) {
-  const [query, setQuery]   = useState(value ? value.eventName : '')
-  const [open, setOpen]     = useState(false)
-  const [results, setResults] = useState<TravelEvent[]>([])
-
-  function handleInput(q: string) {
-    setQuery(q)
-    onChange(null)
-    const lower = q.toLowerCase()
-    const filtered = q.length === 0
-      ? events
-      : events.filter(e =>
-          e.eventName.toLowerCase().includes(lower) ||
-          (e.eventCode ?? '').toLowerCase().includes(lower)
-        )
-    setResults(filtered)
-    setOpen(filtered.length > 0)
-  }
-
-  function handleFocus() {
-    if (query.length === 0) {
-      setResults(events)
-      setOpen(events.length > 0)
-    } else if (results.length > 0) {
-      setOpen(true)
-    }
-  }
-
-  function select(ev: TravelEvent) {
-    onChange(ev)
-    setQuery(ev.eventName)
-    setOpen(false)
-  }
-
-  return (
-    <div className="relative flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">Event<span className="text-red-500 ml-0.5">*</span></label>
-      <div className="relative">
-        <input
-          type="text"
-          value={query}
-          onChange={e => handleInput(e.target.value)}
-          onFocus={handleFocus}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder="Search events…"
-          autoComplete="off"
-          className={inputCls}
-        />
-        {value && (
-          <button
-            type="button"
-            onMouseDown={() => { onChange(null); setQuery(''); setOpen(false) }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            aria-label="Clear event"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
-      {open && (
-        <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
-          {results.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-gray-400 text-center">No events found</p>
-          ) : results.map(ev => (
-            <button
-              key={ev.id}
-              type="button"
-              onMouseDown={() => select(ev)}
-              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex items-start justify-between gap-2 text-sm border-b border-gray-50 last:border-0"
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-gray-900 truncate">{ev.eventName}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {ev.eventCode && <span className="font-mono">{ev.eventCode}</span>}
-                  {ev.dateStart ? ` · ${fmtDisplayDate(new Date(ev.dateStart).toISOString().split('T')[0])}` : ''}
-                </p>
-              </div>
-              {ev.id === value?.id && (
-                <svg className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-      {value && (
-        <p className="text-xs text-gray-500 mt-0.5">
-          {value.eventCode && <span className="font-mono font-medium text-indigo-600">{value.eventCode}</span>}
-          {value.dateStart ? ` · ${fmtDisplayDate(new Date(value.dateStart).toISOString().split('T')[0])}` : ''}
-        </p>
-      )}
-    </div>
-  )
-}
 
 function ServiceHeader({ Icon, title }: { Icon: HeroIcon; title: string }) {
   return (
@@ -866,12 +651,17 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
               <section className="space-y-4">
                 <ServiceHeader Icon={BuildingOfficeIcon} title="Hotel" />
 
-                <SearchCombobox
+                <Combobox<string>
                   label="City" required
-                  value={hotel.city}
-                  onChange={v => setHotel(h => ({ ...h, city: v }))}
-                  suggestions={HOTEL_CITIES}
+                  selectedItem={hotel.city || null}
+                  onSelectedItemChange={v => setHotel(h => ({ ...h, city: v ?? '' }))}
+                  onInputValueChange={v => setHotel(h => ({ ...h, city: v }))}
+                  items={HOTEL_CITIES}
+                  itemToString={s => s ?? ''}
+                  filterItems={locationFilter}
+                  renderItem={s => <span>{s}</span>}
                   placeholder="Search city…"
+                  emptyMessage="No cities found"
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -917,8 +707,18 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
               <section className="space-y-4">
                 <ServiceHeader Icon={MapPinIcon} title="Taxi / Transfer" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <SearchCombobox label="Pickup Location" required value={taxi.pickup} onChange={v => setTaxi(t => ({ ...t, pickup: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
-                  <SearchCombobox label="Drop-off Location" required value={taxi.dropoff} onChange={v => setTaxi(t => ({ ...t, dropoff: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
+                  <Combobox<string> label="Pickup Location" required
+                    selectedItem={taxi.pickup || null}
+                    onSelectedItemChange={v => setTaxi(t => ({ ...t, pickup: v ?? '' }))}
+                    onInputValueChange={v => setTaxi(t => ({ ...t, pickup: v }))}
+                    items={TRAVEL_LOCATIONS} itemToString={s => s ?? ''} filterItems={locationFilter}
+                    renderItem={s => <span>{s}</span>} placeholder="Search location…" emptyMessage="No locations found" />
+                  <Combobox<string> label="Drop-off Location" required
+                    selectedItem={taxi.dropoff || null}
+                    onSelectedItemChange={v => setTaxi(t => ({ ...t, dropoff: v ?? '' }))}
+                    onInputValueChange={v => setTaxi(t => ({ ...t, dropoff: v }))}
+                    items={TRAVEL_LOCATIONS} itemToString={s => s ?? ''} filterItems={locationFilter}
+                    renderItem={s => <span>{s}</span>} placeholder="Search location…" emptyMessage="No locations found" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Date" required>
@@ -950,7 +750,12 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
                     <option value="Luxury">Luxury</option>
                   </select>
                 </Field>
-                <SearchCombobox label="Pickup Location" required value={car.pickupCity} onChange={v => setCar(c => ({ ...c, pickupCity: v }))} suggestions={TRAVEL_LOCATIONS} placeholder="Search location…" />
+                <Combobox<string> label="Pickup Location" required
+                  selectedItem={car.pickupCity || null}
+                  onSelectedItemChange={v => setCar(c => ({ ...c, pickupCity: v ?? '' }))}
+                  onInputValueChange={v => setCar(c => ({ ...c, pickupCity: v }))}
+                  items={TRAVEL_LOCATIONS} itemToString={s => s ?? ''} filterItems={locationFilter}
+                  renderItem={s => <span>{s}</span>} placeholder="Search location…" emptyMessage="No locations found" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Pickup Date" required>
                     <DateInput title="Pickup Date" value={car.pickupDate} onChange={v => setCar(c => ({ ...c, pickupDate: v }))} className={inputCls} />

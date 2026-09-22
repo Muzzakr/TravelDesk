@@ -44,25 +44,17 @@ export async function login(page: Page, creds: { email: string; password: string
   })
 }
 
-// The event-search comboboxes (travel request + expense wizards) only
-// show whatever `events` state was loaded at focus time and never reopen
-// once new data arrives — so a single click can race the initial fetch.
-// Re-click until a result actually renders, rather than trusting one
-// network wait (fetch timing/caching varies run to run).
+// The event-search comboboxes (travel request + expense wizards) are built
+// on the accessible Combobox (src/components/ui/Combobox.tsx, downshift-
+// based) — results are `role="option"` rows, not plain buttons, and the
+// list re-filters from whatever `items` prop is current on every render,
+// so (unlike the old hand-rolled version) there's no focus-time race to
+// work around. Still generous on timeout: this dev server's cold compiles
+// and the initial events fetch can both take several seconds.
 export async function selectEvent(page: Page, searchPlaceholder: string, matchText: string | RegExp) {
   const input = page.getByPlaceholder(searchPlaceholder)
-  const option = page.getByRole('button', { name: matchText })
-  await expect(async () => {
-    // Browsers don't refire `focus` on a redundant click of an
-    // already-focused element, so blur first to force a fresh focus
-    // event each retry — that's what makes the combobox re-read state.
-    // The combobox's onBlur schedules `setOpen(false)` 150ms later; if we
-    // click again before that fires, the stale timeout closes the dropdown
-    // right after our click reopens it. Wait it out first.
-    await input.blur()
-    await page.waitForTimeout(200)
-    await input.click()
-    await expect(option).toBeVisible({ timeout: 3_000 })
-  }).toPass({ timeout: 45_000 })
+  const option = page.getByRole('option', { name: matchText })
+  await input.click()
+  await expect(option).toBeVisible({ timeout: 20_000 })
   await option.click()
 }

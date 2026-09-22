@@ -6,6 +6,7 @@ import { FileUpload } from '@/components/ui/FileUpload'
 import { DateInput } from '@/components/ui/DateInput'
 import { advanceOnEnter } from '@/lib/form-nav'
 import type { TravelEvent } from '@/types/event'
+import { EventCombobox } from '@/components/travel/EventCombobox'
 import { Check } from 'lucide-react'
 
 // ─── Constants (moved verbatim from employee/expenses) ───────────────────────
@@ -151,10 +152,6 @@ export function NewExpenseForm({ draftKey, employees, manager, onCancel, onSaved
   const [step, setStep] = useState(1)
   const [vehicleType, setVehicleType] = useState('')
 
-  // Inline event combobox state
-  const [eventSearch, setEventSearch] = useState('')
-  const [eventDropOpen, setEventDropOpen] = useState(false)
-
   const [form, setForm] = useState(EMPTY_FORM)
 
   useEffect(() => {
@@ -175,7 +172,6 @@ export function NewExpenseForm({ draftKey, employees, manager, onCancel, onSaved
       if (d.subCategory)  setSubCategory(d.subCategory)
       if (d.vehicleType)  setVehicleType(d.vehicleType)
       if (d.step)         setStep(d.step)
-      if (d.eventSearch)  setEventSearch(d.eventSearch)
     } catch { /* ignore */ }
   }, [draftKey])
 
@@ -183,21 +179,9 @@ export function NewExpenseForm({ draftKey, employees, manager, onCancel, onSaved
   useEffect(() => {
     if (!draftKey) return
     try {
-      localStorage.setItem(draftKey, JSON.stringify({ form, mainCategory, subCategory, vehicleType, step, eventSearch }))
+      localStorage.setItem(draftKey, JSON.stringify({ form, mainCategory, subCategory, vehicleType, step }))
     } catch { /* ignore */ }
-  }, [draftKey, form, mainCategory, subCategory, vehicleType, step, eventSearch])
-
-  const filteredEvents = events.filter(ev =>
-    !eventSearch ||
-    ev.eventName.toLowerCase().includes(eventSearch.toLowerCase()) ||
-    (ev.eventCode ?? '').toLowerCase().includes(eventSearch.toLowerCase())
-  )
-
-  function selectEvent(ev: TravelEvent) {
-    setForm(p => ({ ...p, eventId: ev.id }))
-    setEventSearch(`${ev.eventName} (${ev.eventCode})`)
-    setEventDropOpen(false)
-  }
+  }, [draftKey, form, mainCategory, subCategory, vehicleType, step])
 
   function closeForm() {
     if (draftKey) localStorage.removeItem(draftKey)
@@ -331,27 +315,12 @@ export function NewExpenseForm({ draftKey, employees, manager, onCancel, onSaved
               </div>
             )}
 
-            <div className="relative flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Event<span className="text-red-500 ml-0.5">*</span></label>
-              <input
-                type="text" value={eventSearch}
-                onChange={e => { setEventSearch(e.target.value); setForm(p => ({ ...p, eventId: '' })); setEventDropOpen(true) }}
-                onFocus={() => setEventDropOpen(true)}
-                onBlur={() => setTimeout(() => setEventDropOpen(false), 150)}
-                placeholder="Search events…" autoComplete="off" className={inputCls}
-              />
-              {eventDropOpen && filteredEvents.length > 0 && (
-                <div className="absolute top-full mt-1 w-full z-50 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
-                  {filteredEvents.map(ev => (
-                    <button key={ev.id} type="button" onMouseDown={() => selectEvent(ev)}
-                      className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 text-sm text-gray-800 border-b border-gray-50 last:border-0">
-                      <span className="font-medium">{ev.eventName}</span>
-                      <span className="text-gray-400 ml-1 text-xs">· {ev.eventCode}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <EventCombobox
+              value={selectedEvent ?? null}
+              onChange={ev => setForm(p => ({ ...p, eventId: ev?.id ?? '' }))}
+              events={events}
+              className={inputCls}
+            />
           </div>
         )}
 

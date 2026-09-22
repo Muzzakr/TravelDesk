@@ -14,8 +14,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Employees can only pick for their own request; SYSTEM_ADMIN can pick on
+  // behalf of anyone in the company (e.g. when an employee is unreachable).
+  const isAdminOverride = session.user.role === 'SYSTEM_ADMIN'
   const travelRequest = await prisma.travelRequest.findFirst({
-    where: { id: params.id, companyId: session.user.companyId, employeeId: session.user.id },
+    where: {
+      id: params.id,
+      companyId: session.user.companyId,
+      ...(isAdminOverride ? {} : { employeeId: session.user.id }),
+    },
   })
   if (!travelRequest) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (travelRequest.status !== 'OPTIONS_PROVIDED') {
@@ -76,13 +83,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     action: 'BOOKING_OPTION_SELECTED',
     entityType: 'TravelRequest',
     entityId: params.id,
-    payload: { optionIds, totalUsd, vendors: selectedOptions.map((o) => o.vendor) },
+    payload: {
+      optionIds, totalUsd, vendors: selectedOptions.map((o) => o.vendor),
+      ...(isAdminOverride ? { onBehalfOf: travelRequest.employeeId } : {}),
+    },
   })
 
   const emp = await prisma.user.findUnique({
     where: { id: travelRequest.employeeId },
     select: { name: true, email: true, managerId: true },
   })
+
+  // Admin picked on the employee's behalf — let them know what was chosen.
+  if (isAdminOverride) {
+    await createNotification({
+      companyId: session.user.companyId,
+      userId: travelRequest.employeeId,
+      type: 'workflow_update',
+      title: 'An administrator selected your booking options',
+      description: `${travelRequest.origin} → ${travelRequest.destination} · $${totalUsd.toFixed(2)}`,
+      href: `/employee/travel-requests/${params.id}`,
+    })
+  }
 
   if (nextStatus === 'PENDING_MANAGER') {
     // Selection needs manager approval next

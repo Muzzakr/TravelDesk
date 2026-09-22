@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Check, AlertTriangle, Paperclip } from 'lucide-react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { BookingConfirmationForm } from '@/components/travel/BookingConfirmationForm'
+import { BookingOptionPicker } from '@/components/travel/BookingOptionPicker'
 
 type TravelRequest = {
   id: string
@@ -220,27 +221,41 @@ export default function AdminTravelRequestDetailPage() {
             )}
           </div>
 
-          {/* Booking options */}
+          {/* Booking options — interactive picker while still selectable,
+              otherwise a read-only list of what was chosen */}
           {request.bookingOptions.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Booking options</h2>
-              <div className="space-y-2">
-                {request.bookingOptions.map(o => (
-                  <div key={o.id} className={`rounded-xl border p-3 text-sm ${o.isSelected ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100 bg-gray-50'}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-gray-900">{o.vendor} · {o.serviceType}</p>
-                        <p className="text-xs text-gray-500">{o.description}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-bold text-gray-900">${Number(o.priceUsd).toFixed(0)}</p>
-                        {o.isSelected && <span className="text-[10px] text-indigo-600 font-semibold">SELECTED</span>}
+            request.status === 'OPTIONS_PROVIDED' ? (
+              <BookingOptionPicker
+                requestId={id}
+                bookingOptions={request.bookingOptions}
+                heading="Select booking options on behalf of the employee"
+                description="The employee hasn't chosen yet. Picking here selects for them and notifies them of the choice."
+                onConfirmed={async () => {
+                  const updated = await fetch(`/api/travel-requests/${id}`).then(r => r.json())
+                  setRequest(updated)
+                }}
+              />
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Booking options</h2>
+                <div className="space-y-2">
+                  {request.bookingOptions.map(o => (
+                    <div key={o.id} className={`rounded-xl border p-3 text-sm ${o.isSelected ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100 bg-gray-50'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-gray-900">{o.vendor} · {o.serviceType}</p>
+                          <p className="text-xs text-gray-500">{o.description}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-gray-900">${Number(o.priceUsd).toFixed(0)}</p>
+                          {o.isSelected && <span className="text-[10px] text-indigo-600 font-semibold">SELECTED</span>}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )
           )}
 
           {/* Booking confirmations sent to the employee */}

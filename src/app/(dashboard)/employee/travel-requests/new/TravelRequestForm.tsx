@@ -199,6 +199,7 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
   const [aiLoading, setAiLoading]                   = useState(false)
   const [aiError, setAiError]                       = useState<string | null>(null)
   const [confirmingOptions, setConfirmingOptions]   = useState(false)
+  const [done, setDone]                             = useState(false)
   const [carLicenseWarning, setCarLicenseWarning]   = useState(false)
 
   const [flight, setFlight] = useState<FlightData>({
@@ -498,7 +499,42 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
         body: JSON.stringify({ options: chosen }),
       })
     }
-    router.push('/employee/travel-requests')
+    setConfirmingOptions(false)
+    setDone(true)
+  }
+
+  if (done) {
+    return (
+      <div className="mx-auto max-w-2xl pb-12">
+        <div className="bg-white rounded-2xl shadow-sm p-8 sm:p-10 text-center space-y-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+            <Check className="h-7 w-7 text-green-600" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Request submitted</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {selectedEvent?.eventName ? `Your trip for "${selectedEvent.eventName}" is` : 'Your trip request is'} now waiting for approval. We&apos;ll notify you as it moves forward.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => router.push(`/employee/travel-requests/${createdRequestId}`)}
+              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 text-sm font-semibold transition-colors"
+            >
+              View request →
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push('/employee/travel-requests')}
+              className="rounded-xl border border-gray-200 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Back to travel requests
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -898,6 +934,12 @@ export function TravelRequestForm({ hasDriversLicense }: { hasDriversLicense: bo
         {/* ─── Step 5: AI Options ───────────────────────────── */}
         {step === 5 && (
           <div className="space-y-5">
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 flex items-start gap-2.5">
+              <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-green-800">
+                <span className="font-semibold">Your request has been submitted</span> and is already awaiting approval. Telling us your preferred options below is optional — you can also come back and leave now.
+              </p>
+            </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-1">Select your preferred options</h2>
               <p className="text-sm text-gray-500">These will be shared with your manager and the travel agent.</p>

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { DateInput } from '@/components/ui/DateInput'
 import { Check, Sparkles } from 'lucide-react'
 import { LoadError } from '@/components/ui/LoadError'
+import { PageLoading } from '@/components/ui/PageLoading'
 
 type AirlineAccount = { airline: string; number: string }
 
@@ -401,7 +402,7 @@ export default function ProfilePage() {
 
   if (!profile) {
     if (loadError) return <LoadError onRetry={loadProfile} />
-    return <p className="text-sm text-gray-400">Loading profile…</p>
+    return <PageLoading />
   }
 
   const initials = '?'
@@ -476,13 +477,15 @@ export default function ProfilePage() {
           <h2 className="text-base font-semibold text-gray-800">Contact information</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="First name *"
+              label="First name"
+              required
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="John"
             />
             <Input
-              label="Last name *"
+              label="Last name"
+              required
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Smith"
@@ -491,7 +494,8 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <Input
-                label="Phone number *"
+                label="Phone number"
+                required
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
@@ -533,12 +537,12 @@ export default function ProfilePage() {
           <div className="space-y-3">
             <p className="text-sm font-medium text-gray-700">Passport <span className="text-red-500">*</span></p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="Passport number *" value={passportNumber} onChange={(e) => setPassportNumber(e.target.value)} placeholder="A12345678" />
-              <DateInput label="Date of birth *" value={dateOfBirth} onChange={setDateOfBirth} />
+              <Input label="Passport number" required value={passportNumber} onChange={(e) => setPassportNumber(e.target.value)} placeholder="A12345678" />
+              <DateInput label="Date of birth" title="Passport date of birth" required value={dateOfBirth} onChange={setDateOfBirth} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <DateInput label="Issue date *" value={passportIssueDate} onChange={setPassportIssueDate} />
-              <DateInput label="Expiry date *" value={passportExpiry} onChange={setPassportExpiry} />
+              <DateInput label="Issue date" title="Passport issue date" required value={passportIssueDate} onChange={setPassportIssueDate} />
+              <DateInput label="Expiry date" title="Passport expiry date" required value={passportExpiry} onChange={setPassportExpiry} />
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <input ref={passportPhotoRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" aria-label="Upload passport photo" className="hidden"

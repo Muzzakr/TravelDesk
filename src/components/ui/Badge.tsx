@@ -30,6 +30,7 @@ export function statusToBadgeVariant(status: string): BadgeVariant {
     PENDING_AGENT: 'purple',
     PENDING_MANAGER: 'yellow',
     PENDING_ADMIN: 'yellow',
+    OPTIONS_PROVIDED: 'yellow',
     APPROVED: 'green',
     BOOKING_CONFIRMED: 'green',
     PAID: 'green',

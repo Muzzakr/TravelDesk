@@ -6,6 +6,7 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { LoadError } from '@/components/ui/LoadError'
+import { PageLoading } from '@/components/ui/PageLoading'
 
 interface TravelRequest {
   id: string
@@ -34,6 +35,7 @@ export default function TravelRequestsPage() {
   const [requests, setRequests] = useState<TravelRequest[]>([])
   const [role, setRole] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   async function load() {
     setLoadError(false)
@@ -49,6 +51,8 @@ export default function TravelRequestsPage() {
       setRole(session?.user?.role ?? null)
     } catch {
       setLoadError(true)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -65,7 +69,9 @@ export default function TravelRequestsPage() {
         )}
       </div>
 
-      {loadError ? (
+      {loading ? (
+        <PageLoading />
+      ) : loadError ? (
         <LoadError onRetry={load} />
       ) : requests.length === 0 ? (
         <div className="rounded-xl border bg-white p-12 text-center text-gray-400">

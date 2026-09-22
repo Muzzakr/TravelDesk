@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { LoadError } from '@/components/ui/LoadError'
+import { PageLoading } from '@/components/ui/PageLoading'
 import type { Expense } from '@/types/expense'
 import { Check, AlertTriangle, Plus } from 'lucide-react'
 import { NewExpenseForm } from '@/components/expenses/NewExpenseForm'
@@ -26,6 +27,7 @@ function ExpensesContent() {
   const [notice, setNotice]                           = useState('')
 
   const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   async function loadInitial() {
     setLoadError(false)
@@ -35,6 +37,8 @@ function ExpensesContent() {
       setExpenses(await res.json())
     } catch {
       setLoadError(true)
+    } finally {
+      setLoading(false)
     }
     // The manager hint is non-critical — the page works without it
     fetch('/api/users/me').then(r => r.json()).then(data => setManager(data.manager ?? null)).catch(() => {})
@@ -117,10 +121,11 @@ function ExpensesContent() {
         </div>
       )}
 
-      {loadError && <LoadError onRetry={loadInitial} />}
+      {!showForm && loading && <PageLoading />}
+      {!loading && loadError && <LoadError onRetry={loadInitial} />}
 
       {/* Mobile cards */}
-      {!loadError && <div className="sm:hidden space-y-3">
+      {!loading && !loadError && <div className="sm:hidden space-y-3">
         {expenses.length === 0 ? (
           <p className="text-center text-sm text-gray-400 py-8">No expenses yet.</p>
         ) : expenses.map((exp) => (
@@ -168,7 +173,7 @@ function ExpensesContent() {
       </div>}
 
       {/* Desktop table */}
-      {!showForm && !loadError && <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white shadow-sm">
+      {!showForm && !loading && !loadError && <div className="hidden sm:block overflow-x-auto rounded-xl border bg-white shadow-sm">
         {expenses.length === 0 ? (
           <p className="p-8 text-center text-gray-400">No expenses yet.</p>
         ) : (

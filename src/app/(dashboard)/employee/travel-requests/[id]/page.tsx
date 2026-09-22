@@ -9,17 +9,9 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import Link from 'next/link'
 import { Check, Paperclip } from 'lucide-react'
 import { LoadError } from '@/components/ui/LoadError'
+import { PageLoading } from '@/components/ui/PageLoading'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
-
-interface BookingOption {
-  id: string
-  serviceType: string
-  vendor: string
-  description: string
-  priceUsd: number
-  bookingLink?: string | null
-  isSelected: boolean
-}
+import { BookingOptionPicker, type BookingOption } from '@/components/travel/BookingOptionPicker'
 
 interface BookingConfirmation {
   id: string
@@ -90,17 +82,32 @@ interface TravelRequest {
   approvalActions: { actionType: string; note: string | null; createdAt: string; actor: { name: string; role: string } }[]
 }
 
-const STATUS_STEPS = [
-  'SUBMITTED',
-  'PENDING_MANAGER',
-  'PENDING_AGENT',
-  'BOOKING_CONFIRMED',
-]
+// The 4 stages shown by the progress bar below. Several distinct backend
+// statuses can share one stage — the real workflow can revisit "manager" and
+// "agent" more than once (e.g. options selected -> a second manager pass ->
+// back to the agent to finalize booking), so a strict 1-status-per-step bar
+// can't represent it exactly. What it must never do is leave a real,
+// non-terminal status unmapped — that previously left the bar fully gray
+// (no step highlighted) for OPTIONS_PROVIDED and APPROVED, two of the most
+// common in-flight statuses.
+const STAGE_LABELS = ['Submitted', 'Manager review', 'With travel agent', 'Booking confirmed']
+
+const STATUS_STAGE: Record<string, number> = {
+  DRAFT: 0,
+  SUBMITTED: 0,
+  PENDING_MANAGER: 1,
+  PENDING_ADMIN: 1,
+  PENDING_AGENT: 2,
+  OPTIONS_PROVIDED: 2,
+  APPROVED: 2,
+  BOOKING_CONFIRMED: 3,
+}
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Submitted',
   SUBMITTED: 'Submitted',
   PENDING_MANAGER: 'Manager review',
+  PENDING_ADMIN: 'Admin review',
   PENDING_AGENT: 'With travel agent',
   APPROVED: 'With travel agent',
   OPTIONS_PROVIDED: 'With travel agent',
@@ -113,10 +120,7 @@ export default function EmployeeTravelRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [request, setRequest] = useState<TravelRequest | null>(null)
   const [loading, setLoading] = useState(true)
-  const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
-  // one selected optionId per serviceType: { FLIGHT: 'id1', HOTEL: 'id2', CAR_RENTAL: 'id3' }
-  const [picks, setPicks] = useState<Record<string, string>>({})
   const [cancelNote, setCancelNote] = useState('')
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -143,25 +147,7 @@ export default function EmployeeTravelRequestDetailPage() {
 
   useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function confirmSelections() {
-    setConfirming(true)
-    setError('')
-    const res = await fetch(`/api/travel-requests/${id}/select-option`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ optionIds: Object.values(picks) }),
-    })
-    if (res.ok) {
-      await load()
-      setPicks({})
-    } else {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to confirm selections')
-    }
-    setConfirming(false)
-  }
-
-  if (loading) return <div className="p-8 text-gray-500">Loading...</div>
+  if (loading) return <PageLoading />
   if (!request) {
     if (loadError) return <LoadError onRetry={() => { setLoading(true); load() }} />
     return <div className="p-8 text-red-500">Request not found.</div>
@@ -201,14 +187,8 @@ export default function EmployeeTravelRequestDetailPage() {
 
   const dates = request.travelDates
   const isTerminal = ['REJECTED', 'CANCELLED'].includes(request.status)
-  const currentStep = STATUS_STEPS.indexOf(request.status)
+  const currentStep = STATUS_STAGE[request.status] ?? -1
 
-  // Group booking options by service type
-  const optionsByService = request.bookingOptions.reduce<Record<string, BookingOption[]>>((acc, opt) => {
-    if (!acc[opt.serviceType]) acc[opt.serviceType] = []
-    acc[opt.serviceType].push(opt)
-    return acc
-  }, {})
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -238,11 +218,11 @@ export default function EmployeeTravelRequestDetailPage() {
       {!isTerminal && (
         <div className="rounded-xl border bg-white p-4">
           <div className="flex items-start gap-0">
-            {STATUS_STEPS.map((step, i) => {
+            {STAGE_LABELS.map((label, i) => {
               const done = i < currentStep
               const active = i === currentStep
               return (
-                <div key={step} className="flex items-start flex-1 last:flex-none">
+                <div key={label} className="flex items-start flex-1 last:flex-none">
                   <div className="flex flex-col items-center shrink-0">
                     <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold
                       ${done ? 'bg-green-500 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
@@ -254,7 +234,7 @@ export default function EmployeeTravelRequestDetailPage() {
                       </p>
                     )}
                   </div>
-                  {i < STATUS_STEPS.length - 1 && (
+                  {i < STAGE_LABELS.length - 1 && (
                     <div className={`h-0.5 flex-1 mx-1 mt-3.5 ${done ? 'bg-green-400' : 'bg-gray-200'}`} />
                   )}
                 </div>
@@ -331,94 +311,13 @@ export default function EmployeeTravelRequestDetailPage() {
 
       {/* Choose booking options — step 4 */}
       {request.status === 'OPTIONS_PROVIDED' && request.bookingOptions.length > 0 && (
-        <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-6 space-y-5">
-          <div>
-            <h2 className="text-base font-semibold text-indigo-900">Choose your preferred options</h2>
-            <p className="text-xs text-indigo-700 mt-0.5">Select one option per category, then confirm to send for manager approval.</p>
-          </div>
-
-          {Object.entries(optionsByService).map(([serviceType, opts]) => (
-            <div key={serviceType} className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {serviceType.replace('_', ' ')}
-              </p>
-              {opts.map((opt) => {
-                const isChosen = picks[serviceType] === opt.id
-                return (
-                  <label
-                    key={opt.id}
-                    className={`flex items-start gap-3 rounded-lg border bg-white p-4 cursor-pointer transition-colors
-                      ${isChosen ? 'border-indigo-400 ring-1 ring-indigo-300' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <input
-                      type="radio"
-                      name={serviceType}
-                      value={opt.id}
-                      checked={isChosen}
-                      onChange={() => setPicks((prev) => ({ ...prev, [serviceType]: opt.id }))}
-                      className="mt-1 accent-indigo-600"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900">{opt.vendor}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">{opt.description}</p>
-                      {opt.bookingLink && (
-                        <a href={opt.bookingLink} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          View booking →
-                        </a>
-                      )}
-                    </div>
-                    <p className="text-sm font-bold text-indigo-700 shrink-0">${Number(opt.priceUsd).toFixed(2)}</p>
-                  </label>
-                )
-              })}
-            </div>
-          ))}
-
-          {/* Summary */}
-          {Object.keys(picks).length > 0 && (
-            <div className="rounded-xl border border-indigo-200 bg-white p-4 space-y-3">
-              <p className="text-sm font-semibold text-gray-800">Your selection summary</p>
-              {Object.entries(picks).map(([serviceType, optId]) => {
-                const opt = request.bookingOptions.find((o) => o.id === optId)
-                if (!opt) return null
-                return (
-                  <div key={serviceType} className="flex items-center justify-between text-sm">
-                    <div>
-                      <span className="text-xs font-medium uppercase text-gray-400 mr-2">{serviceType.replace('_', ' ')}</span>
-                      <span className="font-medium text-gray-900">{opt.vendor}</span>
-                      <span className="text-gray-500 ml-2">— {opt.description}</span>
-                    </div>
-                    <span className="font-bold text-indigo-700 shrink-0 ml-4">${Number(opt.priceUsd).toFixed(2)}</span>
-                  </div>
-                )
-              })}
-              <div className="flex items-center justify-between border-t pt-3">
-                <p className="text-sm font-semibold text-gray-700">
-                  Total: <span className="text-indigo-700">
-                    ${Object.values(picks).reduce((sum, optId) => {
-                      const opt = request.bookingOptions.find((o) => o.id === optId)
-                      return sum + (opt ? Number(opt.priceUsd) : 0)
-                    }, 0).toFixed(2)}
-                  </span>
-                </p>
-                <button
-                  type="button"
-                  onClick={confirmSelections}
-                  disabled={confirming || Object.keys(picks).length < Object.keys(optionsByService).length}
-                  className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {confirming ? 'Confirming…' : 'Confirm selections →'}
-                </button>
-              </div>
-              {Object.keys(picks).length < Object.keys(optionsByService).length && (
-                <p className="text-xs text-amber-600">Select one option from each category to continue.</p>
-              )}
-            </div>
-          )}
-        </div>
+        <BookingOptionPicker
+          requestId={id}
+          bookingOptions={request.bookingOptions}
+          heading="Choose your preferred options"
+          description="Select one option per category, then confirm to send for manager approval."
+          onConfirmed={load}
+        />
       )}
 
       {/* Request details */}

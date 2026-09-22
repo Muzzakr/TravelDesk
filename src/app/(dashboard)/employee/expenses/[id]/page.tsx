@@ -10,6 +10,7 @@ import { DateInput } from '@/components/ui/DateInput'
 import { sanitizeAmountInput } from '@/components/expenses/NewExpenseForm'
 import { ReceiptViewer } from '@/components/ui/ReceiptViewer'
 import { LoadError } from '@/components/ui/LoadError'
+import { PageLoading } from '@/components/ui/PageLoading'
 
 interface Receipt {
   id: string
@@ -66,6 +67,10 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 }
 
 const inputCls = 'rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-200'
+
+// Matches the list page's own receipt-attach predicate — an expense can get
+// a receipt attached any time before it's been paid, rejected, or approved.
+const canAddReceipt = (status: string) => !['PAID', 'REJECTED', 'APPROVED'].includes(status)
 
 export default function ExpenseDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -214,7 +219,7 @@ export default function ExpenseDetailPage() {
     setSubmitting(false)
   }
 
-  if (loading) return <div className="p-8 text-gray-500">Loading…</div>
+  if (loading) return <PageLoading />
   if (!expense) {
     if (loadError) return <LoadError onRetry={() => { setLoading(true); load() }} />
     return <div className="p-8 text-red-500">Expense not found.</div>
@@ -439,8 +444,9 @@ export default function ExpenseDetailPage() {
           </div>
         )}
 
-        {/* Upload receipt — only for DRAFT in edit mode */}
-        {expense.status === 'DRAFT' && editMode && (
+        {/* Upload receipt — available any time the expense can still take one,
+            independent of edit mode (attaching a receipt isn't a field edit) */}
+        {canAddReceipt(expense.status) && (
           <div className="mt-4 border-t border-gray-100 pt-4">
             <p className="mb-2 text-xs font-medium text-gray-500 uppercase">Add receipt</p>
             <FileUpload

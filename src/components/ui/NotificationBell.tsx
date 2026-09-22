@@ -26,6 +26,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -44,12 +45,14 @@ export function NotificationBell() {
 
   async function fetchNotifications() {
     setLoading(true)
+    setError(false)
     try {
       const res = await fetch('/api/notifications')
-      if (res.ok) {
-        const data = await res.json()
-        setNotifications(data.notifications ?? [])
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setNotifications(data.notifications ?? [])
+    } catch {
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -88,7 +91,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="fixed right-3 top-[calc(3.5rem+env(safe-area-inset-top))] z-50 w-[calc(100vw-1.5rem)] max-w-sm sm:w-80 rounded-xl border border-gray-200 bg-white shadow-xl">
+        <div className="fixed right-3 top-[calc(3.5rem+env(safe-area-inset-top))] md:top-20 z-50 w-[calc(100vw-1.5rem)] max-w-sm sm:w-80 rounded-xl border border-gray-200 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b px-4 py-3">
             <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
             {unread > 0 && (
@@ -101,6 +104,13 @@ export function NotificationBell() {
           <div className="max-h-80 overflow-y-auto">
             {loading ? (
               <div className="px-4 py-6 text-center text-sm text-gray-400">Loading...</div>
+            ) : error ? (
+              <div className="px-4 py-6 text-center text-sm text-red-500">
+                Couldn&apos;t load notifications.{' '}
+                <button onClick={fetchNotifications} className="font-medium underline hover:text-red-600">
+                  Try again
+                </button>
+              </div>
             ) : notifications.length === 0 ? (
               <div className="px-4 py-6 text-center text-sm text-gray-400">No notifications</div>
             ) : (

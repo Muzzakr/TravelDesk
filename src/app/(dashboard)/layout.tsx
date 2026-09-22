@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Role } from '@/types/user'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { CompanyBrand } from '@/components/ui/CompanyBrand'
 import { BottomTabBar } from '@/components/ui/BottomTabBar'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
@@ -127,30 +128,27 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Check profile completeness for roles that travel
   const profileStatus = await getProfileStatus(session.user.id, role)
 
-  // Fetch company logo (only if companyId present)
+  // Fetch company branding (only if companyId present)
   let logoUrl: string | null = null
+  let companyName = 'M4U Travel'
   if (session.user.companyId) {
     const company = await prisma.company.findUnique({
       where: { id: session.user.companyId },
-      select: { logoUrl: true },
+      select: { logoUrl: true, name: true },
     })
     logoUrl = company?.logoUrl ?? null
+    companyName = company?.name || companyName
   }
 
   return (
     <div className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Mobile top bar (primary nav is the bottom tab bar) */}
-      <MobileNav />
+      <MobileNav name={companyName} logoUrl={logoUrl} />
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
-        <div className="flex h-16 items-center justify-between px-6">
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="Company logo" className="h-8 max-w-[120px] object-contain" />
-          ) : (
-            <span className="text-xl font-bold">M4U Travel</span>
-          )}
+        <div className="flex h-20 items-center justify-between px-4">
+          <CompanyBrand name={companyName} logoUrl={logoUrl} size="md" />
           <NotificationBell />
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5">

@@ -32,6 +32,9 @@ model Company {
   travelInboxMessages TravelInboxMessage[]
   emailLogs           EmailLog[]
   emailSettings       EmailNotificationSetting[]
+  webhookSubscription WebhookSubscription?
+  webhookDeliveries   WebhookDelivery[]
+  ssoConfig           CompanySsoConfig?
 }
 
 // ─── Users & Auth ────────────────────────────────────────────────────────────
@@ -51,6 +54,7 @@ enum TokenType {
   GOOGLE_VERIFY
   EMAIL_VERIFY
   MAGIC_LINK
+  SSO_SESSION
 }
 
 model User {
@@ -86,6 +90,7 @@ model User {
   notifications         Notification[]
   createdEvents         Event[]              @relation("EventOwner")
   knownDevices          KnownLoginDevice[]
+  notificationSettings  UserNotificationSetting[]
 
   @@unique([companyId, email])
 }
@@ -114,6 +119,29 @@ model VerificationToken {
   expiresAt DateTime
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Per-company enterprise SSO config. One IdP per company today (provider is a
+// free-text string, not an enum, so a future SAML config can slot in as an
+// additive sibling model rather than a rewrite — see CompanySsoConfig.provider).
+model CompanySsoConfig {
+  id                     String   @id @default(cuid())
+  companyId              String   @unique
+  provider               String   @default("oidc")
+  issuer                 String
+  clientId               String
+  clientSecretEnc        String
+  scopes                 String   @default("openid email profile")
+  enabled                Boolean  @default(false)
+  enforced               Boolean  @default(false)
+  jitProvisioningEnabled Boolean  @default(false)
+  allowedDomain          String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([allowedDomain])
 }
 
 // Landing-page newsletter signups (not tied to a company)
@@ -500,6 +528,21 @@ model EmailNotificationSetting {
   @@unique([companyId, type])
 }
 
+// Personal opt-out layered on top of EmailNotificationSetting: a company
+// admin gates a type for everyone, this lets one user additionally mute a
+// type for themselves. Absence of a row means enabled (same convention as
+// EmailNotificationSetting), so most users never have any rows here.
+model UserNotificationSetting {
+  id      String  @id @default(cuid())
+  userId  String
+  type    String
+  enabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+}
+
 model KnownLoginDevice {
   id          String   @id @default(cuid())
   userId      String
@@ -634,4 +677,47 @@ model TravelerProfile {
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ─── Outbound Webhooks ────────────────────────────────────────────────────────
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model WebhookSubscription {
+  id         String   @id @default(cuid())
+  companyId  String   @unique
+  url        String?
+  secret     String?
+  eventTypes String[] @default([])
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model WebhookDelivery {
+  id                String                @id @default(cuid())
+  companyId         String
+  eventType         String
+  url               String
+  payload           String                @db.Text
+  signature         String
+  status            WebhookDeliveryStatus @default(PENDING)
+  attempts          Int                   @default(0)
+  errorMessage      String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  sentAt            DateTime?
+  createdAt         DateTime              @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([companyId, eventType])
+  @@index([companyId, createdAt])
 }

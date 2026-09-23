@@ -1,44 +1,17 @@
 import { auth, signOut } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import type { Role } from '@/types/user'
 import { MobileNav } from '@/components/ui/MobileNav'
-import { CompanyBrand } from '@/components/ui/CompanyBrand'
+import { Sidebar } from '@/components/ui/Sidebar'
 import { BottomTabBar } from '@/components/ui/BottomTabBar'
-import { NotificationBell } from '@/components/ui/NotificationBell'
 import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
 import { prisma } from '@/lib/prisma'
-import {
-  LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
-  Users, Calendar, User, Workflow, Settings, Circle, CreditCard,
-  SlidersHorizontal, ClipboardList, Shield, type LucideIcon,
-} from 'lucide-react'
-
-function sidebarIcon(label: string): LucideIcon {
-  const l = label.toLowerCase()
-  if (l.includes('dashboard') || l.includes('home') || l.includes('admin')) return LayoutDashboard
-  if (l.includes('inbox')) return Inbox
-  if (l.includes('approval')) return CheckCircle2
-  if (l.includes('payout')) return Wallet
-  if (l.includes('card')) return CreditCard
-  if (l.includes('expense')) return Receipt
-  if (l.includes('travel') || l.includes('trip') || l.includes('book')) return Plane
-  if (l.includes('report') || l.includes('stat')) return BarChart3
-  if (l.includes('event')) return Calendar
-  if (l.includes('user') || l.includes('employee')) return Users
-  if (l.includes('profile')) return User
-  if (l.includes('workflow')) return Workflow
-  if (l.includes('policy')) return SlidersHorizontal
-  if (l.includes('audit')) return ClipboardList
-  if (l.includes('security')) return Shield
-  if (l.includes('setting')) return Settings
-  return Circle
-}
 
 type NavItem = { label: string; href: string } | { heading: string }
 
 const SECURITY_LINK = { label: 'Security', href: '/settings/security' }
+const NOTIFICATIONS_LINK = { label: 'Notifications', href: '/settings/notifications' }
 
 const navByRole: Record<Role, NavItem[]> = {
   EMPLOYEE: [
@@ -46,6 +19,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Travel Requests', href: '/employee/travel-requests' },
     { label: 'Expenses', href: '/employee/expenses' },
     { label: 'My Profile', href: '/employee/profile' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   MANAGER: [
@@ -63,6 +37,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Employee', href: '/manager/users-roles' },
     { label: 'Workflows', href: '/manager/workflows' },
     { label: 'Monthly Reports', href: '/manager/reports' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   TRAVEL_MANAGER: [
@@ -77,6 +52,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Statistics', href: '/admin/stats' },
     { heading: 'Administration' },
     { label: 'Employees', href: '/manager/users-roles' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   TRAVEL_AGENT: [
@@ -84,6 +60,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Travel Inbox', href: '/agent/inbox' },
     { label: 'Travel Requests', href: '/agent/bookings' },
     { label: 'Create Travel Booking', href: '/agent/book' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   FINANCE_ADMIN: [
@@ -95,6 +72,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Events & Budgets', href: '/finance/events' },
     { label: 'Policy Limits', href: '/finance/policy' },
     { label: 'Card Transactions', href: '/finance/cards' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   SYSTEM_ADMIN: [
@@ -114,6 +92,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Audit Log',         href: '/admin/audit-log' },
     { label: 'Email Notifications', href: '/admin/emails' },
     { label: 'Settings',          href: '/admin/settings' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
 }
@@ -140,43 +119,41 @@ export default async function DashboardLayout({ children }: { children: React.Re
     companyName = company?.name || companyName
   }
 
+  // Sidebar badge counts — only computed for the glass Travel Manager sidebar,
+  // so the other 5 roles never pay for these extra queries on every page render.
+  let badgeCounts: Record<string, number> | undefined
+  if (role === 'TRAVEL_MANAGER' && session.user.companyId) {
+    const companyId = session.user.companyId
+    const [travelPending, expensePending, inactiveEmployees] = await Promise.all([
+      prisma.travelRequest.count({ where: { companyId, status: 'PENDING_MANAGER' } }),
+      prisma.expense.count({ where: { companyId, status: 'SUBMITTED' } }),
+      prisma.user.count({ where: { companyId, role: 'EMPLOYEE', isActive: false } }),
+    ])
+    badgeCounts = {
+      '/manager/team-travel': travelPending,
+      '/finance/expenses': expensePending,
+      '/manager/users-roles': inactiveEmployees,
+    }
+  }
+
+  const sidebarVariant = role === 'TRAVEL_MANAGER' ? 'glass' : 'solid'
+
   return (
     <div className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Mobile top bar (primary nav is the bottom tab bar) */}
-      <MobileNav name={companyName} logoUrl={logoUrl} />
+      <MobileNav name={companyName} logoUrl={logoUrl} variant={sidebarVariant} />
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 flex-col bg-indigo-900 text-white">
-        <div className="flex h-20 items-center justify-between px-4">
-          <CompanyBrand name={companyName} logoUrl={logoUrl} size="md" />
-          <NotificationBell />
-        </div>
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {nav.map((item, i) =>
-            'heading' in item ? (
-              <p key={i} className="px-3 pt-4 pb-1 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
-                {item.heading}
-              </p>
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-indigo-100 hover:bg-indigo-800 hover:text-white"
-              >
-                {(() => { const Icon = sidebarIcon(item.label); return <Icon className="h-4 w-4 shrink-0 text-indigo-400" /> })()}
-                {item.label}
-              </Link>
-            )
-          )}
-        </nav>
-        <div className="border-t border-indigo-800 px-6 py-4">
-          <form action={async () => { 'use server'; await signOut({ redirectTo: '/' }) }}>
-            <button type="submit" className="w-full rounded-lg bg-indigo-800 px-3 py-2 text-left text-sm font-medium text-indigo-200 hover:bg-indigo-700 hover:text-white">
-              Log out
-            </button>
-          </form>
-        </div>
-      </aside>
+      <Sidebar
+        variant={sidebarVariant}
+        nav={nav}
+        companyName={companyName}
+        logoUrl={logoUrl}
+        userName={session.user.name ?? ''}
+        role={role}
+        badgeCounts={badgeCounts}
+        logoutAction={async () => { 'use server'; await signOut({ redirectTo: '/' }) }}
+      />
 
       {/* Main — header + profile banner + page content */}
       <div className="flex-1 min-w-0 overflow-auto flex flex-col">

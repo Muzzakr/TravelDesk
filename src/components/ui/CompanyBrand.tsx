@@ -3,6 +3,8 @@ interface CompanyBrandProps {
   logoUrl: string | null
   size?: 'sm' | 'md'
   className?: string
+  /** Extra classes on the name text only — e.g. `hidden lg:inline` to collapse to just the logo at narrower widths. */
+  nameClassName?: string
 }
 
 function getInitials(name: string): string {
@@ -21,7 +23,7 @@ const SIZES = {
 }
 
 /** Circular company logo (or initials fallback) with the company name beside it — used in the dashboard sidebar and mobile top bar so every company sees its own branding. */
-export function CompanyBrand({ name, logoUrl, size = 'md', className }: CompanyBrandProps) {
+export function CompanyBrand({ name, logoUrl, size = 'md', className, nameClassName }: CompanyBrandProps) {
   const s = SIZES[size]
   return (
     <div className={`flex min-w-0 items-center ${s.gap} ${className ?? ''}`}>
@@ -36,7 +38,7 @@ export function CompanyBrand({ name, logoUrl, size = 'md', className }: CompanyB
           <span className={`font-semibold text-indigo-700 ${s.initials}`}>{getInitials(name)}</span>
         )}
       </div>
-      <span className={`truncate font-semibold text-white ${s.text}`}>{name}</span>
+      <span className={`truncate font-semibold text-white ${s.text} ${nameClassName ?? ''}`}>{name}</span>
     </div>
   )
 }

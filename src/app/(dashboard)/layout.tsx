@@ -148,6 +148,51 @@ export default async function DashboardLayout({ children }: { children: React.Re
     companyName = company?.name || companyName
   }
 
+  // Sidebar nav-item badge counts — real, per-role "pending action" counts,
+  // each reusing the exact same definition that role's own dashboard already
+  // shows (manager/page.tsx, agent/page.tsx, admin/page.tsx). Keyed by href
+  // so the nav renderer stays generic. Only computed for roles that have a
+  // matching queue; nothing extra queried for roles without one.
+  let badgeCounts: Record<string, number> = {}
+  if (session.user.companyId) {
+    const companyId = session.user.companyId
+    if (role === 'MANAGER' || role === 'TRAVEL_MANAGER') {
+      const [travelPending, expensePending, inactiveEmployees] = await Promise.all([
+        prisma.travelRequest.count({ where: { companyId, status: 'PENDING_MANAGER' } }),
+        prisma.expense.count({ where: { companyId, status: 'SUBMITTED' } }),
+        prisma.user.count({ where: { companyId, role: 'EMPLOYEE', isActive: false } }),
+      ])
+      badgeCounts = {
+        '/manager/team-travel': travelPending,
+        '/finance/expenses': expensePending,
+        '/manager/users-roles': inactiveEmployees,
+      }
+    } else if (role === 'TRAVEL_AGENT') {
+      const [inboxNew, pendingBookings] = await Promise.all([
+        prisma.travelInboxMessage.count({ where: { companyId, status: 'NEW' } }),
+        prisma.travelRequest.count({ where: { companyId, status: { in: ['PENDING_AGENT', 'APPROVED'] } } }),
+      ])
+      badgeCounts = { '/agent/inbox': inboxNew, '/agent/bookings': pendingBookings }
+    } else if (role === 'FINANCE_ADMIN') {
+      const [expensePending, expensePendingPayout] = await Promise.all([
+        prisma.expense.count({ where: { companyId, status: 'SUBMITTED' } }),
+        prisma.expense.count({ where: { companyId, status: 'APPROVED', payoutReportId: null } }),
+      ])
+      badgeCounts = { '/finance/expenses': expensePending, '/finance/payout-reports': expensePendingPayout }
+    } else if (role === 'SYSTEM_ADMIN') {
+      const [travelRequestPending, expenseMissingReceipts, expensePendingPayout] = await Promise.all([
+        prisma.travelRequest.count({ where: { companyId, status: { in: ['PENDING_AGENT', 'PENDING_MANAGER', 'OPTIONS_PROVIDED'] } } }),
+        prisma.expense.count({ where: { companyId, status: 'APPROVED', payoutReportId: null, receipts: { none: {} } } }),
+        prisma.expense.count({ where: { companyId, status: 'APPROVED', payoutReportId: null } }),
+      ])
+      badgeCounts = {
+        '/admin/travel-requests': travelRequestPending,
+        '/admin/expenses': expenseMissingReceipts,
+        '/finance/payout-reports': expensePendingPayout,
+      }
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Mobile top bar (primary nav is the bottom tab bar) */}
@@ -173,6 +218,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
               >
                 {(() => { const Icon = sidebarIcon(item.label); return <Icon className="h-4 w-4 shrink-0 text-indigo-400" /> })()}
                 {item.label}
+                {!!badgeCounts[item.href] && (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-indigo-700 text-indigo-100 text-[11px] font-semibold">
+                    {badgeCounts[item.href] > 99 ? '99+' : badgeCounts[item.href]}
+                  </span>
+                )}
               </Link>
             )
           )}

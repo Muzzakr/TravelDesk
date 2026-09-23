@@ -12,7 +12,7 @@ import { prisma } from '@/lib/prisma'
 import {
   LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
   Users, Calendar, User, Workflow, Settings, Circle, CreditCard,
-  SlidersHorizontal, ClipboardList, Shield, type LucideIcon,
+  SlidersHorizontal, ClipboardList, Shield, Bell, type LucideIcon,
 } from 'lucide-react'
 
 function sidebarIcon(label: string): LucideIcon {
@@ -32,6 +32,7 @@ function sidebarIcon(label: string): LucideIcon {
   if (l.includes('policy')) return SlidersHorizontal
   if (l.includes('audit')) return ClipboardList
   if (l.includes('security')) return Shield
+  if (l.includes('notification')) return Bell
   if (l.includes('setting')) return Settings
   return Circle
 }
@@ -39,6 +40,7 @@ function sidebarIcon(label: string): LucideIcon {
 type NavItem = { label: string; href: string } | { heading: string }
 
 const SECURITY_LINK = { label: 'Security', href: '/settings/security' }
+const NOTIFICATIONS_LINK = { label: 'Notifications', href: '/settings/notifications' }
 
 const navByRole: Record<Role, NavItem[]> = {
   EMPLOYEE: [
@@ -46,6 +48,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Travel Requests', href: '/employee/travel-requests' },
     { label: 'Expenses', href: '/employee/expenses' },
     { label: 'My Profile', href: '/employee/profile' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   MANAGER: [
@@ -63,6 +66,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Employee', href: '/manager/users-roles' },
     { label: 'Workflows', href: '/manager/workflows' },
     { label: 'Monthly Reports', href: '/manager/reports' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   TRAVEL_MANAGER: [
@@ -77,6 +81,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Statistics', href: '/admin/stats' },
     { heading: 'Administration' },
     { label: 'Employees', href: '/manager/users-roles' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   TRAVEL_AGENT: [
@@ -84,6 +89,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Travel Inbox', href: '/agent/inbox' },
     { label: 'Travel Requests', href: '/agent/bookings' },
     { label: 'Create Travel Booking', href: '/agent/book' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   FINANCE_ADMIN: [
@@ -95,6 +101,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Events & Budgets', href: '/finance/events' },
     { label: 'Policy Limits', href: '/finance/policy' },
     { label: 'Card Transactions', href: '/finance/cards' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
   SYSTEM_ADMIN: [
@@ -114,6 +121,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Audit Log',         href: '/admin/audit-log' },
     { label: 'Email Notifications', href: '/admin/emails' },
     { label: 'Settings',          href: '/admin/settings' },
+    NOTIFICATIONS_LINK,
     SECURITY_LINK,
   ],
 }

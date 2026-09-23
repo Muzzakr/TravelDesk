@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
@@ -26,6 +26,13 @@ const GOOGLE_BANNERS: Record<string, { color: string; msg: string }> = {
   expired:  { color: 'bg-amber-50 text-amber-800 border-amber-200', msg: 'Verification link expired. Please click "Sign in with Google" to try again.' },
 }
 
+const SSO_BANNERS: Record<string, { color: string; msg: string }> = {
+  notfound: { color: 'bg-red-50 text-red-800 border-red-200',       msg: 'No account found for that SSO login, or it could not be verified. Contact your admin.' },
+  expired:  { color: 'bg-amber-50 text-amber-800 border-amber-200', msg: 'Your SSO sign-in link expired. Please try again.' },
+  disabled: { color: 'bg-amber-50 text-amber-800 border-amber-200', msg: 'Single sign-on is not set up for that company.' },
+  enforced: { color: 'bg-amber-50 text-amber-800 border-amber-200', msg: 'This company requires signing in with SSO.' },
+}
+
 function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
@@ -43,9 +50,32 @@ function LoginForm() {
     email: '',
     password: '',
   })
+  // SSO status for the entered company — hides the password field once we
+  // learn the company enforces SSO, instead of only failing at submit time.
+  const [sso, setSso] = useState({ ssoEnabled: false, ssoEnforced: false })
 
   const googleParam = params.get('google') ?? ''
   const googleBanner = GOOGLE_BANNERS[googleParam]
+  const ssoParam = params.get('sso') ?? ''
+  const ssoBanner = SSO_BANNERS[ssoParam]
+
+  useEffect(() => {
+    const slug = form.companySlug.trim()
+    if (!slug) { setSso({ ssoEnabled: false, ssoEnforced: false }); return }
+
+    const timer = setTimeout(() => {
+      fetch(`/api/auth/sso/check?company=${encodeURIComponent(slug)}`)
+        .then((res) => res.json())
+        .then((data) => setSso({ ssoEnabled: !!data.ssoEnabled, ssoEnforced: !!data.ssoEnforced }))
+        .catch(() => setSso({ ssoEnabled: false, ssoEnforced: false }))
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [form.companySlug])
+
+  function handleSso() {
+    window.location.href = `/api/auth/sso/authorize?company=${encodeURIComponent(form.companySlug.trim())}`
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -141,6 +171,11 @@ function LoginForm() {
             {googleBanner.msg}
           </div>
         )}
+        {ssoBanner && (
+          <div className={`mb-4 rounded-lg border p-3 text-sm ${ssoBanner.color}`}>
+            {ssoBanner.msg}
+          </div>
+        )}
 
         <div className="rounded-2xl bg-white p-8 shadow-lg">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -153,96 +188,117 @@ function LoginForm() {
               placeholder="acme-corp"
               hint="Your company's slug"
             />
-            <Input
-              label="Email"
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              placeholder="you@company.com"
-            />
-            <Input
-              label="Password"
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
-            {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-            <Button type="submit" loading={loading} className="mt-2">
-              Sign in
-            </Button>
-            <p className="text-center text-sm text-gray-500">
-              <Link href="/forgot-password" className="font-medium text-indigo-600 hover:underline">
-                Forgot your password?
-              </Link>
-            </p>
+            {!sso.ssoEnforced && (
+              <>
+                <Input
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                  placeholder="you@company.com"
+                />
+                <Input
+                  label="Password"
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                />
+                {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+                <Button type="submit" loading={loading} className="mt-2">
+                  Sign in
+                </Button>
+                <p className="text-center text-sm text-gray-500">
+                  <Link href="/forgot-password" className="font-medium text-indigo-600 hover:underline">
+                    Forgot your password?
+                  </Link>
+                </p>
+              </>
+            )}
           </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200" />
-            <span className="text-xs text-gray-400 uppercase tracking-wide">or</span>
-            <div className="h-px flex-1 bg-gray-200" />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogle}
-            disabled={googleLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
-          >
-            <GoogleIcon />
-            {googleLoading ? 'Redirecting…' : 'Sign in with Google'}
-          </button>
-
-          {/* Magic link — passwordless sign-in via emailed one-time link */}
-          {!magicOpen ? (
+          {sso.ssoEnabled && (
             <button
               type="button"
-              onClick={() => { setMagicOpen(true); setMagicEmail(form.email); setMagicSent(false) }}
-              className="mt-3 flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+              onClick={handleSso}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
             >
-              <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              Email me a sign-in link
+              Sign in with SSO
             </button>
-          ) : magicSent ? (
-            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-              Check your email — if an account exists, a sign-in link is on its way. It expires in 15 minutes.
+          )}
+
+          {!sso.ssoEnforced && (
+            <>
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-gray-200" />
+                <span className="text-xs text-gray-400 uppercase tracking-wide">or</span>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
+
               <button
                 type="button"
-                onClick={() => setMagicSent(false)}
-                className="mt-2 block text-xs font-semibold text-blue-700 underline hover:text-blue-900"
+                onClick={handleGoogle}
+                disabled={googleLoading}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
               >
-                Wrong email or no link? Send a new one
+                <GoogleIcon />
+                {googleLoading ? 'Redirecting…' : 'Sign in with Google'}
               </button>
-            </div>
-          ) : (
-            <form onSubmit={handleMagicLink} className="mt-3 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <label className="block text-xs font-medium text-gray-600">We&apos;ll email you a one-time sign-in link</label>
-              <input
-                type="email"
-                required
-                value={magicEmail}
-                onChange={(e) => setMagicEmail(e.target.value)}
-                placeholder="you@company.com"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-              />
-              {magicError && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{magicError}</p>}
-              <div className="flex gap-2">
-                <button type="submit" disabled={magicSending}
-                  className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors">
-                  {magicSending ? 'Sending…' : 'Send link'}
+
+              {/* Magic link — passwordless sign-in via emailed one-time link */}
+              {!magicOpen ? (
+                <button
+                  type="button"
+                  onClick={() => { setMagicOpen(true); setMagicEmail(form.email); setMagicSent(false) }}
+                  className="mt-3 flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Email me a sign-in link
                 </button>
-                <button type="button" onClick={() => setMagicOpen(false)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                  Cancel
-                </button>
-              </div>
-            </form>
+              ) : magicSent ? (
+                <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                  Check your email — if an account exists, a sign-in link is on its way. It expires in 15 minutes.
+                  <button
+                    type="button"
+                    onClick={() => setMagicSent(false)}
+                    className="mt-2 block text-xs font-semibold text-blue-700 underline hover:text-blue-900"
+                  >
+                    Wrong email or no link? Send a new one
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleMagicLink} className="mt-3 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <label className="block text-xs font-medium text-gray-600">We&apos;ll email you a one-time sign-in link</label>
+                  <input
+                    type="email"
+                    required
+                    value={magicEmail}
+                    onChange={(e) => setMagicEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+                  />
+                  {magicError && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{magicError}</p>}
+                  <div className="flex gap-2">
+                    <button type="submit" disabled={magicSending}
+                      className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors">
+                      {magicSending ? 'Sending…' : 'Send link'}
+                    </button>
+                    <button type="button" onClick={() => setMagicOpen(false)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
           )}
 
           <p className="mt-6 text-center text-sm text-gray-500">

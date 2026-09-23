@@ -25,8 +25,21 @@ export async function POST(req: NextRequest) {
     include: { company: { select: { name: true } } },
   })
 
+  // Companies that enforce SSO don't allow any password-free bypass either —
+  // magic-link is still a non-SSO login path, so it's gated the same way the
+  // credentials and Google providers are in src/lib/auth.ts.
+  const companyIds = [...new Set(users.map((u) => u.companyId))]
+  const enforcedConfigs = companyIds.length
+    ? await prisma.companySsoConfig.findMany({
+        where: { companyId: { in: companyIds }, enforced: true },
+        select: { companyId: true },
+      })
+    : []
+  const enforcedCompanyIds = new Set(enforcedConfigs.map((c) => c.companyId))
+
   let failed = 0
   for (const user of users) {
+    if (enforcedCompanyIds.has(user.companyId)) continue
     try {
       const rawToken = await createVerificationToken(user.id, 'MAGIC_LINK')
       await sendMagicLinkEmail(user.email, user.name, rawToken, user.company.name, user.companyId)

@@ -5,37 +5,10 @@ import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { writeAuditLog } from './audit'
 import { createVerificationToken, hashToken } from './tokens'
-import { sendGoogleVerificationEmail, emailNewDeviceLogin } from './mail'
-import { rateLimit, clientIp } from './rate-limit'
-import { createHash } from 'crypto'
+import { sendGoogleVerificationEmail } from './mail'
+import { rateLimit } from './rate-limit'
+import { checkNewDevice } from './device'
 import type { Role } from '@/types/user'
-
-// New-device detection: hash User-Agent + IP, compare against previously
-// seen devices for this user. Best-effort — never blocks sign-in.
-async function checkNewDevice(userId: string, companyId: string, name: string, email: string, request: Request | undefined) {
-  try {
-    const userAgent = request?.headers.get('user-agent') ?? 'unknown'
-    const ip = request ? clientIp(request) : 'unknown'
-    const deviceHash = createHash('sha256').update(`${userAgent}|${ip}`).digest('hex')
-
-    const known = await prisma.knownLoginDevice.findUnique({
-      where: { userId_deviceHash: { userId, deviceHash } },
-    })
-    if (known) {
-      await prisma.knownLoginDevice.update({ where: { id: known.id }, data: { lastSeenAt: new Date() } })
-      return
-    }
-
-    await prisma.knownLoginDevice.create({ data: { userId, deviceHash } })
-    // Don't email on a user's very first-ever login — every device would be "new".
-    const deviceCount = await prisma.knownLoginDevice.count({ where: { userId } })
-    if (deviceCount > 1 && email) {
-      emailNewDeviceLogin(email, name, { userAgent, time: new Date().toISOString() }, companyId).catch(() => {})
-    }
-  } catch (err) {
-    console.error('checkNewDevice failed:', err)
-  }
-}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -69,6 +42,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { slug: credentials.companySlug as string },
         })
         if (!company) return null
+
+        // Companies that enforce SSO don't allow password sign-in — the
+        // login page also proactively hides the password field once it
+        // learns this via /api/auth/sso/check, so this is a backstop.
+        const ssoConfig = await prisma.companySsoConfig.findUnique({
+          where: { companyId: company.id },
+          select: { enforced: true },
+        })
+        if (ssoConfig?.enforced) return null
 
         const user = await prisma.user.findUnique({
           where: {
@@ -134,6 +116,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await prisma.user.findUnique({ where: { id: record.userId } })
         if (!user || !user.isActive) return null
 
+        // Backstop — /api/auth/magic-link already skips sending to an
+        // enforced company, but a token issued before enforcement was
+        // turned on must not still be redeemable after.
+        const ssoConfig = await prisma.companySsoConfig.findUnique({
+          where: { companyId: user.companyId },
+          select: { enforced: true },
+        })
+        if (ssoConfig?.enforced) return null
+
         try {
           await writeAuditLog({
             companyId: user.companyId,
@@ -146,6 +137,56 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         } catch (err) {
           console.error('Audit log failed:', err)
         }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          companyId: user.companyId,
+          role: user.role as Role,
+          mfaEnabled: user.mfaEnabled,
+        }
+      },
+    }),
+    // Bridges an already-verified enterprise SSO (OIDC) sign-in into a real
+    // NextAuth session. The actual identity proving happens outside NextAuth
+    // in /api/auth/sso/authorize + /api/auth/sso/callback (a full OIDC
+    // authorization-code exchange with the company's own IdP) — by the time
+    // this provider runs, the token has already been validated once and
+    // just needs to be redeemed. Structurally identical to magic-link above.
+    Credentials({
+      id: 'sso-credentials',
+      name: 'sso-credentials',
+      credentials: { token: { label: 'Token', type: 'text' } },
+      async authorize(credentials, request) {
+        const raw = credentials?.token
+        if (!raw || typeof raw !== 'string') return null
+
+        const record = await prisma.verificationToken.findUnique({
+          where: { token: hashToken(raw) },
+        })
+        if (!record || record.type !== 'SSO_SESSION' || record.expiresAt < new Date()) return null
+
+        // Single use — consume before signing in
+        await prisma.verificationToken.delete({ where: { id: record.id } })
+
+        const user = await prisma.user.findUnique({ where: { id: record.userId } })
+        if (!user || !user.isActive) return null
+
+        try {
+          await writeAuditLog({
+            companyId: user.companyId,
+            actorId: user.id,
+            action: 'LOGIN_SSO',
+            entityType: 'User',
+            entityId: user.id,
+            payload: { email: user.email, role: user.role },
+          })
+        } catch (err) {
+          console.error('Audit log failed:', err)
+        }
+
+        await checkNewDevice(user.id, user.companyId, user.name, user.email, request)
 
         return {
           id: user.id,
@@ -178,6 +219,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (matches.length === 0) return '/login?google=notfound'
       if (matches.length > 1) return '/login?google=ambiguous'
       const dbUser = matches[0]
+
+      const ssoConfig = await prisma.companySsoConfig.findUnique({
+        where: { companyId: dbUser.companyId },
+        select: { enforced: true },
+      })
+      if (ssoConfig?.enforced) return '/login?sso=enforced'
 
       if (!dbUser.googleVerified) {
         // Max 3 verification emails per account per 15 minutes — repeated

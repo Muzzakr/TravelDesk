@@ -66,7 +66,7 @@ const PRIORITY_TABS: Record<string, string[]> = {
   SYSTEM_ADMIN: ['/admin', '/admin/expenses', '/admin/users', '/admin/events'],
   FINANCE_ADMIN: ['/finance', '/finance/expenses', '/finance/payout-reports', '/finance/cards'],
   MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/finance/expenses'],
-  TRAVEL_MANAGER: ['/manager', '/finance/expenses', '/manager/team-travel', '/agent/book'],
+  TRAVEL_MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/finance/expenses'],
 }
 
 export function BottomTabBar({
@@ -113,7 +113,7 @@ export function BottomTabBar({
     <>
       {/* ── Bottom tab bar ── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white pb-[env(safe-area-inset-bottom)] shadow-tab-bar">
-        <div className="grid grid-cols-5">
+        <div className="flex">
           {tabs.map((item) => {
             const Icon = iconFor(item.label)
             const active = isActive(item.href)
@@ -121,7 +121,7 @@ export function BottomTabBar({
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1"
+                className="flex flex-1 min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1"
               >
                 <span
                   className={`flex items-center justify-center rounded-[10px] px-3 py-1 transition-all duration-150 ${
@@ -150,7 +150,7 @@ export function BottomTabBar({
             type="button"
             onClick={() => setMoreOpen(true)}
             aria-label="Open menu"
-            className="flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1"
+            className="flex flex-1 min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1"
           >
             <span className="flex items-center justify-center rounded-[10px] px-3 py-1">
               <MoreHorizontal className="h-5 w-5 text-gray-400" />

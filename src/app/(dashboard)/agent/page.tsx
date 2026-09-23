@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Inbox, Clock, Clock3, Plane, Check, User } from 'lucide-react'
+import { Clock, Clock3, Plane, Check, User } from 'lucide-react'
 
 const VENDOR_URLS: Record<string, string> = {
   sas: 'https://www.flysas.com',
@@ -76,22 +76,18 @@ export default async function AgentDashboard() {
     }),
   ])
 
-  const [urgentCount, inboxNewCount] = await Promise.all([
-    prisma.travelRequest.count({
-      where: {
-        companyId,
-        status: 'PENDING_AGENT',
-        travelDates: {
-          path: ['departureDate'],
-          lte: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-        },
+  const urgentCount = await prisma.travelRequest.count({
+    where: {
+      companyId,
+      status: 'PENDING_AGENT',
+      travelDates: {
+        path: ['departureDate'],
+        lte: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
       },
-    }),
-    prisma.travelInboxMessage.count({ where: { companyId, status: 'NEW' } }),
-  ])
+    },
+  })
 
   const stats = [
-    { label: 'Inbox — New',       value: inboxNewCount,   color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-200',    icon: Inbox, href: '/agent/inbox?status=NEW' },
     { label: 'Pending Bookings',  value: pendingBookings, color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200',  icon: Clock, href: '/agent/bookings' },
     { label: 'Awaiting Approval', value: awaitingApproval, color: 'text-blue-600', bg: 'bg-blue-50',   border: 'border-blue-200',   icon: Clock3, href: '/agent/bookings' },
     { label: 'Upcoming Trips',    value: upcomingTrips,   color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-200',  icon: Plane, href: '/agent/bookings?status=BOOKING_CONFIRMED' },

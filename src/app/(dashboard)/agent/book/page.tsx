@@ -206,37 +206,6 @@ export default function AgentBookPage() {
       setEmployees(emps)
       const active = evts.filter(e => e.status !== 'CLOSED')
       setEvents(active)
-
-      // Pre-fill from inbox query params
-      const p = new URLSearchParams(window.location.search)
-      const inboxService  = p.get('service')
-      const inboxDest     = p.get('destination')
-      const inboxOrigin   = p.get('origin')
-      const inboxDep      = p.get('departure')
-      const inboxRet      = p.get('return')
-      const inboxEmployee = p.get('employee')
-
-      if (inboxService) {
-        setServices([inboxService])
-        if (inboxService === 'FLIGHT') {
-          setFlight(f => ({
-            ...f,
-            departureDate: inboxDep ?? '',
-            returnDate:    inboxRet ?? '',
-          }))
-        } else if (inboxService === 'HOTEL') {
-          setHotel(h => ({ ...h, city: inboxDest ?? '', checkIn: inboxDep ?? '', checkOut: inboxRet ?? '' }))
-        } else if (inboxService === 'CAR_RENTAL') {
-          setCar(c => ({ ...c, pickupCity: inboxDest ?? inboxOrigin ?? '', pickupDate: inboxDep ?? '', returnDate: inboxRet ?? '' }))
-        } else if (inboxService === 'TAXI') {
-          setTaxi(t => ({ ...t, pickup: inboxOrigin ?? '', dropoff: inboxDest ?? '', date: inboxDep ?? '' }))
-        }
-      }
-
-      if (inboxEmployee) {
-        const match = emps.find(e => e.name.toLowerCase().includes(inboxEmployee.toLowerCase()))
-        if (match) setEmployeeId(match.id)
-      }
     }).catch(() => {
       // Without employees/events the wizard is unusable — say so instead of
       // silently rendering empty dropdowns.
@@ -350,15 +319,6 @@ export default function AgentBookPage() {
       return
     }
     if (data.budgetWarning) setWarning('Note: this request is approaching the event budget cap.')
-    // If this booking originated from an inbox message, link it back
-    const inboxId = new URLSearchParams(window.location.search).get('inbox_id')
-    if (inboxId) {
-      fetch(`/api/inbox/${inboxId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ travelRequestId: data.id, status: 'IN_PROGRESS' }),
-      }).catch(() => {})
-    }
     setCreatedRequestId(data.id)
     setLoading(false)
     setStep(5)

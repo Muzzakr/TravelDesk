@@ -10,7 +10,7 @@ import { ProfileBanner } from '@/components/ui/ProfileBanner'
 import { getProfileStatus } from '@/lib/profile-check'
 import { prisma } from '@/lib/prisma'
 import {
-  LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
+  LayoutDashboard, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
   Users, Calendar, User, Workflow, Settings, Circle, CreditCard,
   SlidersHorizontal, ClipboardList, Shield, Bell, type LucideIcon,
 } from 'lucide-react'
@@ -18,7 +18,6 @@ import {
 function sidebarIcon(label: string): LucideIcon {
   const l = label.toLowerCase()
   if (l.includes('dashboard') || l.includes('home') || l.includes('admin')) return LayoutDashboard
-  if (l.includes('inbox')) return Inbox
   if (l.includes('approval')) return CheckCircle2
   if (l.includes('payout')) return Wallet
   if (l.includes('card')) return CreditCard
@@ -54,7 +53,6 @@ const navByRole: Record<Role, NavItem[]> = {
   MANAGER: [
     { label: 'Dashboard', href: '/manager' },
     { heading: 'My Work' },
-    { label: 'Travel Inbox', href: '/manager/inbox' },
     { label: 'Team Travel', href: '/manager/team-travel' },
     { heading: 'Finance' },
     { label: 'All Expenses', href: '/finance/expenses' },
@@ -72,7 +70,6 @@ const navByRole: Record<Role, NavItem[]> = {
   TRAVEL_MANAGER: [
     { label: 'Dashboard', href: '/manager' },
     { heading: 'Travel' },
-    { label: 'Travel Inbox', href: '/manager/inbox' },
     { label: 'Travel Requests', href: '/manager/team-travel' },
     { label: 'Open Requests', href: '/manager/requests/unassigned' },
     { heading: 'Finance' },
@@ -86,7 +83,6 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   TRAVEL_AGENT: [
     { label: 'Dashboard', href: '/agent' },
-    { label: 'Travel Inbox', href: '/agent/inbox' },
     { label: 'Travel Requests', href: '/agent/bookings' },
     { label: 'Create Travel Booking', href: '/agent/book' },
     NOTIFICATIONS_LINK,
@@ -107,7 +103,6 @@ const navByRole: Record<Role, NavItem[]> = {
   SYSTEM_ADMIN: [
     { heading: 'Operations' },
     { label: 'Admin Dashboard',   href: '/admin' },
-    { label: 'Travel Inbox',      href: '/manager/inbox' },
     { label: 'Travel Requests',   href: '/admin/travel-requests' },
     { label: 'Open Requests',     href: '/manager/requests/unassigned' },
     { label: 'Expenses',          href: '/admin/expenses' },
@@ -168,11 +163,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         '/manager/users-roles': inactiveEmployees,
       }
     } else if (role === 'TRAVEL_AGENT') {
-      const [inboxNew, pendingBookings] = await Promise.all([
-        prisma.travelInboxMessage.count({ where: { companyId, status: 'NEW' } }),
-        prisma.travelRequest.count({ where: { companyId, status: { in: ['PENDING_AGENT', 'APPROVED'] } } }),
-      ])
-      badgeCounts = { '/agent/inbox': inboxNew, '/agent/bookings': pendingBookings }
+      const pendingBookings = await prisma.travelRequest.count({ where: { companyId, status: { in: ['PENDING_AGENT', 'APPROVED'] } } })
+      badgeCounts = { '/agent/bookings': pendingBookings }
     } else if (role === 'FINANCE_ADMIN') {
       const [expensePending, expensePendingPayout] = await Promise.all([
         prisma.expense.count({ where: { companyId, status: 'SUBMITTED' } }),

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
-  LayoutDashboard, Inbox, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
+  LayoutDashboard, Plane, Receipt, CheckCircle2, BarChart3, Wallet,
   Users, Calendar, User, Workflow, Settings, MoreHorizontal, X, Circle,
   LogOut, CreditCard, SlidersHorizontal, ClipboardList, Shield, type LucideIcon,
 } from 'lucide-react'
@@ -16,7 +16,6 @@ type NavItem = NavLink | { heading: string }
 function iconFor(label: string): LucideIcon {
   const l = label.toLowerCase()
   if (l.includes('dashboard') || l.includes('home')) return LayoutDashboard
-  if (l.includes('inbox')) return Inbox
   if (l.includes('approval')) return CheckCircle2
   if (l.includes('payout')) return Wallet
   if (l.includes('card')) return CreditCard
@@ -37,7 +36,6 @@ function iconFor(label: string): LucideIcon {
 const SHORT: Record<string, string> = {
   'Dashboard': 'Home',
   'Admin Dashboard': 'Home',
-  'Travel Inbox': 'Inbox',
   'Travel Requests': 'Trips',
   'Team Travel': 'Travel',
   'Team Expenses': 'Expenses',
@@ -65,8 +63,8 @@ const ROLE_LABEL: Record<string, string> = {
 const PRIORITY_TABS: Record<string, string[]> = {
   SYSTEM_ADMIN: ['/admin', '/admin/expenses', '/admin/users', '/admin/events'],
   FINANCE_ADMIN: ['/finance', '/finance/expenses', '/finance/payout-reports', '/finance/cards'],
-  MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/finance/expenses'],
-  TRAVEL_MANAGER: ['/manager', '/manager/inbox', '/manager/team-travel', '/finance/expenses'],
+  MANAGER: ['/manager', '/manager/team-travel', '/finance/expenses', '/finance/payout-reports'],
+  TRAVEL_MANAGER: ['/manager', '/manager/team-travel', '/finance/expenses', '/finance/payout-reports'],
 }
 
 export function BottomTabBar({

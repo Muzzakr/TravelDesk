@@ -29,7 +29,6 @@ model Company {
   cardTransactions    CardTransaction[]
   policyRules         PolicyRule[]
   travelerProfiles    TravelerProfile[]
-  travelInboxMessages TravelInboxMessage[]
   emailLogs           EmailLog[]
   emailSettings       EmailNotificationSetting[]
   webhookSubscription WebhookSubscription?
@@ -86,7 +85,6 @@ model User {
   verificationTokens    VerificationToken[]
   mfaBackupCodes        MfaBackupCode[]
   eventDocuments        EventDocument[]
-  assignedInboxMessages TravelInboxMessage[] @relation("InboxAssignee")
   notifications         Notification[]
   createdEvents         Event[]              @relation("EventOwner")
   knownDevices          KnownLoginDevice[]
@@ -599,42 +597,6 @@ model PolicyRule {
   updatedAt DateTime       @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-}
-
-// ─── Travel Inbox ─────────────────────────────────────────────────────────────
-
-enum InboxChannel {
-  TRAVEL_CARS
-  TRAVEL_FLIGHTS
-  TRAVEL_HOTELS
-}
-
-enum InboxStatus {
-  NEW
-  IN_PROGRESS
-  DONE
-  IGNORED
-}
-
-model TravelInboxMessage {
-  id              String       @id @default(cuid())
-  companyId       String
-  channel         InboxChannel
-  slackUserId     String?
-  slackUserName   String?
-  slackMsgTs      String?
-  slackThreadTs   String?
-  slackChannelId  String?
-  rawText         String
-  parsedData      Json?
-  status          InboxStatus  @default(NEW)
-  assignedToId    String?
-  travelRequestId String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  assignedTo User?   @relation("InboxAssignee", fields: [assignedToId], references: [id])
 }
 
 // ─── Traveler Profile ─────────────────────────────────────────────────────────

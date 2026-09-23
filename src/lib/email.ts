@@ -1,5 +1,6 @@
 import { createTransport } from 'nodemailer'
 import { prisma } from './prisma'
+import { PERSONAL_EMAIL_TYPES } from './email-types'
 
 // Shared transport — also used directly by mail.ts for the two marketing-site
 // emails (newsletter welcome, demo request) that have no company/tenant
@@ -29,6 +30,26 @@ export interface SendEmailParams {
 }
 
 export type SendEmailResult = { id: string; status: 'SENT' | 'FAILED' | 'SKIPPED' }
+
+// For personally-toggleable types (see PERSONAL_EMAIL_TYPES), drops any
+// recipient who is a user in this company and has muted that type for
+// themselves at /settings/notifications. Addresses that don't match a user
+// in this company (external cc's, pre-signup invites) pass through untouched.
+async function filterMutedRecipients(companyId: string, type: string, to: string[]): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: { companyId, email: { in: to } },
+    select: { id: true, email: true },
+  })
+  if (users.length === 0) return to
+
+  const muted = await prisma.userNotificationSetting.findMany({
+    where: { type, enabled: false, userId: { in: users.map((u) => u.id) } },
+    select: { userId: true },
+  })
+  const mutedUserIds = new Set(muted.map((m) => m.userId))
+  const mutedEmails = new Set(users.filter((u) => mutedUserIds.has(u.id)).map((u) => u.email))
+  return to.filter((addr) => !mutedEmails.has(addr))
+}
 
 /**
  * Central dispatcher for every outbound email in the app. Logs every
@@ -69,7 +90,16 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       return { id: skipped.id, status: 'SKIPPED' }
     }
 
-    const log = await prisma.emailLog.create({ data: { ...base, status: 'PENDING' } })
+    const recipients = PERSONAL_EMAIL_TYPES.has(params.type)
+      ? await filterMutedRecipients(params.companyId, params.type, to)
+      : to
+
+    if (recipients.length === 0) {
+      const skipped = await prisma.emailLog.create({ data: { ...base, status: 'SKIPPED' } })
+      return { id: skipped.id, status: 'SKIPPED' }
+    }
+
+    const log = await prisma.emailLog.create({ data: { ...base, to: recipients, status: 'PENDING' } })
     return await attemptSend(log.id)
   } catch (err) {
     console.error('sendEmail failed:', err)

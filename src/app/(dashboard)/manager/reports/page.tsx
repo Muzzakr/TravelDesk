@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
+import { exportPdf } from '@/lib/export-pdf'
 
 type TravelRow = {
   id: string
@@ -69,17 +70,11 @@ export default function ReportsPage() {
     }
   }
 
-  function exportCSV(rows: Record<string, unknown>[], filename: string) {
+  function exportPDF(title: string, rows: Record<string, unknown>[], filename: string) {
     if (rows.length === 0) return
     const keys = Object.keys(rows[0])
-    const csv = [keys.join(','), ...rows.map((r) => keys.map((k) => JSON.stringify(r[k] ?? '')).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+    const body = rows.map((r) => keys.map((k) => String(r[k] ?? '')))
+    exportPdf(title, keys, body, filename)
   }
 
   const years = [now.getFullYear() - 1, now.getFullYear()]
@@ -111,13 +106,14 @@ export default function ReportsPage() {
         {data && (
           <div className="ml-auto flex items-center gap-2">
             <button
-              onClick={() => exportCSV(
+              onClick={() => exportPDF(
+                `Monthly Reports — ${tab === 'travel' ? 'Travel' : 'Expenses'}`,
                 (tab === 'travel' ? data.travel : data.expenses).map((r) => ({ ...r })),
-                `report-${MONTHS[month]}-${year}-${tab}.csv`
+                `report-${MONTHS[month]}-${year}-${tab}.pdf`
               )}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 font-medium"
             >
-              Export CSV
+              Export PDF
             </button>
           </div>
         )}

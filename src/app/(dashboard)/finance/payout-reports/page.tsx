@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoadError } from '@/components/ui/LoadError'
+import { exportPdf } from '@/lib/export-pdf'
 
 type PayoutExpense = {
   id: string
@@ -82,18 +83,13 @@ export default function PayoutsPage() {
     setConfirmFor(null)
   }
 
-  function exportCSV() {
+  function exportPDF() {
     if (!data?.people.length) return
     const rows = data.people.map((p) => [
       p.name, String(p.count), p.totalUsd.toFixed(2), p.paidThisMonthUsd.toFixed(2),
     ])
     const header = ['Employee', 'Approved Expenses', 'Total To Pay (USD)', 'Paid This Month (USD)']
-    const csv = [header, ...rows].map((r) => r.map((v) => JSON.stringify(v ?? '')).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `payouts-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
-    URL.revokeObjectURL(url)
+    exportPdf('Payouts', header, rows, `payouts-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   const people = data?.people ?? []
@@ -106,9 +102,9 @@ export default function PayoutsPage() {
           <p className="text-sm text-gray-500 mt-0.5">Approved expenses awaiting payout, per person</p>
         </div>
         {people.length > 0 && (
-          <button type="button" onClick={exportCSV}
+          <button type="button" onClick={exportPDF}
             className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-            Export CSV
+            Export PDF
           </button>
         )}
       </div>

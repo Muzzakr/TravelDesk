@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { LoadError } from '@/components/ui/LoadError'
+import { exportPdf } from '@/lib/export-pdf'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -36,18 +37,14 @@ export default function FinanceReportsPage() {
     }
   }
 
-  function exportCSV() {
+  function exportPDF() {
     if (!data?.expenses.length) return
     const header = ['Date','Employee','Description','Category','Amount (USD)','Status','Event']
     const rows = data.expenses.map((e) => [
       new Date(e.createdAt).toISOString().slice(0, 10), e.employee, e.description,
       e.category, Number(e.amountUsd).toFixed(2), e.status, e.event,
     ])
-    const csv = [header.join(','), ...rows.map((r) => r.map((v) => JSON.stringify(v)).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `finance-report-${MONTHS[month]}-${year}.csv`; a.click()
-    URL.revokeObjectURL(url)
+    exportPdf('Monthly Reports', header, rows, `finance-report-${MONTHS[month]}-${year}.pdf`)
   }
 
   const years = [now.getFullYear() - 1, now.getFullYear()]
@@ -69,11 +66,11 @@ export default function FinanceReportsPage() {
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <button type="button" onClick={exportCSV} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+          <button type="button" onClick={exportPDF} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Export CSV
+            Export PDF
           </button>
         </div>
       </div>

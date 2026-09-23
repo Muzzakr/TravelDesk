@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Pagination } from '@/components/ui/Pagination'
 import { LoadError } from '@/components/ui/LoadError'
+import { exportPdf } from '@/lib/export-pdf'
 
 type LogEntry = {
   id: string
@@ -41,19 +42,14 @@ export default function AuditLogPage() {
   const totalPages = Math.ceil(logs.length / PAGE_SIZE)
   const pagedLogs = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  function exportCSV() {
+  function exportPDF() {
     const rows = logs.map(l => [
       new Date(l.createdAt).toLocaleString('en-US'),
       l.action, l.entityType, l.entityId,
       l.actor?.name ?? 'System', l.ipAddress ?? '',
     ])
     const header = ['Time', 'Action', 'Entity Type', 'Entity ID', 'Actor', 'IP Address']
-    const csv = [header, ...rows].map(r => r.map(v => JSON.stringify(v)).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
-    URL.revokeObjectURL(url)
+    exportPdf('Audit Log', header, rows, `audit-log-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   return (
@@ -63,9 +59,9 @@ export default function AuditLogPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Audit log</h1>
           <p className="text-sm text-gray-400 mt-0.5">{logs.length} entries · append-only · 7-year retention</p>
         </div>
-        <button type="button" onClick={exportCSV}
+        <button type="button" onClick={exportPDF}
           className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 min-h-[44px]">
-          Export CSV
+          Export PDF
         </button>
       </div>
 

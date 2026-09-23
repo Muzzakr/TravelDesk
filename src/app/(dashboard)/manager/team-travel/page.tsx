@@ -7,6 +7,7 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { Plane, Clock, CheckCircle, Calendar } from 'lucide-react'
 import { Pagination } from '@/components/ui/Pagination'
 import { LoadError } from '@/components/ui/LoadError'
+import { exportPdf } from '@/lib/export-pdf'
 
 type TravelRequest = {
   id: string
@@ -81,7 +82,7 @@ export default function TeamTravelPage() {
 
   function applySearch() { setSearch(searchInput); setPage(1) }
 
-  function exportCSV() {
+  function exportPDF() {
     if (!data?.requests.length) return
     const rows = data.requests.map(r => [
       r.employee.name, r.employee.email,
@@ -95,12 +96,7 @@ export default function TeamTravelPage() {
       new Date(r.createdAt).toISOString().slice(0, 10),
     ])
     const header = ['Employee','Email','Route','Event','Event Code','Services','Status','Departure','Return','Est. Cost','Submitted']
-    const csv = [header, ...rows].map(r => r.map(v => JSON.stringify(v ?? '')).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `travel-requests-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
-    URL.revokeObjectURL(url)
+    exportPdf('Team Travel', header, rows, `travel-requests-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   const kpis = data?.counts
@@ -122,9 +118,9 @@ export default function TeamTravelPage() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm text-gray-500">{data?.pagination.total ?? 0} total</span>
-          <button type="button" onClick={exportCSV}
+          <button type="button" onClick={exportPDF}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Export CSV
+            Export PDF
           </button>
           <Link
             href="/agent/book"

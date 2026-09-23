@@ -7,6 +7,7 @@ import { Suspense } from 'react'
 import { User } from 'lucide-react'
 import { DateInput } from '@/components/ui/DateInput'
 import { LoadError } from '@/components/ui/LoadError'
+import { exportPdf } from '@/lib/export-pdf'
 
 
 interface TravelRequest {
@@ -49,10 +50,9 @@ function urgencyLabel(status: string, departureDate: string): { label: string; p
 }
 
 
-function exportCsv(r: TravelRequest) {
+function exportPdfBooking(r: TravelRequest) {
   const dates = r.travelDates as { departureDate: string; returnDate: string }
   const rows = [
-    ['Field', 'Value'],
     ['Employee', r.employee.name],
     ['Email', r.employee.email],
     ['Route', `${r.origin} → ${r.destination}`],
@@ -63,14 +63,7 @@ function exportCsv(r: TravelRequest) {
     ['Est. Cost USD', r.estimatedCostUsd ? String(r.estimatedCostUsd) : ''],
     ['Status', r.status],
   ]
-  const csv = rows.map((row) => row.map((v) => `"${v}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `booking-${r.id.slice(0, 8)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  exportPdf(`Booking ${r.id.slice(0, 8)}`, ['Field', 'Value'], rows, `booking-${r.id.slice(0, 8)}.pdf`)
 }
 
 const STATUS_OPTIONS = [
@@ -333,9 +326,9 @@ function BookingsContent() {
                     {/* Export */}
                     <button
                       type="button"
-                      onClick={() => exportCsv(r)}
+                      onClick={() => exportPdfBooking(r)}
                       className="rounded-lg border border-gray-200 px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                      title="Export as CSV"
+                      title="Export as PDF"
                     >
                       ↓ Export
                     </button>

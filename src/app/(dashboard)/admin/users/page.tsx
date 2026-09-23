@@ -7,6 +7,7 @@ import Link from 'next/link'
 import type { ExtractedUser } from '@/app/api/users/extract/route'
 import { Check, XCircle, Copy, CheckCheck } from 'lucide-react'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
+import { exportPdf } from '@/lib/export-pdf'
 
 type UserRow = {
   id: string
@@ -277,7 +278,7 @@ export default function AdminUsersPage() {
     setResetPassMsg(''); setResetPassErr('')
   }
 
-  function exportCSV() {
+  function exportPDF() {
     const rows = users.map(u => [
       u.name, u.email, u.role,
       u.isActive ? 'Active' : 'Inactive',
@@ -286,12 +287,7 @@ export default function AdminUsersPage() {
       u.hasPassword ? 'Yes' : 'No',
     ])
     const header = ['Name', 'Email', 'Role', 'Status', 'Manager', 'Joined', 'Password Set']
-    const csv = [header, ...rows].map(r => r.map(v => JSON.stringify(v)).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `users-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
-    URL.revokeObjectURL(url)
+    exportPdf('Users', header, rows, `users-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -670,9 +666,9 @@ export default function AdminUsersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">User management</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          <button type="button" onClick={exportCSV}
+          <button type="button" onClick={exportPDF}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Export CSV
+            Export PDF
           </button>
           <input ref={fileRef} type="file" accept=".csv,.xlsx" aria-label="Upload user file"
             className="hidden" onChange={handleFileChange} />

@@ -9,6 +9,7 @@ import { FinanceCharts } from '@/components/finance/FinanceCharts'
 import { CheckCircle, Wallet, Clock3, BarChart3, Zap, Send, XCircle, Check } from 'lucide-react'
 import { useModalDismiss } from '@/lib/use-modal-dismiss'
 import { LoadError } from '@/components/ui/LoadError'
+import { exportPdf } from '@/lib/export-pdf'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -120,7 +121,7 @@ export default function FinanceDashboard() {
   // Reset page when filters change
   useEffect(() => { setPage(1) }, [month, year, statusFilter, employeeFilter, search])
 
-  function exportCSV() {
+  function exportPDF() {
     if (!data?.expenses.length) return
     const rows = data.expenses.map((e) => [
       new Date(e.createdAt).toISOString().slice(0, 10),
@@ -133,14 +134,7 @@ export default function FinanceDashboard() {
       STATUS_LABELS[e.status] ?? e.status,
     ])
     const header = ['Date', 'Employee', 'Description', 'Merchant', 'Category', 'Event', 'Amount (USD)', 'Status']
-    const csv = [header.join(','), ...rows.map((r) => r.map((v) => JSON.stringify(v)).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `expenses-${MONTHS[month]}-${year}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    exportPdf('Expenses', header, rows, `expenses-${MONTHS[month]}-${year}.pdf`)
   }
 
   const years = [now.getFullYear() - 1, now.getFullYear()]
@@ -187,7 +181,7 @@ export default function FinanceDashboard() {
           </div>
 
           {/* Export */}
-          <button type="button" onClick={exportCSV} className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          <button type="button" onClick={exportPDF} className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
@@ -259,7 +253,7 @@ export default function FinanceDashboard() {
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-gray-800">Expenses</h2>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={exportCSV} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+              <button type="button" onClick={exportPDF} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>

@@ -11,13 +11,16 @@ export function hashToken(raw: string): string {
 
 export async function createVerificationToken(
   userId: string,
-  type: 'INVITE' | 'PASSWORD_RESET' | 'GOOGLE_VERIFY' | 'EMAIL_VERIFY' | 'MAGIC_LINK'
+  type: 'INVITE' | 'PASSWORD_RESET' | 'GOOGLE_VERIFY' | 'EMAIL_VERIFY' | 'MAGIC_LINK' | 'SSO_SESSION'
 ): Promise<string> {
   const raw = generateRawToken()
   const hoursValid =
     type === 'INVITE' ? 48 :
     type === 'GOOGLE_VERIFY' || type === 'EMAIL_VERIFY' ? 24 :
     type === 'MAGIC_LINK' ? 0.25 :
+    // Only bridges one continuous redirect flow, never clicked from an email
+    // minutes later like MAGIC_LINK is — kept much shorter on purpose.
+    type === 'SSO_SESSION' ? (2 / 60) :
     1
   const expiresAt = new Date(Date.now() + hoursValid * 60 * 60 * 1000)
 

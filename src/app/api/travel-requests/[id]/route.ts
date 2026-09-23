@@ -5,6 +5,7 @@ import { writeAuditLog } from '@/lib/audit'
 import { notifyTravelRequestStatusChanged } from '@/lib/notify'
 import { createNotification } from '@/lib/notifications'
 import { emailRequestApproved, emailRequestRejected, emailAgentActionRequired, emailTravelRequestUpdated, emailTravelRequestCancelled, emailTravelerAssigned } from '@/lib/mail'
+import { dispatchWebhookEvent } from '@/lib/webhooks'
 import { clientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 import type { TravelRequestStatus } from '@prisma/client'
@@ -236,6 +237,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         actorName: session.user.name ?? 'Your manager',
       }, session.user.companyId).catch(() => {})
     }
+    dispatchWebhookEvent({
+      companyId: session.user.companyId,
+      eventType: 'travel_request.approved',
+      relatedEntityType: 'TravelRequest',
+      relatedEntityId: params.id,
+      data: {
+        id: params.id,
+        origin: request.origin,
+        destination: request.destination,
+        employeeId: request.employeeId,
+        approvedAt: new Date().toISOString(),
+      },
+    }).catch(() => {})
     await createNotification({
       companyId: session.user.companyId,
       userId: request.employeeId,

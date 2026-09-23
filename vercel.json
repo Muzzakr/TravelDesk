@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/missing-coi",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/webhook-retry",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

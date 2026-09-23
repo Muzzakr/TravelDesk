@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { createNotification } from '@/lib/notifications'
 import { emailExpensePaid } from '@/lib/mail'
+import { dispatchWebhookEvent } from '@/lib/webhooks'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -51,6 +52,20 @@ export async function POST(req: NextRequest) {
       amountUsd: Number(expense.amountUsd), description: expense.description, expenseId,
     }, session.user.companyId).catch(() => {})
   }
+
+  dispatchWebhookEvent({
+    companyId: session.user.companyId,
+    eventType: 'expense.paid',
+    relatedEntityType: 'Expense',
+    relatedEntityId: expenseId,
+    data: {
+      id: expenseId,
+      amountUsd: Number(expense.amountUsd),
+      currency: expense.currency,
+      employeeId: expense.employeeId,
+      paidAt: new Date().toISOString(),
+    },
+  }).catch(() => {})
 
   return NextResponse.json(updated)
 }

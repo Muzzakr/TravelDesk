@@ -6,10 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-# Placeholder values only — prisma generate reads schema shape and never
-# connects to a real database, and no other build step opens a network
-# connection. Real secrets (Supabase, AUTH_SECRET, etc.) live in Vercel,
-# never here.
+# These credentials only ever point at the disposable `postgres` service
+# container below, which lives for the duration of this job and is used
+# solely to catch schema/migration drift (see "Check for schema drift").
+# Real secrets (Supabase, AUTH_SECRET, etc.) live in Vercel, never here.
 env:
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
   DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
@@ -19,6 +19,20 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -35,6 +49,19 @@ jobs:
 
       - name: Lint
         run: npx next lint --max-warnings=0
+
+      # Applies every committed migration to a throwaway database, then
+      # diffs the result against schema.prisma. A non-empty diff means the
+      # migrations folder and schema.prisma have drifted apart — exactly
+      # the bug that broke a fresh clone before (see migration
+      # 20260726030000_sync_schema_drift for the history).
+      - name: Check for schema drift
+        run: |
+          npx prisma migrate deploy
+          npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code
 
       - name: Test
         run: npx jest

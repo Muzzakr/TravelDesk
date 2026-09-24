@@ -30,15 +30,20 @@ event code) with nothing stopping it from being pointed at production
 by accident. That's no longer possible — the run simply refuses to
 start against anything but a local database.
 
-**Known follow-up:** the spec files and `e2e/helpers.ts` still
-reference that original real-world data (`COMPANY_SLUG = 'm4uevents'`,
-`mustimboss11@gmail.com`, `EVENT_CODE = '460455'`), none of which
-exists in the local seeded database (`prisma/seed.ts` creates company
-slug `m4ueventsm` with different accounts and events). The safety
-guard above stops these tests from ever touching production, but as a
-result **the specs will currently fail to log in / find the event
-locally** until `helpers.ts` is updated to point at the local seed
-data instead. That rewrite is a separate task from the safety fix.
+`e2e/helpers.ts` now points at the local seed instead: company slug
+`m4ueventsm`, `employee@m4u.com`, and `EVENT_CODE = 'EVT-001'` (all
+from `prisma/seed.ts`). The approver is `travelmanager@m4u.com`
+specifically — role `TRAVEL_MANAGER`, not the plain `MANAGER` seed
+account, since only `TRAVEL_MANAGER`/`SYSTEM_ADMIN` get the inline
+"complete booking" step right after approving a travel request (see
+`manager/approvals/travel/[id]/page.tsx`). `prisma/seed.ts` also now
+gives every seeded `EMPLOYEE` a complete `TravelerProfile` — without
+one, `/employee/travel-requests/new` redirects to a "Complete your
+profile first" gate instead of the wizard (see
+`src/lib/profile-check.ts`), which is what actually broke this suite
+on first run against local data before the seed was fixed.
+
+All 5 specs pass locally (`npm run test:e2e`) as of this rewrite.
 
 Tests create new travel requests and expenses on every run (each
 tagged with a unique `E2E-<timestamp>` in its description/notes)

@@ -1,23 +1,26 @@
 import { type Page, expect } from '@playwright/test'
 
-// Real accounts in the m4uevents company. Mustafa is the long-standing
-// test employee; "E2E Test Manager" is a dedicated TRAVEL_MANAGER account
-// created for this suite so no real person's credentials are used.
-export const COMPANY_SLUG = 'm4uevents'
+// Local seed accounts (prisma/seed.ts) in the local-only m4ueventsm
+// company — see e2e/global-setup.ts, which refuses to run this suite
+// against anything but a local database, and e2e/README.md.
+export const COMPANY_SLUG = 'm4ueventsm'
 
 export const EMPLOYEE = {
-  email: 'mustimboss11@gmail.com',
+  email: 'employee@m4u.com',
   password: 'Password123!',
 }
 
+// TRAVEL_MANAGER, not the plain MANAGER seed account — only TRAVEL_MANAGER/
+// SYSTEM_ADMIN get the inline "complete booking" step after approving a
+// travel request (see manager/approvals/travel/[id]/page.tsx).
 export const APPROVER = {
-  email: 'e2e.approver@m4uevents.test',
-  password: 'E2eTest123!',
+  email: 'travelmanager@m4u.com',
+  password: 'Password123!',
 }
 
-// A stable event known to exist in the company (see e2e/README.md for how
-// this was found). Used to avoid depending on event list ordering.
-export const EVENT_CODE = '460455'
+// The one event prisma/seed.ts creates. Used to avoid depending on event
+// list ordering.
+export const EVENT_CODE = 'EVT-001'
 
 // Unique per test run so repeated runs don't collide when asserting "find
 // the row I just created" among other rows created by earlier runs.

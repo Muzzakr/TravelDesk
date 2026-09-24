@@ -1,9 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// Local-only for now: no CI wiring, runs against your local dev server
-// and the real Supabase database from your .env (see e2e/README.md).
+// Local-only for now: no CI wiring, runs against your local dev server.
+// globalSetup enforces that DATABASE_URL is actually local — see
+// e2e/global-setup.ts and e2e/README.md for why that check exists.
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: require.resolve('./e2e/global-setup'),
   fullyParallel: false, // shared DB state — flows run one at a time
   retries: 0,
   workers: 1,

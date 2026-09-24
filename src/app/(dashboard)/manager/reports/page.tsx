@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge'
 import { exportPdf } from '@/lib/export-pdf'
 
@@ -53,11 +53,7 @@ export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    fetchReport()
-  }, [month, year])
-
-  async function fetchReport() {
+  const fetchReport = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/manager/reports?month=${month + 1}&year=${year}`)
@@ -68,7 +64,11 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [month, year])
+
+  useEffect(() => {
+    fetchReport()
+  }, [fetchReport])
 
   function exportPDF(title: string, rows: Record<string, unknown>[], filename: string) {
     if (rows.length === 0) return

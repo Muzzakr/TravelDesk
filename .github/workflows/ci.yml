@@ -45,7 +45,7 @@ jobs:
         run: npm ci
 
       - name: Typecheck
-        run: npx tsc --noEmit -p .
+        run: npm run typecheck
 
       - name: Lint
         run: npx next lint --max-warnings=0

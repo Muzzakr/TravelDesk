@@ -1,6 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+// Aliased: this file also uses the browser's native `new Image()` (the DOM
+// constructor, for client-side canvas compression below) — importing this
+// as `Image` would shadow that global.
+import NextImage from 'next/image'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DateInput } from '@/components/ui/DateInput'
@@ -445,9 +449,11 @@ export default function ProfilePage() {
               }}
             />
             {profilePhotoUrl ? (
-              <img
+              <NextImage
                 src={profilePhotoUrl}
                 alt="Profile photo"
+                width={96}
+                height={96}
                 className="w-24 h-24 rounded-full object-cover border-2 border-indigo-200"
               />
             ) : (
@@ -585,7 +591,7 @@ export default function ProfilePage() {
               </button>
               {passportPhotoUrl && (
                 <a href={passportPhotoUrl} target="_blank" rel="noopener noreferrer" className="shrink-0" title="View uploaded passport">
-                  <img src={passportPhotoUrl} alt="Passport" className="w-16 h-10 rounded object-cover border border-gray-200 hover:opacity-80 transition-opacity" />
+                  <NextImage src={passportPhotoUrl} alt="Passport" width={64} height={40} className="w-16 h-10 rounded object-cover border border-gray-200 hover:opacity-80 transition-opacity" />
                 </a>
               )}
               {profile.passportPhotoKey && !passportPhotoUrl && <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> Document on file</span>}
@@ -672,7 +678,7 @@ export default function ProfilePage() {
               </button>
               {dlPhotoUrl && (
                 <a href={dlPhotoUrl} target="_blank" rel="noopener noreferrer" className="shrink-0" title="View uploaded license">
-                  <img src={dlPhotoUrl} alt="Driver's license" className="w-16 h-10 rounded object-cover border border-gray-200 hover:opacity-80 transition-opacity" />
+                  <NextImage src={dlPhotoUrl} alt="Driver's license" width={64} height={40} className="w-16 h-10 rounded object-cover border border-gray-200 hover:opacity-80 transition-opacity" />
                 </a>
               )}
               {profile.driversLicensePhotoKey && !dlPhotoUrl && <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium"><Check className="w-3.5 h-3.5" /> Document on file</span>}

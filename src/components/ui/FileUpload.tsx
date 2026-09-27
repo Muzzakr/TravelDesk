@@ -71,6 +71,11 @@ export function FileUpload({
         />
 
         {previewUrl ? (
+          // previewUrl is a browser-local blob: URL (URL.createObjectURL) for the
+          // file the user just picked, before it's uploaded anywhere. next/image's
+          // optimizer works over the network/filesystem and can't process an
+          // ephemeral per-tab blob URL.
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt="Preview" className="max-h-24 rounded-xl object-contain mx-auto mb-3" />
         ) : (
           <svg className="mb-2 h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

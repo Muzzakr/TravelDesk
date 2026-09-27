@@ -7,6 +7,13 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  images: {
+    // Profile/passport/driver's-license photos are served from signed
+    // Supabase Storage URLs. The project ref subdomain changes whenever
+    // the Supabase project changes (e.g. moving to a new project), so
+    // this allows any *.supabase.co host rather than a hardcoded one.
+    remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }],
+  },
 }
 
 // Source-map upload (for readable stack traces in Sentry) only runs when

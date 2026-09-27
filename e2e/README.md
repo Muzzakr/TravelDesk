@@ -21,32 +21,34 @@ already-running dev server if you have one up on port 3003.
 
 ## What this runs against
 
-**Local only, real data.** These tests run against your local dev
-server and the real Supabase database from your `.env` — specifically
-the `m4uevents` company, which has been the standing manual-testing
-company throughout this project. There's no separate seeded test
-company; that was a deliberate choice (see the project decision this
-came out of) to test against realistic, messy production-shaped data
-rather than a pristine fixture.
+**Local only — enforced.** `e2e/global-setup.ts` reads `DATABASE_URL`
+before any test runs and throws immediately if its host isn't
+`localhost`/`127.0.0.1`/`::1`. This suite creates real travel requests
+and expenses, and it used to run against a real Supabase production
+company (`m4uevents`, with a real person's login and a hardcoded real
+event code) with nothing stopping it from being pointed at production
+by accident. That's no longer possible — the run simply refuses to
+start against anything but a local database.
 
-Two identities are used:
+`e2e/helpers.ts` now points at the local seed instead: company slug
+`m4ueventsm`, `employee@m4u.com`, and `EVENT_CODE = 'EVT-001'` (all
+from `prisma/seed.ts`). The approver is `travelmanager@m4u.com`
+specifically — role `TRAVEL_MANAGER`, not the plain `MANAGER` seed
+account, since only `TRAVEL_MANAGER`/`SYSTEM_ADMIN` get the inline
+"complete booking" step right after approving a travel request (see
+`manager/approvals/travel/[id]/page.tsx`). `prisma/seed.ts` also now
+gives every seeded `EMPLOYEE` a complete `TravelerProfile` — without
+one, `/employee/travel-requests/new` redirects to a "Complete your
+profile first" gate instead of the wizard (see
+`src/lib/profile-check.ts`), which is what actually broke this suite
+on first run against local data before the seed was fixed.
 
-- **Employee** — `mustimboss11@gmail.com`, Mustafa's long-standing
-  real test account in `m4uevents`.
-- **Travel Manager** — `e2e.approver@m4uevents.test`, a dedicated
-  `TRAVEL_MANAGER` account created specifically for this suite, so
-  the tests never need a real person's password. Credentials are in
-  `e2e/helpers.ts`.
+All 5 specs pass locally (`npm run test:e2e`) as of this rewrite.
 
-`EVENT_CODE = '460455'` (`e2e/helpers.ts`) is a real, active event in
-`m4uevents` used as a stable target for the event-picker in both the
-travel-request and expense wizards, so the tests don't depend on
-whatever happens to be first/last in the event list.
-
-Because this hits real data, tests create new travel requests and
-expenses on every run (each tagged with a unique `E2E-<timestamp>` in
-its description/notes) rather than mutating or deleting anything
-existing. Nothing here deletes data.
+Tests create new travel requests and expenses on every run (each
+tagged with a unique `E2E-<timestamp>` in its description/notes)
+rather than mutating or deleting anything existing. Nothing here
+deletes data.
 
 ## Not wired into CI
 

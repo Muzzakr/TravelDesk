@@ -465,6 +465,16 @@ model CardTransaction {
   status          CardTransactionStatus @default(PENDING_TAG)
   createdAt       DateTime              @default(now())
 
+  // Card identity (Card ID + Last Four), independent of transactionId.
+  // Needed to: (1) rebuild a loose match-key — date+time+card+merchant,
+  // ignoring amount — against existing rows when a weekly re-import checks
+  // for amount mismatches or missing transactions; (2) let a CardMapping
+  // added after the fact find and retroactively assign transactions that
+  // already exist from an unmapped card. Nullable since manually-entered
+  // and webhook-sourced transactions may not always carry these.
+  cardId       String?
+  cardLastFour String?
+
   // Weekly-statement import additions (fleet/corporate card reconciliation —
   // this is deliberately separate from Expense: no reimbursement/PAID
   // concept applies, since the company already paid via the card).
@@ -475,8 +485,17 @@ model CardTransaction {
   //                    "Restaurants", "Gas Stations") — informational only.
   vehicle    String? // vehicle name from the statement, if present.
 
+  // Set when a Finance reviewer resolves a MISSING_IN_STATEMENT review as
+  // "removed" — a soft void, never a hard delete. Financial records stay
+  // permanent here (consistent with PAID expenses elsewhere in this app);
+  // a voided transaction just stops appearing in active tagging/reporting
+  // views instead of disappearing from the database entirely.
+  voidedAt DateTime?
+
   company Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   reviews CardTransactionReview[]
+
+  @@index([companyId, cardId, cardLastFour])
 }
 
 // One physical card (program ID + last four) mapped to the employee who

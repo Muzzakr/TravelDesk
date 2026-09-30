@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 import { parseCardStatementCsv, reconcileStatement } from '@/lib/card-import'
+import { notifyCardChargesAssigned } from '@/lib/card-notify'
 
 // Weekly (always trailing ~30 days, deliberately overlapping the previous
 // upload) corporate/fleet-card statement import. Re-uploading data already
@@ -105,6 +106,17 @@ export async function POST(req: NextRequest) {
   const unmappedCardCount = new Set(
     plan.toCreate.filter((r) => !r.employeeId).map((r) => `${r.cardId}|${r.cardLastFour}`)
   ).size
+
+  // One notification per employee, not per transaction — a single import
+  // can auto-assign several charges to the same person via CardMapping.
+  const countByEmployee = new Map<string, number>()
+  for (const row of plan.toCreate) {
+    if (!row.employeeId) continue
+    countByEmployee.set(row.employeeId, (countByEmployee.get(row.employeeId) ?? 0) + 1)
+  }
+  await Promise.all(
+    [...countByEmployee.entries()].map(([employeeId, count]) => notifyCardChargesAssigned(companyId, employeeId, count))
+  )
 
   const summary = {
     created: plan.toCreate.length,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { notifyCardChargesAssigned } from '@/lib/card-notify'
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
 
@@ -118,7 +119,7 @@ export async function PATCH(req: NextRequest) {
   // The transaction must belong to the caller's company before it can be tagged
   const existing = await prisma.cardTransaction.findFirst({
     where: { id, companyId: session.user.companyId },
-    select: { id: true },
+    select: { id: true, employeeId: true },
   })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -129,6 +130,12 @@ export async function PATCH(req: NextRequest) {
     where: { id },
     data: { eventId: parsed.data.eventId, status: 'TAGGED', ...(parsed.data.employeeId ? { employeeId: parsed.data.employeeId } : {}) },
   })
+
+  // Only notify if this assignment is actually new — not on every re-tag
+  // of an already-assigned transaction.
+  if (parsed.data.employeeId && !existing.employeeId) {
+    await notifyCardChargesAssigned(session.user.companyId, parsed.data.employeeId, 1)
+  }
 
   return NextResponse.json(updated)
 }

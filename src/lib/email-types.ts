@@ -72,6 +72,12 @@ export const EMAIL_TYPE_GROUPS: { group: string; types: { type: string; label: s
     ],
   },
   {
+    group: 'Card transactions',
+    types: [
+      { type: 'CARD_CHARGE_NEEDS_INFO', label: 'Card charge needs event/receipt', personal: true },
+    ],
+  },
+  {
     group: 'Documents & COI',
     types: [
       { type: 'EVENT_DOCUMENT_UPLOADED', label: 'Document uploaded' },

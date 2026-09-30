@@ -614,6 +614,25 @@ export async function emailExpensePaid(to: string, name: string, p: { amountUsd:
   return sendEmail({ companyId, type: 'EXPENSE_PAID', to, relatedEntityType: 'Expense', relatedEntityId: p.expenseId, ...renderExpensePaid(name, p) })
 }
 
+// ─── Card transactions ──────────────────────────────────────────────────────────
+// Deliberately separate from the Expense emails above — these are card
+// charges the company already paid for, not a reimbursement request.
+
+export function renderCardChargeNeedsInfo(name: string, count: number): Rendered {
+  const plural = count === 1 ? 'a card charge' : `${count} card charges`
+  return {
+    subject: count === 1 ? 'A card charge needs your input' : `${count} card charges need your input`,
+    html: baseTemplate(`
+      <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Hi ${name},</h2>
+      <p style="color:#374151;margin:0">You have ${plural} on your company card that still needs an event and/or a receipt before it can be reconciled.</p>
+      ${btn(`${APP}/employee/card-charges`, 'Review my card charges')}
+    `),
+  }
+}
+export async function emailCardChargeNeedsInfo(to: string, name: string, count: number, companyId: string) {
+  return sendEmail({ companyId, type: 'CARD_CHARGE_NEEDS_INFO', to, ...renderCardChargeNeedsInfo(name, count) })
+}
+
 // ─── Events — new (Group B) ────────────────────────────────────────────────────
 
 export function renderEventCreated(name: string, p: { eventName: string; eventCode: string; eventId: string }): Rendered {

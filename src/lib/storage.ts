@@ -60,6 +60,15 @@ export function buildReceiptKey(companyId: string, expenseId: string, fileName: 
   return `${companyId}/${expenseId}/${Date.now()}_${sanitized}`
 }
 
+// Card-transaction receipts reuse the same bucket/upload/signed-URL
+// functions above (uploadReceipt/getReceiptUrl/deleteReceipt) — only the
+// key shape differs, namespaced under card-transactions/ to keep the two
+// kinds of receipts visually separated in the bucket.
+export function buildCardReceiptKey(companyId: string, cardTransactionId: string, fileName: string): string {
+  const sanitized = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+  return `${companyId}/card-transactions/${cardTransactionId}/${Date.now()}_${sanitized}`
+}
+
 export async function uploadProfilePhoto(key: string, body: Buffer, mimeType: string): Promise<void> {
   const { error } = await getClient()
     .storage

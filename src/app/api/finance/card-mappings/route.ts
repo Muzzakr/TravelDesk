@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { notifyCardChargesAssigned } from '@/lib/card-notify'
 import { z } from 'zod'
 
 // One physical card (Card ID + Last Four) mapped once to the employee who
@@ -84,6 +85,8 @@ export async function POST(req: NextRequest) {
     entityId: mapping.id,
     payload: { cardId: mapping.cardId, cardLastFour: mapping.cardLastFour, employeeId: mapping.employeeId, retroactiveCount: retro.count },
   })
+
+  await notifyCardChargesAssigned(session.user.companyId, parsed.data.employeeId, retro.count)
 
   return NextResponse.json({ mapping, retroactiveCount: retro.count }, { status: 201 })
 }

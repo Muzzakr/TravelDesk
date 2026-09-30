@@ -20,20 +20,22 @@ model Company {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  users               User[]
-  events              Event[]
-  travelRequests      TravelRequest[]
-  expenses            Expense[]
-  auditLogs           AuditLog[]
-  payoutReports       PayoutReport[]
-  cardTransactions    CardTransaction[]
-  policyRules         PolicyRule[]
-  travelerProfiles    TravelerProfile[]
-  emailLogs           EmailLog[]
-  emailSettings       EmailNotificationSetting[]
-  webhookSubscription WebhookSubscription?
-  webhookDeliveries   WebhookDelivery[]
-  ssoConfig           CompanySsoConfig?
+  users                  User[]
+  events                 Event[]
+  travelRequests         TravelRequest[]
+  expenses               Expense[]
+  auditLogs              AuditLog[]
+  payoutReports          PayoutReport[]
+  cardTransactions       CardTransaction[]
+  policyRules            PolicyRule[]
+  travelerProfiles       TravelerProfile[]
+  emailLogs              EmailLog[]
+  emailSettings          EmailNotificationSetting[]
+  webhookSubscription    WebhookSubscription?
+  webhookDeliveries      WebhookDelivery[]
+  ssoConfig              CompanySsoConfig?
+  cardMappings           CardMapping[]
+  cardTransactionReviews CardTransactionReview[]
 }
 
 // ─── Users & Auth ────────────────────────────────────────────────────────────
@@ -72,23 +74,25 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  company               Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  manager               User?                @relation("ManagerReports", fields: [managerId], references: [id])
-  directReports         User[]               @relation("ManagerReports")
-  travelRequests        TravelRequest[]      @relation("EmployeeTravelRequests")
-  agentBookings         TravelRequest[]      @relation("AgentBookings")
-  managedRequests       TravelRequest[]      @relation("ManagerTravelRequests")
-  expenses              Expense[]
-  approvalActions       ApprovalAction[]
-  auditLogs             AuditLog[]
-  travelerProfile       TravelerProfile?
-  verificationTokens    VerificationToken[]
-  mfaBackupCodes        MfaBackupCode[]
-  eventDocuments        EventDocument[]
-  notifications         Notification[]
-  createdEvents         Event[]              @relation("EventOwner")
-  knownDevices          KnownLoginDevice[]
-  notificationSettings  UserNotificationSetting[]
+  company              Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager              User?                     @relation("ManagerReports", fields: [managerId], references: [id])
+  directReports        User[]                    @relation("ManagerReports")
+  travelRequests       TravelRequest[]           @relation("EmployeeTravelRequests")
+  agentBookings        TravelRequest[]           @relation("AgentBookings")
+  managedRequests      TravelRequest[]           @relation("ManagerTravelRequests")
+  expenses             Expense[]
+  approvalActions      ApprovalAction[]
+  auditLogs            AuditLog[]
+  travelerProfile      TravelerProfile?
+  verificationTokens   VerificationToken[]
+  mfaBackupCodes       MfaBackupCode[]
+  eventDocuments       EventDocument[]
+  notifications        Notification[]
+  createdEvents        Event[]                   @relation("EventOwner")
+  knownDevices         KnownLoginDevice[]
+  notificationSettings UserNotificationSetting[]
+  cardMappings         CardMapping[]             @relation("CardMappingEmployee")
+  resolvedCardReviews  CardTransactionReview[]   @relation("CardReviewResolvedBy")
 
   @@unique([companyId, email])
 }
@@ -461,7 +465,79 @@ model CardTransaction {
   status          CardTransactionStatus @default(PENDING_TAG)
   createdAt       DateTime              @default(now())
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Weekly-statement import additions (fleet/corporate card reconciliation —
+  // this is deliberately separate from Expense: no reimbursement/PAID
+  // concept applies, since the company already paid via the card).
+  receiptKey String? // Supabase Storage key — receipt uploaded directly by
+  //                    the employee or Finance, independent of whatever the
+  //                    card platform's own statement says about receipts.
+  category   String? // free-text category from the statement export (e.g.
+  //                    "Restaurants", "Gas Stations") — informational only.
+  vehicle    String? // vehicle name from the statement, if present.
+
+  company Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reviews CardTransactionReview[]
+}
+
+// One physical card (program ID + last four) mapped to the employee who
+// carries it. Statement exports include neither a reliable employee email
+// nor a populated employee ID — just this pair — so this mapping is what
+// lets weekly imports auto-assign an employee. Set once per card, reused by
+// every subsequent import; a new/reissued card just needs mapping once too.
+model CardMapping {
+  id           String   @id @default(cuid())
+  companyId    String
+  cardId       String
+  cardLastFour String
+  employeeId   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee User    @relation("CardMappingEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, cardId, cardLastFour])
+}
+
+// A discrepancy surfaced by a weekly re-import that needs a human decision
+// rather than a silent overwrite or a silent duplicate: either the same
+// transaction reappeared with different amount/merchant/category, or a
+// previously-imported transaction is missing from a statement window that
+// should have covered it. Nothing here is ever auto-resolved.
+enum CardTransactionReviewType {
+  AMOUNT_MISMATCH
+  MISSING_IN_STATEMENT
+}
+
+enum CardTransactionReviewStatus {
+  PENDING
+  RESOLVED
+}
+
+model CardTransactionReview {
+  id                String                      @id @default(cuid())
+  companyId         String
+  cardTransactionId String
+  type              CardTransactionReviewType
+  // Only populated for AMOUNT_MISMATCH — the conflicting values found in
+  // the newer statement, shown alongside the existing record for Finance
+  // to compare before picking one.
+  incomingAmountUsd Decimal?                    @db.Decimal(12, 2)
+  incomingMerchant  String?
+  incomingCategory  String?
+  status            CardTransactionReviewStatus @default(PENDING)
+  // e.g. "kept_existing" | "kept_incoming" (AMOUNT_MISMATCH) or
+  // "kept" | "removed" (MISSING_IN_STATEMENT) — set on resolution.
+  resolution        String?
+  resolvedById      String?
+  resolvedAt        DateTime?
+  createdAt         DateTime                    @default(now())
+
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cardTransaction CardTransaction @relation(fields: [cardTransactionId], references: [id], onDelete: Cascade)
+  resolvedBy      User?           @relation("CardReviewResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([companyId, status])
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────

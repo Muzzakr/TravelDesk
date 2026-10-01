@@ -46,6 +46,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Dashboard', href: '/employee' },
     { label: 'Travel Requests', href: '/employee/travel-requests' },
     { label: 'Expenses', href: '/employee/expenses' },
+    { label: 'My Card Charges', href: '/employee/card-charges' },
     { label: 'My Profile', href: '/employee/profile' },
     NOTIFICATIONS_LINK,
     SECURITY_LINK,

@@ -30,7 +30,7 @@ A few role-specific behaviors worth knowing, verified directly in code rather th
 `TravelRequestStatus`: `DRAFT → SUBMITTED → PENDING_AGENT / PENDING_MANAGER → PENDING_ADMIN → OPTIONS_PROVIDED → APPROVED → BOOKING_CONFIRMED`, with `REJECTED`/`CANCELLED` as exits at most stages. The employee can only edit their own request *before* manager approval — enforced in the API, not just convention.
 
 Which of `PENDING_AGENT` or `PENDING_MANAGER` comes first (or both, or neither) is decided automatically by `src/lib/routing-engine.ts` (`determineRoutingPath`), in this exact priority order:
-1. Requester is themselves a `TRAVEL_MANAGER` → `MANAGER_ONLY` (books their own trip end-to-end)
+1. Requester is themselves a `TRAVEL_MANAGER` or `SYSTEM_ADMIN` → `MANAGER_ONLY` (books their own trip end-to-end)
 2. None of the requested services need booking (e.g. taxi-only) → `MANAGER_ONLY`
 3. Departure is ≤72 hours away → `PARALLEL` (urgency overrides everything else below)
 4. Estimated cost is ≥$1,500 → `MANAGER_FIRST`

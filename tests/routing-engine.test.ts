@@ -22,6 +22,16 @@ describe('determineRoutingPath', () => {
     expect(path).toBe('MANAGER_ONLY')
   })
 
+  it('routes System Admins end-to-end regardless of cost, urgency or services', () => {
+    const path = determineRoutingPath({
+      estimatedCostUsd: 999999,
+      departureDateIso: hoursFromNow(1), // urgent
+      servicesRequested: ['FLIGHT', 'HOTEL'],
+      requesterRole: 'SYSTEM_ADMIN',
+    })
+    expect(path).toBe('MANAGER_ONLY')
+  })
+
   it('skips the agent when no bookable service is requested', () => {
     const path = determineRoutingPath({
       estimatedCostUsd: 5000,

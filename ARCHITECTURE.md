@@ -61,6 +61,17 @@ All backed by NextAuth v5 (`src/lib/auth.ts`):
 3. **Magic link** — a `VerificationToken` (`TokenType.MAGIC_LINK`) emailed to the user.
 4. **Enterprise SSO (OIDC)** — one `CompanySsoConfig` per company (`src/lib/sso/oidc-client.ts`). The client secret is encrypted at rest with AES-256-GCM (`src/lib/crypto/secret-box.ts`, key from `APP_ENCRYPTION_KEY`) since, unlike a password hash, it has to be decrypted again later to make outbound token-exchange calls. If a company sets `enforced: true`, password/Google sign-in are blocked for that company's users as a backstop, even for tokens issued before enforcement was turned on.
 
+## Events management — `/admin/events`
+
+`SYSTEM_ADMIN`'s "Events" nav link goes to `admin/events` ("Event catalog") — this is the events management page, not `finance/events` ("Events & Budgets", which is budget-tracking only, linked from `FINANCE_ADMIN`'s nav instead).
+
+**Bulk import ("Upload file" button) handles CSV and XLSX**, both parsed locally (`xlsx` package + a hand-rolled CSV parser) — no external dependency, no API key needed:
+- Clicking "Upload file" shows a format-guide panel (required/optional columns, accepted types) before the native file picker opens, so the expected format is clear up front rather than discovered via a failed upload.
+- Shows an inline, **editable** preview (every field editable per row, invalid rows flagged, removable) before committing — "Create N events" writes them via looped calls to `POST /api/events`.
+- **Existing Event Codes get updated, not skipped** — this is an upsert, not a create-only import. Different semantics from a plain create-or-skip import; worth knowing before building anything that assumes duplicates are rejected.
+
+`src/app/api/events/import/route.ts` is a separate, unreachable route — not wired to any UI, not the real import path.
+
 ## Storage — three Supabase buckets, deliberately different visibility
 
 All file storage goes through `src/lib/storage.ts`, which hardcodes three bucket names (not an env var):

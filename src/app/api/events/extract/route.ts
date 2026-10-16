@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import Anthropic from '@anthropic-ai/sdk'
 import * as XLSX from 'xlsx'
 
 export type ExtractedEvent = {
@@ -103,21 +102,6 @@ function validate(raw: Partial<ExtractedEvent>): ExtractedEvent {
   }
 }
 
-const AI_PROMPT = `Extract all events from this document and return a JSON array. Each object must have these exact keys (use empty string "" for missing optional values):
-- eventCode: string  (event ID/code, e.g. "EVT-001"; generate a placeholder like "EVT-???" if not found)
-- eventName: string  (name of the event — required)
-- venue: string      (venue/location name)
-- address: string    (full street address)
-- eventDate: string  (date in YYYY-MM-DD format, or "" if unknown)
-- timing: string     (time range, e.g. "18:00-23:00", or "" if unknown)
-- assignedDj: string (DJ name, or "")
-- assignedMc: string (MC/host name, or "")
-- salesPerson: string (sales person name, or "")
-- status: "DRAFT" | "ACTIVE" | "CLOSED"  (default "DRAFT")
-
-Return ONLY the raw JSON array — no markdown, no explanation. Example:
-[{"eventCode":"EVT-001","eventName":"Summer Gala","venue":"Grand Ballroom","address":"123 Main St, New York, NY 10001","eventDate":"2026-08-15","timing":"6:00 PM - 11:00 PM","assignedDj":"DJ Alex","assignedMc":"MC Sara","salesPerson":"John Smith","status":"DRAFT"}]`
-
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -131,10 +115,9 @@ export async function POST(req: NextRequest) {
   const name = file.name.toLowerCase()
   const isCSV = name.endsWith('.csv') || file.type === 'text/csv'
   const isXLSX = name.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  const isPDF = name.endsWith('.pdf') || file.type === 'application/pdf'
 
-  if (!isCSV && !isXLSX && !isPDF)
-    return NextResponse.json({ error: 'Only CSV, Excel (.xlsx), and PDF files are supported' }, { status: 400 })
+  if (!isCSV && !isXLSX)
+    return NextResponse.json({ error: 'Only CSV and Excel (.xlsx) files are supported' }, { status: 400 })
 
   let events: ExtractedEvent[] = []
 
@@ -164,7 +147,7 @@ export async function POST(req: NextRequest) {
           status: (get('Status') || get('status') || 'DRAFT') as 'DRAFT',
         })
       })
-  } else if (isCSV) {
+  } else {
     const text = await file.text()
     const rows = parseCSV(text)
     if (rows.length === 0)
@@ -186,59 +169,8 @@ export async function POST(req: NextRequest) {
         status: normaliseStatus(row['Status'] ?? row['status'] ?? 'DRAFT'),
       })
     })
-  } else {
-    // PDF — send to Claude
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey)
-      return NextResponse.json({ error: 'AI extraction not configured (missing ANTHROPIC_API_KEY)' }, { status: 500 })
-
-    const client = new Anthropic({ apiKey })
-    const bytes = await file.arrayBuffer()
-    const base64 = Buffer.from(bytes).toString('base64')
-
-    let responseText = ''
-    try {
-      const message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'document',
-                source: { type: 'base64', media_type: 'application/pdf', data: base64 },
-              },
-              { type: 'text', text: AI_PROMPT },
-            ],
-          },
-        ],
-      })
-      responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-    } catch (err) {
-      console.error('Claude API error:', err)
-      return NextResponse.json({ error: 'AI extraction failed. Please try a CSV file instead.' }, { status: 502 })
-    }
-
-    // Extract JSON array from response
-    let rawEvents: Partial<ExtractedEvent>[] = []
-    try {
-      const match = responseText.match(/\[[\s\S]*\]/)
-      if (!match) throw new Error('No JSON array found')
-      rawEvents = JSON.parse(match[0])
-    } catch {
-      return NextResponse.json(
-        { error: 'Could not parse event data from the PDF. Please verify the document contains event information.' },
-        { status: 422 }
-      )
-    }
-
-    if (!Array.isArray(rawEvents) || rawEvents.length === 0)
-      return NextResponse.json({ error: 'No events found in the PDF.' }, { status: 422 })
-
-    events = rawEvents.map((e) => validate(e))
   }
 
-  const fileType = isCSV ? 'csv' : isXLSX ? 'xlsx' : 'pdf'
+  const fileType = isCSV ? 'csv' : 'xlsx'
   return NextResponse.json({ events, fileType })
 }

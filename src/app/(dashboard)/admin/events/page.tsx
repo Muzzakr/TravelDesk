@@ -85,6 +85,7 @@ export default function AdminEventsPage() {
   const [dateTo, setDateTo] = useState('')
 
   // Smart import state
+  const [importGuideOpen, setImportGuideOpen] = useState(false)
   const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState('')
   const [preview, setPreview] = useState<ExtractedEvent[] | null>(null)
@@ -95,6 +96,7 @@ export default function AdminEventsPage() {
 
   // Escape-to-close + focus management for the edit modal (the drawer handles its own)
   const editDismissRef = useModalDismiss<HTMLDivElement>(!!editModal, () => setEditModal(null))
+  const importGuideDismissRef = useModalDismiss<HTMLDivElement>(importGuideOpen, () => setImportGuideOpen(false))
 
   function f(key: string, value: string) { setForm((p) => ({ ...p, [key]: value })) }
 
@@ -511,10 +513,10 @@ export default function AdminEventsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Event catalog</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.pdf" aria-label="Upload event file" className="hidden" onChange={handleSmartImport} />
+          <input ref={fileInputRef} type="file" accept=".csv,.xlsx" aria-label="Upload event file" className="hidden" onChange={handleSmartImport} />
           <button
             type="button"
-            onClick={() => { setPreview(null); setExtractError(''); setCreateResult(null); fileInputRef.current?.click() }}
+            onClick={() => { setPreview(null); setExtractError(''); setCreateResult(null); setImportGuideOpen(true) }}
             disabled={extracting}
             className="inline-flex items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-3 sm:px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -548,8 +550,61 @@ export default function AdminEventsPage() {
 
       {!preview && !extracting && (
         <p className="text-xs text-gray-400">
-          Upload a <strong>CSV</strong>, <strong>Excel (.xlsx)</strong>, or <strong>PDF</strong> file — the system will automatically extract event data and show a preview for you to review and edit before saving.
+          Upload a <strong>CSV</strong> or <strong>Excel (.xlsx)</strong> file — the system will automatically extract event data and show a preview for you to review and edit before saving.
         </p>
+      )}
+
+      {/* ── Import format guide (shown before the file picker opens) ── */}
+      {importGuideOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setImportGuideOpen(false) }}
+        >
+          <div className="absolute inset-0 bg-black/50" onMouseDown={() => setImportGuideOpen(false)} />
+          <div ref={importGuideDismissRef} className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b px-6 py-4">
+              <h2 className="text-base font-semibold text-gray-900">Import events from a file</h2>
+              <button type="button" aria-label="Close" onClick={() => setImportGuideOpen(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Required columns</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="text-gray-500">
+                      <tr><th className="pb-1.5 pr-3 font-medium">Column</th><th className="pb-1.5 font-medium">Notes</th></tr>
+                    </thead>
+                    <tbody className="text-gray-600">
+                      <tr><td className="py-0.5 pr-3 font-mono text-gray-900">Event Code *</td><td className="py-0.5"></td></tr>
+                      <tr><td className="py-0.5 pr-3 font-mono text-gray-900">Event Name *</td><td className="py-0.5"></td></tr>
+                      <tr><td className="py-0.5 pr-3 font-mono">Status</td><td className="py-0.5">DRAFT / ACTIVE / CLOSED — defaults to DRAFT</td></tr>
+                      <tr><td className="py-0.5 pr-3 font-mono">Date</td><td className="py-0.5">YYYY-MM-DD preferred</td></tr>
+                      <tr><td className="py-0.5 pr-3 font-mono">Venue, Address, Timing</td><td className="py-0.5">optional</td></tr>
+                      <tr><td className="py-0.5 pr-3 font-mono">Assigned DJ, Assigned MC, Sales Person</td><td className="py-0.5">optional</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-gray-400">
+                  * required. You&apos;ll be able to review and edit every row before anything is saved — and an existing Event Code will update that event rather than create a duplicate.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setImportGuideOpen(false); fileInputRef.current?.click() }}
+                className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Choose file (CSV or Excel)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Search / filter ─────────────────────────────── */}

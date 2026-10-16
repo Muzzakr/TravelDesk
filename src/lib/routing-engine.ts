@@ -11,8 +11,8 @@ const MANAGER_FIRST_THRESHOLD_USD = 1500
 const URGENT_HOURS = 72
 
 export function determineRoutingPath(input: RoutingInput): RoutingPath {
-  // Travel managers handle everything end-to-end — no agent step
-  if (input.requesterRole === 'TRAVEL_MANAGER') return 'MANAGER_ONLY'
+  // Travel managers and system admins handle everything end-to-end — no agent step
+  if (['TRAVEL_MANAGER', 'SYSTEM_ADMIN'].includes(input.requesterRole ?? '')) return 'MANAGER_ONLY'
 
   const hoursUntilDeparture = getHoursUntilDeparture(input.departureDateIso)
   const isUrgent = hoursUntilDeparture <= URGENT_HOURS

@@ -61,6 +61,14 @@ All backed by NextAuth v5 (`src/lib/auth.ts`):
 3. **Magic link** — a `VerificationToken` (`TokenType.MAGIC_LINK`) emailed to the user.
 4. **Enterprise SSO (OIDC)** — one `CompanySsoConfig` per company (`src/lib/sso/oidc-client.ts`). The client secret is encrypted at rest with AES-256-GCM (`src/lib/crypto/secret-box.ts`, key from `APP_ENCRYPTION_KEY`) since, unlike a password hash, it has to be decrypted again later to make outbound token-exchange calls. If a company sets `enforced: true`, password/Google sign-in are blocked for that company's users as a backstop, even for tokens issued before enforcement was turned on.
 
+## Bulk event import — preview before commit, never a direct write
+
+`finance/events`, `SYSTEM_ADMIN` only: upload a CSV, review a preview, then explicitly approve before anything is written. Two separate endpoints, deliberately — a previewed row is guaranteed to parse identically at commit time because both share the same pure parsing/validation function (`src/lib/events-import.ts`):
+- `POST /api/events/import/preview` — parses + validates the file and checks incoming `Event Code`s against what's already in the company, but writes nothing. Returns rows bucketed into `toCreate` (new), `duplicates` (same `Event Code` already exists — shown incoming-vs-existing so the admin can see at a glance it's not silently overwriting anything), and `errors` (row-level validation failures — one bad row never blocks the rest of the file).
+- `POST /api/events/import` — commits a `{ events: [...] }` array (the `toCreate` list the admin just reviewed and approved client-side), not a raw file. This endpoint never re-parses anything.
+
+Required columns: `Event Code` (unique) and `Event Name`. Optional: `Status` (`DRAFT`/`ACTIVE`/`CLOSED`, defaults `DRAFT`), `Date` (`YYYY-MM-DD` preferred, `MM-DD-YYYY` also accepted), `Venue`, `Address`, `Timing`, `Assigned DJ`, `Assigned MC`, `Sales Person`. Not settable via import: `dateStart`/`dateEnd`/`service`/`costCenter`/`budgetUsd` — those exist on `Event` but only get set afterward, per-event.
+
 ## Storage — three Supabase buckets, deliberately different visibility
 
 All file storage goes through `src/lib/storage.ts`, which hardcodes three bucket names (not an env var):

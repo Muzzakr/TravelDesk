@@ -23,32 +23,6 @@ type DocRow = {
   uploader: { name: string }
 }
 
-type ParsedEventRow = {
-  rowNum: number
-  eventCode: string
-  eventName: string
-  status: 'DRAFT' | 'ACTIVE' | 'CLOSED'
-  venue?: string
-  address?: string
-  eventDate?: string
-  timing?: string
-  assignedDj?: string
-  assignedMc?: string
-  salesPerson?: string
-}
-
-type ImportPreview = {
-  toCreate: ParsedEventRow[]
-  duplicates: { incoming: ParsedEventRow; existing: { eventCode: string; eventName: string; status: string; eventDate: string | null; venue: string | null } }[]
-  errors: string[]
-}
-
-const EVENTS_CSV_TEMPLATE = [
-  'Event Code,Event Name,Status,Venue,Date,Timing,Assigned DJ,Assigned MC,Sales Person',
-  'EVT-101,Q1 Kickoff,ACTIVE,Grand Hall,2026-11-15,6:00 PM - 11:00 PM,DJ Mike,Sarah K,John D',
-  'EVT-102,Spring Gala,DRAFT,,2026-12-01,,,,',
-].join('\n')
-
 export default function FinanceEventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,98 +44,13 @@ export default function FinanceEventsPage() {
   const [uploadError, setUploadError] = useState('')
   const [docCounts, setDocCounts] = useState<Record<string, number>>({})
 
-  // import modal
-  const [isSystemAdmin, setIsSystemAdmin] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [importFile, setImportFile] = useState<File | null>(null)
-  const [previewing, setPreviewing] = useState(false)
-  const [previewError, setPreviewError] = useState('')
-  const [preview, setPreview] = useState<ImportPreview | null>(null)
-  const [committing, setCommitting] = useState(false)
-  const [importResult, setImportResult] = useState<{ created: number; skipped: number; errors: string[] } | null>(null)
-
   async function load() {
-    const [eventsRes, sessionRes] = await Promise.all([
-      fetch('/api/events'),
-      fetch('/api/auth/session'),
-    ])
-    if (eventsRes.ok) setEvents(await eventsRes.json())
-    const session = await sessionRes.json().catch(() => null)
-    setIsSystemAdmin(session?.user?.role === 'SYSTEM_ADMIN')
+    const res = await fetch('/api/events')
+    if (res.ok) setEvents(await res.json())
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
-
-  function openImportModal() {
-    setImportFile(null)
-    setPreview(null)
-    setPreviewError('')
-    setImportResult(null)
-    setImportOpen(true)
-  }
-
-  function closeImportModal() {
-    setImportOpen(false)
-  }
-
-  const importDismissRef = useModalDismiss<HTMLDivElement>(importOpen, closeImportModal)
-
-  function downloadTemplate() {
-    const blob = new Blob([EVENTS_CSV_TEMPLATE], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'events-import-template.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  async function handleImportFile(file: File) {
-    setImportFile(file)
-    setPreview(null)
-    setPreviewError('')
-    setPreviewing(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch('/api/events/import/preview', { method: 'POST', body: fd })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setPreviewError(data.error ?? `Preview failed (${res.status})`)
-      } else {
-        setPreview(data)
-      }
-    } catch {
-      setPreviewError('Network error — please try again.')
-    } finally {
-      setPreviewing(false)
-    }
-  }
-
-  async function confirmImport() {
-    if (!preview || preview.toCreate.length === 0) return
-    setCommitting(true)
-    try {
-      const res = await fetch('/api/events/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ events: preview.toCreate }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setImportResult(data)
-        setPreview(null)
-        await load()
-      } else {
-        setPreviewError(data.error ?? `Import failed (${res.status})`)
-      }
-    } catch {
-      setPreviewError('Network error — please try again.')
-    } finally {
-      setCommitting(false)
-    }
-  }
 
   const selectedEvent = events.find((ev) => ev.id === selectedId) ?? null
 
@@ -258,18 +147,7 @@ export default function FinanceEventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Events &amp; Budgets</h1>
-        {isSystemAdmin && (
-          <button
-            type="button"
-            onClick={openImportModal}
-            className="rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-          >
-            Import Events
-          </button>
-        )}
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900">Events &amp; Budgets</h1>
 
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
 
@@ -445,200 +323,6 @@ export default function FinanceEventsPage() {
                   onFile={handleDocUpload}
                 />
                 {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Import Events modal */}
-      {importOpen && (
-        <>
-          <div className="fixed inset-0 z-[99] bg-black/40" onClick={closeImportModal} />
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-            <div
-              ref={importDismissRef}
-              className="pointer-events-auto flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal header */}
-              <div className="flex shrink-0 items-center justify-between border-b px-6 py-4">
-                <h2 className="text-base font-semibold text-gray-900">Import Events</h2>
-                <button type="button" onClick={closeImportModal} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-              </div>
-
-              <div className="overflow-y-auto px-6 py-4 space-y-5">
-                {importResult ? (
-                  /* ── Step 3: result summary ── */
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-                      <p className="text-sm font-semibold text-green-800">
-                        {importResult.created} event{importResult.created === 1 ? '' : 's'} created
-                      </p>
-                      {importResult.skipped > 0 && (
-                        <p className="mt-1 text-sm text-green-700">{importResult.skipped} skipped — see details below.</p>
-                      )}
-                    </div>
-                    {importResult.errors.length > 0 && (
-                      <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 space-y-1">
-                        {importResult.errors.map((e, i) => (
-                          <p key={i} className="text-xs text-yellow-800">{e}</p>
-                        ))}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={closeImportModal}
-                      className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
-                    >
-                      Done
-                    </button>
-                  </div>
-                ) : preview ? (
-                  /* ── Step 2: preview — review before committing ── */
-                  <div className="space-y-5">
-                    <div className="flex flex-wrap gap-2 text-sm">
-                      <span className="rounded-full bg-green-100 px-3 py-1 font-medium text-green-700">
-                        {preview.toCreate.length} new
-                      </span>
-                      {preview.duplicates.length > 0 && (
-                        <span className="rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-600">
-                          {preview.duplicates.length} already exist — will be skipped
-                        </span>
-                      )}
-                      {preview.errors.length > 0 && (
-                        <span className="rounded-full bg-red-100 px-3 py-1 font-medium text-red-700">
-                          {preview.errors.length} row error{preview.errors.length === 1 ? '' : 's'}
-                        </span>
-                      )}
-                    </div>
-
-                    {preview.toCreate.length > 0 && (
-                      <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">New events to create</p>
-                        <div className="max-h-48 overflow-y-auto rounded-xl border border-gray-100">
-                          <table className="w-full text-left text-sm">
-                            <thead className="sticky top-0 bg-gray-50 text-xs text-gray-500">
-                              <tr>
-                                <th className="px-3 py-2 font-medium">Code</th>
-                                <th className="px-3 py-2 font-medium">Name</th>
-                                <th className="px-3 py-2 font-medium">Status</th>
-                                <th className="px-3 py-2 font-medium">Date</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {preview.toCreate.map((r) => (
-                                <tr key={r.rowNum} className="border-t border-gray-100">
-                                  <td className="px-3 py-2 font-mono text-xs text-gray-700">{r.eventCode}</td>
-                                  <td className="px-3 py-2 text-gray-900">{r.eventName}</td>
-                                  <td className="px-3 py-2"><Badge variant={statusToBadgeVariant(r.status)}>{r.status}</Badge></td>
-                                  <td className="px-3 py-2 text-gray-500">{r.eventDate ?? '—'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {preview.duplicates.length > 0 && (
-                      <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Already exist (same Event Code) — will be skipped
-                        </p>
-                        <div className="max-h-40 overflow-y-auto rounded-xl border border-gray-100">
-                          <table className="w-full text-left text-sm">
-                            <thead className="sticky top-0 bg-gray-50 text-xs text-gray-500">
-                              <tr>
-                                <th className="px-3 py-2 font-medium">Code</th>
-                                <th className="px-3 py-2 font-medium">Incoming name</th>
-                                <th className="px-3 py-2 font-medium">Existing name</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {preview.duplicates.map((d) => (
-                                <tr key={d.incoming.rowNum} className="border-t border-gray-100">
-                                  <td className="px-3 py-2 font-mono text-xs text-gray-700">{d.incoming.eventCode}</td>
-                                  <td className="px-3 py-2 text-gray-500">{d.incoming.eventName}</td>
-                                  <td className="px-3 py-2 text-gray-900">{d.existing.eventName}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {preview.errors.length > 0 && (
-                      <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
-                        {preview.errors.map((e, i) => (
-                          <p key={i} className="text-xs text-red-700">{e}</p>
-                        ))}
-                      </div>
-                    )}
-
-                    {previewError && <p className="text-sm text-red-600">{previewError}</p>}
-
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={confirmImport}
-                        disabled={preview.toCreate.length === 0 || committing}
-                        className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {committing ? 'Importing…' : `Import ${preview.toCreate.length} event${preview.toCreate.length === 1 ? '' : 's'}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setPreview(null); setImportFile(null) }}
-                        disabled={committing}
-                        className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Choose different file
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* ── Step 1: format guide + file picker ── */
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Required CSV format</p>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead className="text-gray-500">
-                            <tr>
-                              <th className="pb-1.5 pr-3 font-medium">Column</th>
-                              <th className="pb-1.5 font-medium">Notes</th>
-                            </tr>
-                          </thead>
-                          <tbody className="text-gray-600">
-                            <tr><td className="py-0.5 pr-3 font-mono text-gray-900">Event Code *</td><td className="py-0.5">must be unique</td></tr>
-                            <tr><td className="py-0.5 pr-3 font-mono text-gray-900">Event Name *</td><td className="py-0.5"></td></tr>
-                            <tr><td className="py-0.5 pr-3 font-mono">Status</td><td className="py-0.5">DRAFT / ACTIVE / CLOSED — defaults to DRAFT</td></tr>
-                            <tr><td className="py-0.5 pr-3 font-mono">Date</td><td className="py-0.5">YYYY-MM-DD preferred</td></tr>
-                            <tr><td className="py-0.5 pr-3 font-mono">Venue, Address, Timing</td><td className="py-0.5">optional</td></tr>
-                            <tr><td className="py-0.5 pr-3 font-mono">Assigned DJ, Assigned MC, Sales Person</td><td className="py-0.5">optional</td></tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      <p className="mt-2 text-xs text-gray-400">* required. Budget and cost-center aren&apos;t set via import — add those after, on each event.</p>
-                      <button type="button" onClick={downloadTemplate} className="mt-3 text-xs font-medium text-indigo-600 hover:underline">
-                        Download CSV template →
-                      </button>
-                    </div>
-
-                    <FileUpload
-                      label={previewing ? 'Checking file…' : 'Click or drag CSV file here'}
-                      hint="CSV only — max 10 MB"
-                      accept="text/csv,.csv"
-                      file={importFile}
-                      disabled={previewing}
-                      onFile={handleImportFile}
-                      onClear={() => { setImportFile(null); setPreviewError('') }}
-                    />
-                    {previewError && <p className="text-sm text-red-600">{previewError}</p>}
-                  </div>
-                )}
               </div>
             </div>
           </div>

@@ -99,13 +99,37 @@ export async function POST(req: NextRequest) {
 
   const initialStatus = 'PENDING_MANAGER'
 
-  // Admin can create on behalf of another employee
+  // Admin can create on behalf of another employee — must belong to this company
   const isAdmin = session.user.role === 'SYSTEM_ADMIN'
-  const targetEmployeeId = (isAdmin && parsed.data.employeeId) ? parsed.data.employeeId : session.user.id
+  let targetEmployeeId = session.user.id
+  let targetEmployeeManagerId: string | null = null
 
-  // Resolve which manager gets this request
-  const emp = await prisma.user.findUnique({ where: { id: targetEmployeeId }, select: { managerId: true } })
-  const resolvedManagerId = parsed.data.managerId ?? emp?.managerId ?? null
+  if (isAdmin && parsed.data.employeeId) {
+    const targetEmployee = await prisma.user.findFirst({
+      where: { id: parsed.data.employeeId, companyId: session.user.companyId },
+      select: { id: true, managerId: true },
+    })
+    if (!targetEmployee) return NextResponse.json({ error: 'Employee not found in this company' }, { status: 400 })
+    targetEmployeeId = targetEmployee.id
+    targetEmployeeManagerId = targetEmployee.managerId
+  } else {
+    const emp = await prisma.user.findUnique({ where: { id: targetEmployeeId }, select: { managerId: true } })
+    targetEmployeeManagerId = emp?.managerId ?? null
+  }
+
+  // Resolve which manager gets this request — an explicitly supplied
+  // managerId must belong to this company, never trust it blindly
+  let resolvedManagerId: string | null = null
+  if (parsed.data.managerId) {
+    const manager = await prisma.user.findFirst({
+      where: { id: parsed.data.managerId, companyId: session.user.companyId },
+      select: { id: true },
+    })
+    if (!manager) return NextResponse.json({ error: 'Manager not found in this company' }, { status: 400 })
+    resolvedManagerId = manager.id
+  } else {
+    resolvedManagerId = targetEmployeeManagerId
+  }
 
   const travelRequest = await prisma.travelRequest.create({
     data: {

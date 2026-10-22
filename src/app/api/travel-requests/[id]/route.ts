@@ -80,15 +80,31 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const role = session.user.role ?? ''
   // Travel approval belongs to managers/agents — finance handles payouts, not travel
   const approverRoles = ['MANAGER', 'TRAVEL_MANAGER', 'TRAVEL_AGENT', 'SYSTEM_ADMIN']
+  // Reassigning agentId/managerId is an approver action even when no status
+  // is being set in the same request — without this, a request body with
+  // only { agentId } skipped both branches below and bypassed every check.
+  const reassignsOwnership = parsed.data.agentId !== undefined || parsed.data.managerId !== undefined
 
   if (parsed.data.status === 'CANCELLED') {
     if (request.employeeId !== session.user.id && !approverRoles.includes(role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-  } else if (parsed.data.status) {
+  } else if (parsed.data.status || reassignsOwnership) {
     if (!approverRoles.includes(role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+  }
+
+  // agentId/managerId must belong to this company — never trust a
+  // client-supplied id blindly, it flows straight into an email/notification
+  // lookup further down with no company filter of its own.
+  if (parsed.data.agentId !== undefined) {
+    const agent = await prisma.user.findFirst({ where: { id: parsed.data.agentId, companyId: session.user.companyId } })
+    if (!agent) return NextResponse.json({ error: 'Agent not found in this company' }, { status: 400 })
+  }
+  if (parsed.data.managerId !== undefined) {
+    const manager = await prisma.user.findFirst({ where: { id: parsed.data.managerId, companyId: session.user.companyId } })
+    if (!manager) return NextResponse.json({ error: 'Manager not found in this company' }, { status: 400 })
   }
 
   // Allow employee to edit trip details before first approval

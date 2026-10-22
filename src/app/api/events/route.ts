@@ -22,6 +22,12 @@ const CreateEventSchema = z.object({
   salesPerson: z.string().optional(),
   costCenter: z.string().optional(),
   budgetUsd: z.number().optional(),
+  eventUrl: z.string().optional(),
+  packageName: z.string().optional(),
+  packageDetails: z.string().optional(),
+  addonNames: z.string().optional(),
+  publicNotes: z.string().optional(),
+  privateNotes: z.string().optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -90,6 +96,12 @@ export async function POST(req: NextRequest) {
     salesPerson: d.salesPerson,
     costCenter: d.costCenter,
     budgetUsd: d.budgetUsd ?? 0,
+    eventUrl: d.eventUrl,
+    packageName: d.packageName,
+    packageDetails: d.packageDetails,
+    addonNames: d.addonNames,
+    publicNotes: d.publicNotes,
+    privateNotes: d.privateNotes,
   }
   const existing = await prisma.event.findUnique({
     where: { companyId_eventCode: { companyId: session.user.companyId, eventCode: d.eventCode } },
@@ -115,6 +127,12 @@ export async function POST(req: NextRequest) {
         salesPerson: data.salesPerson,
         costCenter: data.costCenter,
         budgetUsd: data.budgetUsd,
+        eventUrl: data.eventUrl,
+        packageName: data.packageName,
+        packageDetails: data.packageDetails,
+        addonNames: data.addonNames,
+        publicNotes: data.publicNotes,
+        privateNotes: data.privateNotes,
       },
     })
   } catch (err: unknown) {

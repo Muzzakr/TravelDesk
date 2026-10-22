@@ -147,6 +147,34 @@ export function EventDetailDrawer({
               <DetailRow label="Assigned DJ" value={event.assignedDj} />
               <DetailRow label="Assigned MC" value={event.assignedMc} />
             </div>
+            {(event.eventUrl || event.packageName || event.addonNames) && (
+              <>
+                <div className="h-px bg-gray-100" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <DetailRow label="Event URL" value={event.eventUrl} />
+                  <DetailRow label="Package Name" value={event.packageName} />
+                </div>
+                <DetailRow label="Add-on Names" value={event.addonNames} />
+              </>
+            )}
+            {event.packageDetails && (
+              <>
+                <div className="h-px bg-gray-100" />
+                <DetailRow label="Package Details" value={event.packageDetails} />
+              </>
+            )}
+            {event.publicNotes && (
+              <>
+                <div className="h-px bg-gray-100" />
+                <DetailRow label="Public Notes" value={event.publicNotes} />
+              </>
+            )}
+            {event.privateNotes && (
+              <>
+                <div className="h-px bg-gray-100" />
+                <DetailRow label="Private Notes" value={event.privateNotes} />
+              </>
+            )}
             {(event.costCenter || event.budgetUsd > 0) && (
               <>
                 <div className="h-px bg-gray-100" />

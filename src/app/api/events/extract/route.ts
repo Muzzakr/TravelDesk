@@ -13,6 +13,12 @@ export type ExtractedEvent = {
   assignedMc: string
   salesPerson: string
   status: 'DRAFT' | 'ACTIVE' | 'CLOSED'
+  eventUrl: string
+  packageName: string
+  packageDetails: string
+  addonNames: string
+  publicNotes: string
+  privateNotes: string
   errors: string[]
 }
 
@@ -98,6 +104,12 @@ function validate(raw: Partial<ExtractedEvent>): ExtractedEvent {
     assignedMc: raw.assignedMc?.trim() ?? '',
     salesPerson: raw.salesPerson?.trim() ?? '',
     status,
+    eventUrl: raw.eventUrl?.trim() ?? '',
+    packageName: raw.packageName?.trim() ?? '',
+    packageDetails: raw.packageDetails?.trim() ?? '',
+    addonNames: raw.addonNames?.trim() ?? '',
+    publicNotes: raw.publicNotes?.trim() ?? '',
+    privateNotes: raw.privateNotes?.trim() ?? '',
     errors,
   }
 }
@@ -145,6 +157,12 @@ export async function POST(req: NextRequest) {
           assignedMc: get('Assigned MC') || get('assignedMc'),
           salesPerson: get('Sales Person') || get('salesPerson'),
           status: (get('Status') || get('status') || 'DRAFT') as 'DRAFT',
+          eventUrl: get('Event URL') || get('eventUrl'),
+          packageName: get('Package Name') || get('packageName'),
+          packageDetails: get('Package Details') || get('packageDetails'),
+          addonNames: get('Add-on Names') || get('addonNames'),
+          publicNotes: get('Public Notes') || get('publicNotes'),
+          privateNotes: get('Private Notes') || get('privateNotes'),
         })
       })
   } else {
@@ -167,6 +185,12 @@ export async function POST(req: NextRequest) {
         assignedMc: row['Assigned MC'] ?? row['Assigned_MC'] ?? row['assignedMc'] ?? staff.mc,
         salesPerson: row['Sales Person'] ?? row['Sales_Person'] ?? row['salesPerson'] ?? row['Created by'] ?? row['created_by'] ?? '',
         status: normaliseStatus(row['Status'] ?? row['status'] ?? 'DRAFT'),
+        eventUrl: row['Event URL'] ?? row['eventUrl'] ?? '',
+        packageName: row['Package Name'] ?? row['packageName'] ?? '',
+        packageDetails: row['Package Details'] ?? row['packageDetails'] ?? '',
+        addonNames: row['Add-on Names'] ?? row['addonNames'] ?? '',
+        publicNotes: row['Public Notes'] ?? row['publicNotes'] ?? '',
+        privateNotes: row['Private Notes'] ?? row['privateNotes'] ?? '',
       })
     })
   }

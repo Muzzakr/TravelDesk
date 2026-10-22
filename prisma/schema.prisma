@@ -189,6 +189,20 @@ model Event {
   dateStart DateTime?
   dateEnd   DateTime?
   timing    String?
+  eventUrl  String?
+
+  // Booking package — from the booking-system export; no equivalent
+  // elsewhere in the app, kept as plain free text
+  packageName    String?
+  packageDetails String?
+  addonNames     String?
+
+  // Notes — the source export distinguishes "public" (client-visible) vs.
+  // "private" (internal-only), but TravelDesk has no client-facing view at
+  // all, so that split doesn't apply here: both are plain fields visible to
+  // whoever can already see this event's details, no extra access rule.
+  publicNotes  String?
+  privateNotes String?
 
   // Staff
   assignedDj  String?

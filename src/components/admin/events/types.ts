@@ -35,6 +35,12 @@ export type EventRow = {
   salesPerson: string | null
   costCenter: string | null
   budgetUsd: number
+  eventUrl: string | null
+  packageName: string | null
+  packageDetails: string | null
+  addonNames: string | null
+  publicNotes: string | null
+  privateNotes: string | null
   owner: EventOwner
   _count: { expenses: number }
 }

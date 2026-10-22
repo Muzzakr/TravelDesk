@@ -14,6 +14,8 @@ const EMPTY_FORM = {
   eventCode: '', eventName: '', venue: '', address: '',
   eventDate: '', timing: '', assignedDj: '', assignedMc: '',
   salesPerson: '', costCenter: '', budgetUsd: '', status: 'DRAFT',
+  eventUrl: '', packageName: '', packageDetails: '', addonNames: '',
+  publicNotes: '', privateNotes: '',
 }
 
 function Field({
@@ -43,6 +45,20 @@ function Field({
     )
   if (type === 'date')
     return <DateInput label={`${label}${required ? ' *' : ''}`} title={label} value={value} onChange={onChange} className={base} />
+  if (type === 'textarea')
+    return (
+      <div>
+        <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{label}{required && ' *'}</label>
+        <textarea
+          title={label}
+          placeholder={label}
+          value={value}
+          rows={2}
+          onChange={(e) => onChange(e.target.value)}
+          className={base}
+        />
+      </div>
+    )
   return (
     <div>
       <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{label}{required && ' *'}</label>
@@ -152,6 +168,12 @@ export default function AdminEventsPage() {
       costCenter: ev.costCenter ?? '',
       budgetUsd: ev.budgetUsd ? String(ev.budgetUsd) : '',
       status: ev.status,
+      eventUrl: ev.eventUrl ?? '',
+      packageName: ev.packageName ?? '',
+      packageDetails: ev.packageDetails ?? '',
+      addonNames: ev.addonNames ?? '',
+      publicNotes: ev.publicNotes ?? '',
+      privateNotes: ev.privateNotes ?? '',
     })
     setEditError('')
     setEditModal(ev)
@@ -240,6 +262,9 @@ export default function AdminEventsPage() {
           eventDate: ev.eventDate || undefined, timing: ev.timing || undefined,
           assignedDj: ev.assignedDj || undefined, assignedMc: ev.assignedMc || undefined,
           salesPerson: ev.salesPerson || undefined, status: ev.status,
+          eventUrl: ev.eventUrl || undefined, packageName: ev.packageName || undefined,
+          packageDetails: ev.packageDetails || undefined, addonNames: ev.addonNames || undefined,
+          publicNotes: ev.publicNotes || undefined, privateNotes: ev.privateNotes || undefined,
         }),
       })
       if (res.ok) {
@@ -422,6 +447,38 @@ export default function AdminEventsPage() {
                       className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
                   </div>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Event URL</label>
+                    <input title="Event URL" placeholder="Event URL" value={editForm.eventUrl} onChange={(e) => ef('eventUrl', e.target.value)}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Package Name</label>
+                    <input title="Package Name" placeholder="Package Name" value={editForm.packageName} onChange={(e) => ef('packageName', e.target.value)}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500">Add-on Names</label>
+                  <input title="Add-on Names" placeholder="Add-on Names" value={editForm.addonNames} onChange={(e) => ef('addonNames', e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500">Package Details</label>
+                  <textarea title="Package Details" placeholder="Package Details" rows={2} value={editForm.packageDetails} onChange={(e) => ef('packageDetails', e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500">Public Notes</label>
+                  <textarea title="Public Notes" placeholder="Public Notes" rows={2} value={editForm.publicNotes} onChange={(e) => ef('publicNotes', e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500">Private Notes</label>
+                  <textarea title="Private Notes" placeholder="Private Notes" rows={2} value={editForm.privateNotes} onChange={(e) => ef('privateNotes', e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" />
+                </div>
                 {editError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{editError}</p>}
               </div>
 
@@ -502,6 +559,12 @@ export default function AdminEventsPage() {
                   <Field label="Assigned MC" value={ev.assignedMc} onChange={(v) => updatePreviewRow(i, 'assignedMc', v)} />
                   <Field label="Sales Person" value={ev.salesPerson} onChange={(v) => updatePreviewRow(i, 'salesPerson', v)} />
                   <Field label="Status" value={ev.status} isSelect onChange={(v) => updatePreviewRow(i, 'status', v)} />
+                  <Field label="Event URL" value={ev.eventUrl} onChange={(v) => updatePreviewRow(i, 'eventUrl', v)} />
+                  <Field label="Package Name" value={ev.packageName} onChange={(v) => updatePreviewRow(i, 'packageName', v)} />
+                  <Field label="Add-on Names" value={ev.addonNames} onChange={(v) => updatePreviewRow(i, 'addonNames', v)} />
+                  <Field label="Package Details" value={ev.packageDetails} type="textarea" onChange={(v) => updatePreviewRow(i, 'packageDetails', v)} />
+                  <Field label="Public Notes" value={ev.publicNotes} type="textarea" onChange={(v) => updatePreviewRow(i, 'publicNotes', v)} />
+                  <Field label="Private Notes" value={ev.privateNotes} type="textarea" onChange={(v) => updatePreviewRow(i, 'privateNotes', v)} />
                 </div>
               </div>
             ))}
@@ -587,6 +650,8 @@ export default function AdminEventsPage() {
                       <tr><td className="py-0.5 pr-3 font-mono">Date</td><td className="py-0.5">YYYY-MM-DD preferred</td></tr>
                       <tr><td className="py-0.5 pr-3 font-mono">Venue, Address, Timing</td><td className="py-0.5">optional</td></tr>
                       <tr><td className="py-0.5 pr-3 font-mono">Assigned DJ, Assigned MC, Sales Person</td><td className="py-0.5">optional</td></tr>
+                      <tr><td className="py-0.5 pr-3 font-mono">Event URL, Package Name, Add-on Names</td><td className="py-0.5">optional</td></tr>
+                      <tr><td className="py-0.5 pr-3 font-mono">Package Details, Public Notes, Private Notes</td><td className="py-0.5">optional</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -732,6 +797,38 @@ export default function AdminEventsPage() {
                 </select>
               </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Event URL</label>
+                <input value={form.eventUrl} onChange={(e) => f('eventUrl', e.target.value)}
+                  placeholder="https://..." className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Package Name</label>
+                <input value={form.packageName} onChange={(e) => f('packageName', e.target.value)}
+                  placeholder="Gold Package" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Add-on Names</label>
+              <input value={form.addonNames} onChange={(e) => f('addonNames', e.target.value)}
+                placeholder="Uplighting, Photo Booth" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Package Details</label>
+              <textarea value={form.packageDetails} onChange={(e) => f('packageDetails', e.target.value)}
+                rows={2} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Public Notes</label>
+              <textarea value={form.publicNotes} onChange={(e) => f('publicNotes', e.target.value)}
+                rows={2} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Private Notes</label>
+              <textarea value={form.privateNotes} onChange={(e) => f('privateNotes', e.target.value)}
+                rows={2} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            </div>
             {formError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{formError}</p>}
             <Button type="submit" loading={saving}>Create event</Button>
           </form>
@@ -743,7 +840,7 @@ export default function AdminEventsPage() {
         <p className="text-sm text-gray-400 py-6 text-center">Loading…</p>
       ) : events.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center text-sm text-gray-400">
-          No events yet. Click &quot;+ New event&quot; or upload a CSV / PDF to get started.
+          No events yet. Click &quot;+ New event&quot; or upload a CSV / Excel file to get started.
         </div>
       ) : filteredEvents.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center">
